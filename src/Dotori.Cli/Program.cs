@@ -1,4 +1,5 @@
 using System.CommandLine;
+using Dotori.Cli;
 using Dotori.Cli.Commands;
 
 var rootCommand = new RootCommand("dotori — C++ build system and package manager");
@@ -30,4 +31,5 @@ rootCommand.Add(OwnerCommandFactory.Create());
 rootCommand.Add(YankCommandFactory.CreateYank());
 rootCommand.Add(YankCommandFactory.CreateUnyank());
 
+EnvFileLoader.Load();
 return await rootCommand.Parse(args).InvokeAsync();
