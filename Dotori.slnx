@@ -1,4 +1,13 @@
 <Solution>
+  <Folder Name="/Docs/">
+    <File Path="docs\building.md" />
+    <File Path="docs\cli.md" />
+    <File Path="docs\distributed-build.md" />
+    <File Path="docs\dotori-file.md" />
+    <File Path="docs\examples.md" />
+    <File Path="docs\index.md" />
+    <File Path="docs\registry.md" />
+  </Folder>
   <Folder Name="/Dotori/">
     <Project Path="src/Dotori.Cli/Dotori.Cli.csproj" />
     <Project Path="src/Dotori.Core/Dotori.Core.csproj" />
@@ -8,6 +17,10 @@
     <Project Path="src/Dotori.Worker/Dotori.Worker.csproj" />
     <Project Path="src/Dotori.LanguageServer/Dotori.LanguageServer.csproj" />
     <Project Path="src/Dotori.Registry/Dotori.Registry.csproj" />
+  </Folder>
+  <Folder Name="/Scripts/">
+    <File Path="build.ps1" />
+    <File Path="build.sh" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="tests/Dotori.Tests.Build/Dotori.Tests.Build.csproj" />

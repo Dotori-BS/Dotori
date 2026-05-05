@@ -56,6 +56,12 @@
       <LinkerArg Include="-L$(_XcodeDevDir)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/macosx"
                  Condition="Exists('$(_XcodeDevDir)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/macosx')" />
     </ItemGroup>
+	  
+	<ItemGroup>
+	  <NativeSystemLibrary Remove="dl" />
+	  <LinkerArg Remove="-ldl" />
+	  <LinkerArg Remove="@(LinkerArg)" Condition="'%(LinkerArg.Identity)' == '-ldl'" />
+	</ItemGroup>
   </Target>
 
 </Project>
