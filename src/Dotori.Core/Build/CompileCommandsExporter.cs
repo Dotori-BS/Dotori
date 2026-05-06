@@ -36,25 +36,39 @@ internal sealed partial class CompileCommandsJsonContext : JsonSerializerContext
 public static class CompileCommandsExporter
 {
     /// <summary>
-    /// Generate compile_commands.json entries for all source files in a project.
+    /// Generate compile_commands.json entries for all source files in a project,
+    /// including C++ module files (.cppm/.ixx) from the modules { } block.
     /// </summary>
-    public static IReadOnlyList<CompileCommandEntry> GenerateEntries(
-        FlatProjectModel model,
-        ToolchainInfo    toolchain,
-        string           config,
-        string           targetId)
+    public static async Task<IReadOnlyList<CompileCommandEntry>> GenerateEntriesAsync(
+        FlatProjectModel  model,
+        ToolchainInfo     toolchain,
+        string            config,
+        string            targetId,
+        CancellationToken ct = default)
     {
-        var planner = new BuildPlanner(model, toolchain, config, targetId);
-        var jobs    = planner.PlanCompileJobs();
-        var entries = new List<CompileCommandEntry>(jobs.Count);
+        var planner     = new BuildPlanner(model, toolchain, config, targetId);
+        var compileJobs = planner.PlanCompileJobs();
+        var moduleJobs  = await planner.PlanModuleJobsAsync(ct: ct);
 
-        foreach (var job in jobs)
+        var entries = new List<CompileCommandEntry>(compileJobs.Count + moduleJobs.Count);
+
+        foreach (var job in compileJobs)
         {
-            var command = $"\"{toolchain.CompilerPath}\" {string.Join(" ", job.Args)}";
             entries.Add(new CompileCommandEntry
             {
                 Directory = model.ProjectDir,
-                Command   = command,
+                Command   = $"\"{toolchain.CompilerPath}\" {string.Join(" ", job.Args)}",
+                File      = job.SourceFile,
+                Output    = job.OutputFile,
+            });
+        }
+
+        foreach (var job in moduleJobs)
+        {
+            entries.Add(new CompileCommandEntry
+            {
+                Directory = model.ProjectDir,
+                Command   = $"\"{toolchain.CompilerPath}\" {string.Join(" ", job.Args)}",
                 File      = job.SourceFile,
                 Output    = job.OutputFile,
             });

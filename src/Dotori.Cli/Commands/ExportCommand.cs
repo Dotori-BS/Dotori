@@ -84,7 +84,7 @@ internal static class ExportCommandFactory
                         continue;
                     }
 
-                    var entries = CompileCommandsExporter.GenerateEntries(model, toolchain, config, targetId);
+                    var entries = await CompileCommandsExporter.GenerateEntriesAsync(model, toolchain, config, targetId, ct);
                     allEntries.AddRange(entries);
                 }
             }
