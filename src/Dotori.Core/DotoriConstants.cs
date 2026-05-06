@@ -11,8 +11,14 @@ public static class DotoriConstants
     /// <summary>Extension used by all .dotori project files.</summary>
     public const string DotoriExtension = ".dotori";
 
-    /// <summary>Lock file name written next to the .dotori file.</summary>
+    /// <summary>Legacy lock file name (v1, TOML-like). Kept for migration only.</summary>
     public const string LockFileName = ".dotori.lock";
+
+    /// <summary>Lock file name (v2, JSON). Written next to the .dotori file.</summary>
+    public const string LockJsonFileName = "dotori-lock.json";
+
+    /// <summary>npm-compatible package manifest file name.</summary>
+    public const string PackageJsonFileName = "package.json";
 
     /// <summary>Local override file name. Lives next to the .dotori file and is ignored by VCS.</summary>
     public const string LocalFileName = ".dotori.local";
@@ -69,8 +75,11 @@ public static class DotoriConstants
     /// <summary>Format version written into module-map.json.</summary>
     public const int ModuleMapFormatVersion = 1;
 
-    /// <summary>Format version written into .dotori.lock.</summary>
-    public const int LockFileVersion = 1;
+    /// <summary>Format version of the legacy .dotori.lock (TOML-like).</summary>
+    public const int LockFileVersionLegacy = 1;
+
+    /// <summary>Format version written into dotori-lock.json.</summary>
+    public const int LockFileVersion = 2;
 
     // ─── Environment variables ─────────────────────────────────────────────────
 

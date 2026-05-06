@@ -181,7 +181,7 @@ int main() {
 dotori build    # 자동으로 의존성 다운로드 후 빌드
 ```
 
-패키지는 `~/.dotori/packages/`에 캐시되고, `.dotori.lock`에 버전이 고정됩니다.
+패키지는 프로젝트의 `deps/` 폴더에 설치되고, `dotori-lock.json`에 버전이 고정됩니다.
 
 ---
 
@@ -626,27 +626,28 @@ project JsonLib {
     }
 }
 
-package {
-    name        = "json-lib"
-    version     = "2.1.0"
-    description = "Fast and lightweight JSON library for C++23"
-    license     = "MIT"
-    homepage    = "https://github.com/me/json-lib"
+```
 
-    authors {
-        "Alice <alice@example.com>"
-    }
+**package.json:**
 
-    exports {
-        headers = "include/"
-    }
+```json
+{
+  "name": "@me/json-lib",
+  "version": "2.1.0",
+  "description": "Fast and lightweight JSON library for C++23",
+  "license": "MIT",
+  "homepage": "https://github.com/me/json-lib",
+  "authors": ["Alice <alice@example.com>"],
+  "dotori": {
+    "exports": { "headers": "include/" }
+  }
 }
 ```
 
 **배포:**
 
 ```bash
-dotori login
+dotori login --registry https://npm.pkg.github.com --token ghp_...
 dotori publish
 ```
 

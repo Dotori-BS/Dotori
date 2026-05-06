@@ -1,172 +1,112 @@
 using System.Text;
+using System.Text.Json;
 using Dotori.Core;
 
 namespace Dotori.PackageManager;
 
 /// <summary>
-/// Reads and writes .dotori.lock files.
-/// Format: TOML-like (manual serialization to stay NativeAOT-compatible).
+/// Reads and writes dotori-lock.json (v2).
+/// Automatically upgrades legacy .dotori.lock (v1) on load.
 /// </summary>
 public static class LockManager
 {
-    /// <summary>Load the lock file from the given project directory. Returns empty if not found.</summary>
+    /// <summary>Load lock file from project directory. Returns empty if not found.</summary>
     public static LockFile Load(string projectDir)
     {
-        var path = Path.Combine(projectDir, DotoriConstants.LockFileName);
-        if (!File.Exists(path)) return new LockFile();
-        return Parse(File.ReadAllText(path, Encoding.UTF8));
-    }
-
-    /// <summary>Write the lock file to the given project directory.</summary>
-    public static void Save(LockFile lockFile, string projectDir)
-    {
-        var path = Path.Combine(projectDir, DotoriConstants.LockFileName);
-        File.WriteAllText(path, Serialize(lockFile), Encoding.UTF8);
-    }
-
-    // ─── Serialization ───────────────────────────────────────────────────────
-
-    public static string Serialize(LockFile lockFile)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine($"lock-version = {lockFile.LockVersion}");
-        sb.AppendLine();
-
-        foreach (var pkg in lockFile.Packages)
+        var jsonPath = Path.Combine(projectDir, DotoriConstants.LockJsonFileName);
+        if (File.Exists(jsonPath))
         {
-            sb.AppendLine("[[package]]");
-            sb.AppendLine($"name    = \"{pkg.Name}\"");
-            sb.AppendLine($"version = \"{pkg.Version}\"");
-            sb.AppendLine($"source  = \"{pkg.Source}\"");
-            if (pkg.Hash is not null)
-                sb.AppendLine($"hash    = \"{pkg.Hash}\"");
-            if (pkg.Deps.Count > 0)
-            {
-                var depsStr = string.Join(", ", pkg.Deps.Select(d => $"\"{d}\""));
-                sb.AppendLine($"deps    = [{depsStr}]");
-            }
-            sb.AppendLine();
+            var json = File.ReadAllText(jsonPath, Encoding.UTF8);
+            return JsonSerializer.Deserialize(json, LockJsonContext.Default.LockFile) ?? new LockFile();
         }
 
-        return sb.ToString();
+        // Auto-upgrade legacy v1 TOML lock file
+        var legacyPath = Path.Combine(projectDir, DotoriConstants.LockFileName);
+        if (File.Exists(legacyPath))
+            return MigrateFromLegacy(File.ReadAllText(legacyPath, Encoding.UTF8));
+
+        return new LockFile();
     }
 
-    // ─── Parsing ─────────────────────────────────────────────────────────────
-
-    public static LockFile Parse(string text)
+    /// <summary>Write lock file to project directory.</summary>
+    public static void Save(LockFile lockFile, string projectDir)
     {
-        var lockFile = new LockFile();
-        LockEntry? current = null;
+        var path = Path.Combine(projectDir, DotoriConstants.LockJsonFileName);
+        var json = JsonSerializer.Serialize(lockFile, LockJsonContext.Default.LockFile);
+        File.WriteAllText(path, json, Encoding.UTF8);
+    }
 
-        foreach (var rawLine in text.Split('\n'))
+    // ─── Legacy migration ────────────────────────────────────────────────────
+
+    internal static LockFile MigrateFromLegacy(string tomlText)
+    {
+        var result = new LockFile();
+        string? name = null, version = null, source = null, hash = null;
+        var deps = new List<string>();
+
+        void Flush()
+        {
+            if (name is null || version is null || source is null) return;
+            var key = $"{name}@{version}";
+            var resolved = source;
+            // Convert legacy source format to resolved URL
+            // "git+https://..." stays as-is; "path:..." stays; "version:name@ver" → keep as-is
+            var entry = new LockEntry
+            {
+                Version  = version,
+                Resolved = resolved,
+                Integrity = hash,
+                Link     = resolved.StartsWith("path:", StringComparison.Ordinal),
+                Dependencies = deps
+                    .Select(d =>
+                    {
+                        var at = d.LastIndexOf('@');
+                        return at > 0
+                            ? (pkg: d[..at], ver: d[(at + 1)..])
+                            : (pkg: d, ver: "*");
+                    })
+                    .ToDictionary(t => t.pkg, t => t.ver),
+            };
+            result.Packages[key] = entry;
+            name = version = source = hash = null;
+            deps.Clear();
+        }
+
+        foreach (var rawLine in tomlText.Split('\n'))
         {
             var line = rawLine.Trim();
             if (string.IsNullOrEmpty(line) || line.StartsWith('#')) continue;
 
-            if (line == "[[package]]")
+            if (line == "[[package]]") { Flush(); continue; }
+
+            var eq = line.IndexOf('=');
+            if (eq < 0) continue;
+            var k = line[..eq].Trim();
+            var v = Unquote(line[(eq + 1)..].Trim());
+
+            switch (k)
             {
-                if (current is not null) lockFile.Packages.Add(current);
-                current = null;
-                continue;
-            }
-
-            var eqIdx = line.IndexOf('=');
-            if (eqIdx < 0) continue;
-
-            var key   = line[..eqIdx].Trim();
-            var value = line[(eqIdx + 1)..].Trim();
-
-            if (key == "lock-version")
-            {
-                if (int.TryParse(value, out int v))
-                    lockFile.LockVersion = v;
-                continue;
-            }
-
-            // We're inside a [[package]] block
-            if (current is null)
-            {
-                // Lazy init after seeing first key
-                current = new LockEntry
-                {
-                    Name    = string.Empty,
-                    Version = string.Empty,
-                    Source  = string.Empty,
-                };
-            }
-
-            switch (key)
-            {
-                case "name":
-                    current = new LockEntry
-                    {
-                        Name    = UnquoteString(value),
-                        Version = current.Version,
-                        Source  = current.Source,
-                        Hash    = current.Hash,
-                    };
-                    foreach (var d in current.Deps) { /* deps not transferred here */ }
-                    break;
-                case "version":
-                    current = CreateWith(current, version: UnquoteString(value));
-                    break;
-                case "source":
-                    current = CreateWith(current, source: UnquoteString(value));
-                    break;
-                case "hash":
-                    current = CreateWith(current, hash: UnquoteString(value));
-                    break;
+                case "name":    name    = v; break;
+                case "version": version = v; break;
+                case "source":  source  = v; break;
+                case "hash":    hash    = v; break;
                 case "deps":
-                    // Parse ["a@1", "b@2"] format
-                    var deps = ParseStringArray(value);
-                    foreach (var d in deps) current.Deps.Add(d);
+                    var arr = v.TrimStart('[').TrimEnd(']');
+                    foreach (var part in arr.Split(','))
+                    {
+                        var s = Unquote(part.Trim());
+                        if (!string.IsNullOrEmpty(s)) deps.Add(s);
+                    }
                     break;
             }
         }
-
-        if (current is not null) lockFile.Packages.Add(current);
-        return lockFile;
-    }
-
-    private static LockEntry CreateWith(
-        LockEntry src,
-        string? name    = null,
-        string? version = null,
-        string? source  = null,
-        string? hash    = null)
-    {
-        var entry = new LockEntry
-        {
-            Name    = name    ?? src.Name,
-            Version = version ?? src.Version,
-            Source  = source  ?? src.Source,
-            Hash    = hash    ?? src.Hash,
-        };
-        foreach (var d in src.Deps) entry.Deps.Add(d);
-        return entry;
-    }
-
-    private static string UnquoteString(string value)
-    {
-        value = value.Trim();
-        if (value.StartsWith('"') && value.EndsWith('"'))
-            return value[1..^1];
-        return value;
-    }
-
-    private static IReadOnlyList<string> ParseStringArray(string value)
-    {
-        // Minimal parser for ["a", "b"] format
-        var result = new List<string>();
-        value = value.Trim();
-        if (value.StartsWith('[')) value = value[1..];
-        if (value.EndsWith(']'))  value = value[..^1];
-
-        foreach (var part in value.Split(','))
-        {
-            var s = UnquoteString(part.Trim());
-            if (!string.IsNullOrEmpty(s)) result.Add(s);
-        }
+        Flush();
         return result;
+    }
+
+    private static string Unquote(string s)
+    {
+        s = s.Trim();
+        return s.Length >= 2 && s[0] == '"' && s[^1] == '"' ? s[1..^1] : s;
     }
 }

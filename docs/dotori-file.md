@@ -1,7 +1,7 @@
 # .dotori 파일 구성
 
-`.dotori`는 dotori의 프로젝트 파일입니다. 디렉토리당 하나만 허용되며,
-`project` 블록(빌드 대상)과 `package` 블록(배포 명세)을 하나의 파일에 함께 작성할 수 있습니다.
+`.dotori`는 dotori의 빌드 설정 파일입니다. 디렉토리당 하나만 허용됩니다.
+패키지 배포 메타데이터(이름, 버전, 의존성)는 `package.json`에 별도로 작성합니다.
 
 ---
 
@@ -11,9 +11,15 @@
 project <이름> {
     # 프로젝트 속성
 }
+```
 
-package {
-    # 패키지 명세 — 라이브러리 배포 시 작성
+라이브러리를 배포하려면 같은 디렉토리에 `package.json`을 작성합니다:
+
+```json
+{
+  "name": "@scope/my-lib",
+  "version": "1.0.0",
+  "description": "My C++ library"
 }
 ```
 
@@ -600,32 +606,36 @@ option experimental {
 
 ## dependencies 블록 — 의존성
 
+`.dotori`의 `dependencies {}` 블록은 **`path` 의존성 전용**입니다.
+레지스트리/git 의존성은 `package.json`에 작성합니다.
+
 ```
 dependencies {
     # 로컬 경로 의존성 — 빌드 순서 DAG에 포함
     my-lib  = { path = "../lib" }
 
-    # 패키지 레지스트리 버전
-    fmt     = "10.2.0"
-
-    # git 의존성
-    spdlog  = { git = "https://github.com/gabime/spdlog", tag = "v1.13.0" }
-    myutil  = { git = "https://github.com/me/myutil", commit = "abc1234" }
-
-    # 버전 범위 지정
-    zlib    = { version = "^1.2.0" }
-
-    # 옵션 조건부 의존성 — 해당 옵션이 활성일 때만 포함
+    # 옵션 조건부 경로 의존성
     simd-utils = { path = "../simd-utils", option = "simd" }
-    tracy      = { git = "https://github.com/wolfpld/tracy", tag = "v0.11.0", option = "profiling" }
+}
+```
 
-    # 여러 옵션 모두 활성일 때만 포함 (AND 조건)
-    avx-accel  = { version = "2.0.0", option = { "simd" "avx2" } }
+레지스트리/git 의존성은 `package.json`에:
+
+```json
+{
+  "dependencies": {
+    "@fmtlib/fmt": "^10.0.0",
+    "@gabime/spdlog": "~1.13.0"
+  },
+  "dotoriDependencies": {
+    "@wolfpld/tracy": { "git": "https://github.com/wolfpld/tracy", "tag": "v0.11.0" },
+    "@gabime/spdlog": { "git": "https://github.com/gabime/spdlog", "tag": "v1.13.0" }
+  }
 }
 ```
 
 `path` 의존성은 빌드 순서 DAG에 포함되어 자동으로 선행 빌드됩니다.
-`git`/`version` 의존성은 패키지 매니저가 별도로 처리합니다.
+`dependencies` 필드는 npm-compatible SemVer 범위, `dotoriDependencies`는 git/path 소스 오버라이드에 사용합니다.
 
 `option` 필드를 지정하면 해당 옵션이 활성일 때만 의존성이 포함됩니다.
 여러 옵션을 `{ }` 목록으로 지정하면 **모든 옵션이 동시에 활성일 때**만 포함됩니다 (AND 조건).
@@ -736,28 +746,37 @@ dotori가 자동 주입하는 변수:
 
 ---
 
-## package 블록
+## package.json — 패키지 메타데이터
 
-라이브러리를 레지스트리에 배포할 때 `project` 블록과 함께 작성합니다.
+라이브러리를 레지스트리에 배포하려면 `.dotori`와 같은 디렉토리에 `package.json`을 작성합니다.
 
-```
-package {
-    name        = "my-lib"
-    version     = "1.0.0"
-    description = "My C++ library"
-    license     = "MIT"
-    homepage    = "https://github.com/me/my-lib"
-
-    authors {
-        "Alice <alice@example.com>"
-        "Bob <bob@example.com>"
-    }
-
-    exports {
-        headers = "include/"
-    }
+```json
+{
+  "name": "@myorg/my-lib",
+  "version": "1.0.0",
+  "description": "My C++ library",
+  "license": "MIT",
+  "homepage": "https://github.com/me/my-lib",
+  "authors": ["Alice <alice@example.com>", "Bob <bob@example.com>"],
+  "dependencies": {
+    "@fmtlib/fmt": "^10.0.0"
+  },
+  "dotoriDependencies": {
+    "@fmtlib/fmt": { "git": "https://github.com/fmtlib/fmt", "tag": "v10.2.0" }
+  },
+  "dotori": {
+    "exports": { "headers": "include/" }
+  }
 }
 ```
+
+| 필드 | 설명 |
+|------|------|
+| `name` | `@scope/name` 형식 필수 |
+| `version` | SemVer |
+| `dependencies` | npm-compatible 레지스트리 의존성 |
+| `dotoriDependencies` | git/path 소스 오버라이드 |
+| `dotori.exports.headers` | 배포 시 포함할 헤더 디렉토리 |
 
 ---
 
@@ -826,8 +845,7 @@ project MyApp {
 
     dependencies {
         my-lib = { path = "../lib" }
-        fmt    = "10.2.0"
-        spdlog = { git = "https://github.com/gabime/spdlog", tag = "v1.13.0" }
+        # 레지스트리/git 의존성은 package.json에 작성
     }
 
     pch {
@@ -934,23 +952,31 @@ project MyApp {
 
 ---
 
-## Lock 파일 (`.dotori.lock`)
+## Lock 파일 (`dotori-lock.json`)
 
 의존성 해결 결과를 저장하는 자동 생성 파일입니다. git에 커밋하여 팀원 간 동일한 의존성 버전을 보장합니다.
 
+```json
+{
+  "lockVersion": 2,
+  "name": "@myorg/myapp",
+  "version": "1.0.0",
+  "packages": {
+    "@fmtlib/fmt@10.2.0": {
+      "version": "10.2.0",
+      "resolved": "https://npm.pkg.github.com/@fmtlib/fmt/-/fmt-10.2.0.tgz",
+      "integrity": "sha512-...",
+      "registry": "https://npm.pkg.github.com",
+      "dependencies": {}
+    },
+    "@gabime/spdlog@1.13.0": {
+      "version": "1.13.0",
+      "resolved": "git+https://github.com/gabime/spdlog#v1.13.0",
+      "integrity": "sha256:...",
+      "dependencies": { "@fmtlib/fmt": "^10.2.0" }
+    }
+  }
+}
 ```
-lock-version = 1
 
-[[package]]
-name    = "fmt"
-version = "10.2.0"
-source  = "git+https://github.com/fmtlib/fmt#v10.2.0"
-hash    = "sha256:abcdef1234..."
-
-[[package]]
-name    = "spdlog"
-version = "1.13.0"
-source  = "git+https://github.com/gabime/spdlog#v1.13.0"
-hash    = "sha256:fedcba4321..."
-deps    = ["fmt@10.2.0"]
-```
+수동 편집 금지. `dotori add` / `dotori update` 명령으로 갱신합니다.

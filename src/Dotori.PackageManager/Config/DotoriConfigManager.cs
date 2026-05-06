@@ -1,15 +1,28 @@
 namespace Dotori.PackageManager.Config;
 
 /// <summary>
-/// ~/.dotori/config.toml 을 수동 파싱/저장합니다. NativeAOT 호환.
+/// Loads Dotori package manager configuration.
 ///
-/// 지원 형식:
-/// [registry]
-/// default = "https://registry.dotori.dev"
+/// Priority (highest first):
+///   1. Project-level .npmrc
+///   2. User-level ~/.npmrc
+///   3. ~/.dotori/config.toml
 ///
-/// [registry."https://registry.dotori.dev"]
-/// token = "dt_live_..."
-/// upstream = "https://..."
+/// ~/.dotori/config.toml format:
+///   [registry]
+///   default = "https://npm.pkg.github.com"
+///
+///   [scopes]
+///   "@myorg" = "https://npm.pkg.github.com"
+///
+///   [registry."https://npm.pkg.github.com"]
+///   token = "ghp_..."
+///   upstream = "https://..."    # optional proxy upstream
+///
+/// .npmrc format (subset):
+///   @scope:registry=https://registry.url
+///   //registry.url/:_authToken=TOKEN
+///   registry=https://default.registry.url
 /// </summary>
 public static class DotoriConfigManager
 {
@@ -18,21 +31,32 @@ public static class DotoriConfigManager
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".dotori", "config.toml");
 
-    public static DotoriConfig Load()
+    public static DotoriConfig Load(string? projectDir = null)
     {
         var config = new DotoriConfig();
-        if (!File.Exists(ConfigPath))
-            return config;
 
-        var text = File.ReadAllText(ConfigPath);
-        Parse(text, config);
+        if (File.Exists(ConfigPath))
+            ParseToml(File.ReadAllText(ConfigPath), config);
+
+        var userNpmrc = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".npmrc");
+        if (File.Exists(userNpmrc))
+            ParseNpmrc(File.ReadAllText(userNpmrc), config);
+
+        if (projectDir is not null)
+        {
+            var projectNpmrc = Path.Combine(projectDir, ".npmrc");
+            if (File.Exists(projectNpmrc))
+                ParseNpmrc(File.ReadAllText(projectNpmrc), config);
+        }
+
         return config;
     }
 
     public static void Save(DotoriConfig config)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath)!);
-        File.WriteAllText(ConfigPath, Serialize(config));
+        File.WriteAllText(ConfigPath, SerializeToml(config));
     }
 
     public static void SetToken(string registryUrl, string token)
@@ -57,7 +81,9 @@ public static class DotoriConfigManager
         }
     }
 
-    private static void Parse(string text, DotoriConfig config)
+    // ─── TOML parser ─────────────────────────────────────────────────────────
+
+    internal static void ParseToml(string text, DotoriConfig config)
     {
         string? currentSection = null;
         string? currentRegistryUrl = null;
@@ -65,10 +91,8 @@ public static class DotoriConfigManager
         foreach (var rawLine in text.Split('\n'))
         {
             var line = rawLine.Trim();
-            if (line.StartsWith('#') || string.IsNullOrEmpty(line))
-                continue;
+            if (line.StartsWith('#') || string.IsNullOrEmpty(line)) continue;
 
-            // 섹션 헤더
             if (line.StartsWith('['))
             {
                 var header = line.TrimStart('[').TrimEnd(']').Trim();
@@ -77,21 +101,17 @@ public static class DotoriConfigManager
                     currentSection = "registry-default";
                     currentRegistryUrl = null;
                 }
-                else if (header.StartsWith("registry.\"") && header.EndsWith("\""))
+                else if (header.StartsWith("registry.\"") && header.EndsWith('"'))
                 {
                     currentSection = "registry-entry";
                     currentRegistryUrl = header["registry.\"".Length..^1];
                     if (!config.Registries.ContainsKey(currentRegistryUrl))
                         config.Registries[currentRegistryUrl] = new RegistryConfig { Url = currentRegistryUrl };
                 }
-                else if (header.StartsWith("registries."))
+                else if (header == "scopes")
                 {
-                    currentSection = "registry-entry";
-                    // [registries.alias] 형식도 url 키로 처리
-                    var alias = header["registries.".Length..].Trim('"');
-                    currentRegistryUrl = alias;
-                    if (!config.Registries.ContainsKey(alias))
-                        config.Registries[alias] = new RegistryConfig { Url = alias };
+                    currentSection = "scopes";
+                    currentRegistryUrl = null;
                 }
                 else
                 {
@@ -101,11 +121,10 @@ public static class DotoriConfigManager
                 continue;
             }
 
-            // key = "value" 파싱
-            var eqIdx = line.IndexOf('=');
-            if (eqIdx < 0) continue;
-            var key = line[..eqIdx].Trim();
-            var val = line[(eqIdx + 1)..].Trim().Trim('"');
+            var eq = line.IndexOf('=');
+            if (eq < 0) continue;
+            var key = line[..eq].Trim();
+            var val = Unquote(line[(eq + 1)..].Trim());
 
             switch (currentSection)
             {
@@ -121,15 +140,82 @@ public static class DotoriConfigManager
                         case "upstream": reg.Upstream = val; break;
                     }
                     break;
+                case "scopes":
+                    // "@myorg" = "https://..."
+                    var scope = Unquote(key);
+                    config.ScopeMap[scope] = val;
+                    break;
             }
         }
     }
 
-    private static string Serialize(DotoriConfig config)
+    // ─── .npmrc parser ───────────────────────────────────────────────────────
+
+    internal static void ParseNpmrc(string text, DotoriConfig config)
+    {
+        foreach (var rawLine in text.Split('\n'))
+        {
+            var line = rawLine.Trim();
+            if (line.StartsWith('#') || string.IsNullOrEmpty(line)) continue;
+
+            var eq = line.IndexOf('=');
+            if (eq < 0) continue;
+
+            var key = line[..eq].Trim();
+            var val = line[(eq + 1)..].Trim();
+
+            // @scope:registry=https://...
+            if (key.StartsWith('@') && key.EndsWith(":registry"))
+            {
+                var scope = key[..^":registry".Length];
+                config.ScopeMap[scope] = val;
+                if (!config.Registries.ContainsKey(val))
+                    config.Registries[val] = new RegistryConfig { Url = val };
+                continue;
+            }
+
+            // registry=https://...  (default)
+            if (key == "registry")
+            {
+                config.DefaultRegistry = val;
+                continue;
+            }
+
+            // //registry.host/:_authToken=TOKEN
+            if (key.StartsWith("//") && key.EndsWith("/:_authToken"))
+            {
+                var host = key["//".Length..^"/:_authToken".Length];
+                // Reconstruct URL — try https first
+                var registryUrl = $"https://{host}";
+                // Find existing entry with matching host regardless of trailing slash
+                var existing = config.Registries.Keys.FirstOrDefault(k =>
+                    k.Contains(host, StringComparison.OrdinalIgnoreCase));
+                var urlKey = existing ?? registryUrl;
+                if (!config.Registries.TryGetValue(urlKey, out var reg))
+                {
+                    reg = new RegistryConfig { Url = urlKey };
+                    config.Registries[urlKey] = reg;
+                }
+                reg.Token = val;
+            }
+        }
+    }
+
+    // ─── TOML serializer ─────────────────────────────────────────────────────
+
+    private static string SerializeToml(DotoriConfig config)
     {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("[registry]");
         sb.AppendLine($"default = \"{config.DefaultRegistry}\"");
+
+        if (config.ScopeMap.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("[scopes]");
+            foreach (var (scope, url) in config.ScopeMap)
+                sb.AppendLine($"\"{scope}\" = \"{url}\"");
+        }
 
         foreach (var (url, reg) in config.Registries)
         {
@@ -142,5 +228,11 @@ public static class DotoriConfigManager
         }
 
         return sb.ToString();
+    }
+
+    private static string Unquote(string s)
+    {
+        s = s.Trim();
+        return s.Length >= 2 && s[0] == '"' && s[^1] == '"' ? s[1..^1] : s;
     }
 }

@@ -9,7 +9,6 @@ dotori는 Cargo 수준의 UX를 C++에 제공하는 독립형 빌드 시스템 +
 | [CLI 사용법](cli.md) | 모든 명령어와 옵션 상세 설명 |
 | [.dotori 파일 구성](dotori-file.md) | 프로젝트 파일 DSL 문법 전체 레퍼런스 |
 | [분산 빌드 서버](distributed-build.md) | 빌드 서버 및 워커 설정·운영 방법 |
-| [레지스트리 서버](registry.md) | 패키지 레지스트리 서버 설정·운영 방법 |
 | [사용 예제](examples.md) | 단계별 실용 예제 모음 |
 | [프로젝트 빌드 방법](building.md) | build.sh 및 dotnet CLI로 dotori 소스 빌드하기 |
 | [manpage (dotori.1)](dotori.1) | CLI man 페이지 |

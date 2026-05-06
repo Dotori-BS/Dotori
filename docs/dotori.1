@@ -74,28 +74,19 @@ C, Objective-C, Objective-C++ 소스 파일 혼합 빌드도 지원합니다.
 .
 .SS 레지스트리
 .TP
-.B login
-레지스트리에 로그인합니다.
+.B login [\-\-registry \fIURL\fR] [\-\-token \fITOKEN\fR]
+npm 호환 레지스트리에 인증 토큰을 저장합니다. \-\-token 생략 시 대화형 입력.
 .TP
-.B logout
-레지스트리에서 로그아웃합니다.
+.B logout [\-\-registry \fIURL\fR]
+저장된 인증 토큰을 삭제합니다.
 .TP
 .B publish
-현재 프로젝트의 패키지를 레지스트리 또는 로컬 디렉토리에 배포합니다.
+현재 프로젝트의 패키지(package.json 필요)를 레지스트리 또는 로컬 디렉토리에 배포합니다.
 .B \-\-prefix
 를 지정하면 레지스트리 없이 로컬 경로에 배포됩니다.
 .TP
 .B search \fIkeyword\fR
 레지스트리에서 패키지를 검색합니다.
-.TP
-.B owner
-패키지 소유자를 관리합니다 (add / remove / list).
-.TP
-.B yank \fIname\fR@\fIversion\fR
-특정 버전을 비활성화합니다.
-.TP
-.B unyank \fIname\fR@\fIversion\fR
-비활성화된 버전을 복원합니다.
 .
 .SS IDE 통합
 .TP
@@ -285,19 +276,25 @@ MinGW sysroot 경로. 비-Windows 호스트에서 Windows 타겟 크로스 컴�
 .SH FILES
 .TP
 .I .dotori
-프로젝트 및 패키지 명세 파일 (디렉토리당 하나).
+프로젝트 빌드 설정 파일 (디렉토리당 하나).
 .TP
-.I .dotori.lock
+.I package.json
+패키지 메타데이터 및 의존성 명세 파일 (npm 호환).
+.TP
+.I dotori-lock.json
 의존성 버전 잠금 파일 (자동 생성). git에 커밋하는 것을 권장합니다.
 .TP
 .I .dotori-cache/
 프로젝트 로컬 빌드 캐시 디렉토리.
 .TP
-.I ~/.dotori/packages/
-전역 패키지 캐시 디렉토리.
+.I deps/
+프로젝트 로컬 패키지 설치 디렉토리 (\fI@scope/name\fR 구조).
 .TP
 .I ~/.dotori/config.toml
-사용자 설정 파일 (레지스트리 인증 토큰 등).
+사용자 설정 파일 (레지스트리 URL, 인증 토큰, scope 매핑 등).
+.TP
+.I .npmrc
+npm 호환 레지스트리/토큰 설정 (프로젝트 또는 ~/.npmrc).
 .
 .SH EXAMPLES
 .TP

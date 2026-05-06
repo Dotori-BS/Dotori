@@ -40,18 +40,20 @@ public sealed class PackageInstallerTests
     }
 
     [TestMethod]
-    public void IsInstalled_ReturnsTrue_WhenDotoriFilePresent()
+    public void IsInstalled_ReturnsTrue_WhenPackageJsonPresent()
     {
         var tmp      = Path.Combine(Path.GetTempPath(), $"dotori-test-{Guid.NewGuid():N}");
         var depsRoot = Path.Combine(tmp, "deps");
-        var pkgDir   = Path.Combine(depsRoot, "spdlog");
+        // @gabime/spdlog → "gabime/spdlog" path
+        var pkgDir   = Path.Combine(depsRoot, "gabime", "spdlog");
         Directory.CreateDirectory(pkgDir);
-        File.WriteAllText(Path.Combine(pkgDir, ".dotori"), "project Spdlog {}");
+        File.WriteAllText(Path.Combine(pkgDir, "package.json"),
+            """{"name":"@gabime/spdlog","version":"1.13.0"}""");
 
         try
         {
-            Assert.IsTrue(PackageInstaller.IsInstalled(depsRoot, "spdlog"),
-                "Should return true when deps/spdlog/.dotori exists");
+            Assert.IsTrue(PackageInstaller.IsInstalled(depsRoot, "@gabime/spdlog"),
+                "Should return true when deps/gabime/spdlog/package.json exists");
         }
         finally
         {

@@ -183,11 +183,16 @@ internal static partial class PackageCommandFactory
             // If updating a specific package, remove it from the lock to force re-fetch
             if (specificName is not null)
             {
-                var toRemove = existingLock.Packages
-                    .Where(p => p.Name.Equals(specificName, StringComparison.OrdinalIgnoreCase))
+                var toRemove = existingLock.Packages.Keys
+                    .Where(k =>
+                    {
+                        var at = k.LastIndexOf('@');
+                        var name = at > 0 ? k[..at] : k;
+                        return name.Equals(specificName, StringComparison.OrdinalIgnoreCase);
+                    })
                     .ToList();
-                foreach (var e in toRemove)
-                    existingLock.Packages.Remove(e);
+                foreach (var k in toRemove)
+                    existingLock.Packages.Remove(k);
             }
             else
             {
@@ -195,7 +200,7 @@ internal static partial class PackageCommandFactory
                 existingLock = new LockFile();
             }
 
-            var newLock = await DependencyResolver.ResolveAsync(file.Project, existingLock, projectDir, ct: ct);
+            var newLock = await DependencyResolver.ResolveAsync(projectDir, existingLock, file.Project, ct);
             LockManager.Save(newLock, projectDir);
 
             Console.WriteLine($"  Lock file updated ({newLock.Packages.Count} package(s)).");

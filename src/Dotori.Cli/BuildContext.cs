@@ -93,7 +93,7 @@ internal static class BuildContext
             {
                 try
                 {
-                    lockFile = await DependencyResolver.ResolveAsync(file.Project, existingLock, projectDir, ct: ct);
+                    lockFile = await DependencyResolver.ResolveAsync(projectDir, existingLock, file.Project, ct);
                     LockManager.Save(lockFile, projectDir);
                 }
                 catch (Exception ex)
@@ -108,30 +108,35 @@ internal static class BuildContext
             }
 
             // Fetch each git package and locate its .dotori file
-            foreach (var entry in lockFile.Packages)
+            foreach (var (lockKey, entry) in lockFile.Packages)
             {
-                if (result.ContainsKey(entry.Name)) continue;
-                if (!entry.Source.StartsWith("git+")) continue;
+                if (!entry.Resolved.StartsWith("git+")) continue;
+
+                // key = "@scope/name@version" or "name@version"
+                var atIdx = lockKey.LastIndexOf('@');
+                var pkgName = atIdx > 0 ? lockKey[..atIdx] : lockKey;
+
+                if (result.ContainsKey(pkgName)) continue;
 
                 // Parse "git+<url>#<tagOrCommit>"
-                var src = entry.Source["git+".Length..];
+                var src = entry.Resolved["git+".Length..];
                 var hashIdx = src.LastIndexOf('#');
                 if (hashIdx < 0) continue;
 
-                var gitUrl     = src[..hashIdx];
+                var gitUrl      = src[..hashIdx];
                 var tagOrCommit = src[(hashIdx + 1)..];
 
                 string localDir;
                 try
                 {
-                    Console.WriteLine($"  Fetching {entry.Name} ({tagOrCommit})...");
+                    Console.WriteLine($"  Fetching {pkgName} ({tagOrCommit})...");
                     localDir = await GitFetcher.FetchAsync(
                         Path.Combine(projectDir, DotoriConstants.DepsDir),
-                        entry.Name, gitUrl, tagOrCommit, ct);
+                        pkgName, gitUrl, tagOrCommit, ct);
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine($"Warning: Failed to fetch '{entry.Name}': {ex.Message}");
+                    Console.Error.WriteLine($"Warning: Failed to fetch '{pkgName}': {ex.Message}");
                     continue;
                 }
 
@@ -141,7 +146,7 @@ internal static class BuildContext
                     .FirstOrDefault();
                 if (dotoriFile is null) continue;
 
-                result[entry.Name] = Path.GetFullPath(dotoriFile);
+                result[pkgName] = Path.GetFullPath(dotoriFile);
             }
         }
 

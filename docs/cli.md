@@ -196,11 +196,13 @@ dotori clean --all --deps # 모든 프로젝트의 빌드 캐시 + deps/ 삭제
 ### add — 의존성 추가
 
 ```bash
-dotori add <패키지명>              # 최신 버전 추가
-dotori add <패키지명>@1.2.0        # 특정 버전 추가
-dotori add <URL> --git             # git URL에서 추가
-dotori add <경로> --path           # 로컬 경로에서 추가
+dotori add @scope/name              # 최신 버전 추가
+dotori add @scope/name@1.2.0        # 특정 버전 추가
+dotori add <URL> --git              # git URL에서 추가
+dotori add <경로> --path            # 로컬 경로에서 추가
 ```
+
+`package.json`의 `"dependencies"` 또는 `"dotoriDependencies"` 필드를 수정합니다.
 
 ### remove — 의존성 제거
 
@@ -468,32 +470,46 @@ dotori generate-compile-commands --output ./          # 출력 경로 지정
 
 ## 레지스트리 명령어
 
-### login / logout
+dotori는 GitHub Packages, GitLab Package Registry, JFrog Artifactory, Verdaccio 등 **npm 프로토콜 호환 레지스트리**를 지원합니다.
+
+### login / logout — 인증 토큰 관리
 
 ```bash
-dotori login                          # 기본 레지스트리에 로그인
-dotori login --registry https://my.registry.example.com
-dotori logout
+# 토큰 저장 (--token 생략 시 프롬프트)
+dotori login --registry https://npm.pkg.github.com --token ghp_...
+dotori login --registry https://npm.pkg.github.com    # 대화형
+
+# 토큰 삭제
+dotori logout --registry https://npm.pkg.github.com
+```
+
+토큰은 `~/.dotori/config.toml`에 저장됩니다.
+
+`.npmrc` 파일도 지원합니다:
+
+```ini
+# 프로젝트 .npmrc 또는 ~/.npmrc
+@myorg:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=ghp_TOKEN
 ```
 
 ### publish — 패키지 배포
 
-`.dotori` 파일에 `package { }` 블록이 있어야 합니다.
+`package.json`이 있어야 합니다. 패키지 이름은 `@scope/name` 형식이어야 합니다.
 
 ```bash
 dotori publish
-dotori publish --registry https://my.registry.example.com
+dotori publish --registry https://npm.pkg.github.com
 
 # 레지스트리 대신 로컬 디렉토리에 배포
 dotori publish --prefix ./local-repo
-dotori publish --prefix /opt/packages
 ```
 
 | 옵션 | 설명 |
 |------|------|
-| `--project <경로>` | `.dotori` 파일 또는 프로젝트 디렉토리 경로 |
+| `--project <경로>` | `package.json` 또는 프로젝트 디렉토리 경로 |
 | `--registry <URL>` | 배포할 레지스트리 URL (기본값: 설정 파일의 기본 레지스트리) |
-| `--prefix <경로>` | 레지스트리 대신 로컬 디렉토리에 배포. `<prefix>/<name>/<version>/` 구조로 저장 |
+| `--prefix <경로>` | 레지스트리 대신 로컬 디렉토리에 배포 |
 | `--dry-run` | 아카이브만 생성하고 업로드·복사 없이 종료 |
 
 `--registry`와 `--prefix`는 동시에 사용할 수 없습니다.
@@ -502,21 +518,7 @@ dotori publish --prefix /opt/packages
 
 ```bash
 dotori search <키워드>
-```
-
-### owner — 패키지 소유자 관리
-
-```bash
-dotori owner add <패키지명> <사용자명>
-dotori owner remove <패키지명> <사용자명>
-dotori owner list <패키지명>
-```
-
-### yank / unyank — 버전 비활성화
-
-```bash
-dotori yank <패키지명>@<버전>       # 버전 비활성화 (취약 버전 처리)
-dotori unyank <패키지명>@<버전>     # 비활성화 취소
+dotori search <키워드> --registry https://npm.pkg.github.com
 ```
 
 ---
@@ -553,13 +555,17 @@ dotori unyank <패키지명>@<버전>     # 비활성화 취소
     └── wasm32-emscripten-release/
 
 deps/                        ← 받아온 패키지 (dotori clean --deps 로 삭제)
-├── fmt/
-│   ├── .dotori
-│   └── .dotori-cache/     # 이 프로젝트에서만 사용하는 빌드 캐시
-└── spdlog/
-    ├── .dotori
-    └── .dotori-cache/
+├── fmtlib/
+│   └── fmt/
+│       ├── package.json
+│       └── .dotori-cache/     # 이 프로젝트에서만 사용하는 빌드 캐시
+└── gabime/
+    └── spdlog/
+        ├── package.json
+        └── .dotori-cache/
+
+dotori-lock.json             ← 의존성 버전 고정 파일 (git에 커밋)
 ```
 
-> **참고**: 패키지는 전역 캐시(`~/.dotori/packages/`) 없이 각 프로젝트의 `deps/` 폴더에 독립적으로 저장됩니다.
-> 이를 통해 프로젝트마다 다른 빌드 옵션(defines, compile-flags 등)으로 동일 패키지를 빌드해도 캐시가 충돌하지 않습니다.
+> **참고**: 패키지는 전역 캐시 없이 각 프로젝트의 `deps/` 폴더에 독립적으로 저장됩니다.
+> 경로는 `deps/<scope>/<name>/` 구조 (`@fmtlib/fmt` → `deps/fmtlib/fmt/`).

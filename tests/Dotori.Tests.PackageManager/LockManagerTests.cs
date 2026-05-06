@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Dotori.Core;
 using Dotori.PackageManager;
 
 namespace Dotori.Tests.PackageManager;
@@ -5,105 +7,26 @@ namespace Dotori.Tests.PackageManager;
 [TestClass]
 public sealed class LockManagerTests
 {
-    // ─── Serialization / Parsing ─────────────────────────────────────────────
+    // ─── JSON serialization (v2) ─────────────────────────────────────────────
 
     [TestMethod]
-    public void Serialize_EmptyLock_ContainsVersion()
+    public void Save_WritesJsonWithLockVersion2()
     {
-        var lockFile = new LockFile { LockVersion = 1 };
-        var text = LockManager.Serialize(lockFile);
-        StringAssert.Contains(text, "lock-version = 1");
-    }
-
-    [TestMethod]
-    public void Serialize_WithPackage_ContainsPackageSection()
-    {
-        var lockFile = new LockFile();
-        lockFile.Packages.Add(new LockEntry
+        var tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        Directory.CreateDirectory(tempDir);
+        try
         {
-            Name    = "fmt",
-            Version = "10.2.0",
-            Source  = "git+https://github.com/fmtlib/fmt#v10.2.0",
-            Hash    = "sha256:abcdef",
-        });
+            var lockFile = new LockFile { Name = "@myorg/app", Version = "1.0.0" };
+            LockManager.Save(lockFile, tempDir);
 
-        var text = LockManager.Serialize(lockFile);
-        StringAssert.Contains(text, "[[package]]");
-        StringAssert.Contains(text, "name    = \"fmt\"");
-        StringAssert.Contains(text, "version = \"10.2.0\"");
-        StringAssert.Contains(text, "hash    = \"sha256:abcdef\"");
+            var path = Path.Combine(tempDir, DotoriConstants.LockJsonFileName);
+            Assert.IsTrue(File.Exists(path));
+            var json = File.ReadAllText(path);
+            StringAssert.Contains(json, "\"lockVersion\"");
+            StringAssert.Contains(json, "2");
+        }
+        finally { Directory.Delete(tempDir, recursive: true); }
     }
-
-    [TestMethod]
-    public void Serialize_WithDeps_ContainsDepsArray()
-    {
-        var lockFile = new LockFile();
-        var entry = new LockEntry
-        {
-            Name    = "spdlog",
-            Version = "1.13.0",
-            Source  = "git+https://github.com/gabime/spdlog#v1.13.0",
-        };
-        entry.Deps.Add("fmt@10.2.0");
-        lockFile.Packages.Add(entry);
-
-        var text = LockManager.Serialize(lockFile);
-        StringAssert.Contains(text, "deps    = [\"fmt@10.2.0\"]");
-    }
-
-    [TestMethod]
-    public void Parse_SerializedLock_RoundTrips()
-    {
-        var original = new LockFile { LockVersion = 1 };
-        var entry = new LockEntry
-        {
-            Name    = "fmt",
-            Version = "10.2.0",
-            Source  = "git+https://github.com/fmtlib/fmt#v10.2.0",
-            Hash    = "sha256:abcdef",
-        };
-        entry.Deps.Add("some-dep@1.0");
-        original.Packages.Add(entry);
-
-        var text    = LockManager.Serialize(original);
-        var parsed  = LockManager.Parse(text);
-
-        Assert.AreEqual(1, parsed.LockVersion);
-        Assert.HasCount(1, parsed.Packages);
-
-        var pkg = parsed.Packages[0];
-        Assert.AreEqual("fmt",       pkg.Name);
-        Assert.AreEqual("10.2.0",    pkg.Version);
-        Assert.AreEqual("sha256:abcdef", pkg.Hash);
-        Assert.HasCount(1, pkg.Deps);
-        Assert.AreEqual("some-dep@1.0", pkg.Deps[0]);
-    }
-
-    [TestMethod]
-    public void Parse_MultiplePackages_ParsesAll()
-    {
-        var text = @"
-lock-version = 1
-
-[[package]]
-name    = ""fmt""
-version = ""10.2.0""
-source  = ""git+https://github.com/fmtlib/fmt#v10.2.0""
-
-[[package]]
-name    = ""spdlog""
-version = ""1.13.0""
-source  = ""git+https://github.com/gabime/spdlog#v1.13.0""
-deps    = [""fmt@10.2.0""]
-";
-        var parsed = LockManager.Parse(text);
-        Assert.HasCount(2, parsed.Packages);
-        Assert.AreEqual("fmt",    parsed.Packages[0].Name);
-        Assert.AreEqual("spdlog", parsed.Packages[1].Name);
-        Assert.HasCount(1, parsed.Packages[1].Deps);
-    }
-
-    // ─── File I/O ────────────────────────────────────────────────────────────
 
     [TestMethod]
     public void SaveAndLoad_RoundTrips()
@@ -112,25 +35,58 @@ deps    = [""fmt@10.2.0""]
         Directory.CreateDirectory(tempDir);
         try
         {
-            var lockFile = new LockFile { LockVersion = 1 };
-            lockFile.Packages.Add(new LockEntry
+            var lockFile = new LockFile { Name = "@myorg/app", Version = "1.0.0" };
+            lockFile.Packages["@fmtlib/fmt@10.2.0"] = new LockEntry
             {
-                Name    = "mylib",
-                Version = "2.0.0",
-                Source  = "git+https://example.com/mylib#v2.0.0",
-            });
+                Version   = "10.2.0",
+                Resolved  = "https://npm.pkg.github.com/@fmtlib/fmt/-/fmt-10.2.0.tgz",
+                Integrity = "sha512-abc123",
+                Registry  = "https://npm.pkg.github.com",
+                Dependencies = new() { ["@other/dep"] = "^1.0.0" },
+            };
 
             LockManager.Save(lockFile, tempDir);
-            Assert.IsTrue(File.Exists(Path.Combine(tempDir, ".dotori.lock")));
-
             var loaded = LockManager.Load(tempDir);
-            Assert.HasCount(1, loaded.Packages);
-            Assert.AreEqual("mylib", loaded.Packages[0].Name);
+
+            Assert.AreEqual(2, loaded.LockVersion);
+            Assert.AreEqual("@myorg/app", loaded.Name);
+            Assert.AreEqual("1.0.0", loaded.Version);
+            Assert.AreEqual(1, loaded.Packages.Count);
+            Assert.IsTrue(loaded.Packages.ContainsKey("@fmtlib/fmt@10.2.0"));
+
+            var entry = loaded.Packages["@fmtlib/fmt@10.2.0"];
+            Assert.AreEqual("10.2.0", entry.Version);
+            Assert.AreEqual("sha512-abc123", entry.Integrity);
+            Assert.AreEqual("https://npm.pkg.github.com", entry.Registry);
+            Assert.AreEqual(1, entry.Dependencies.Count);
+            Assert.AreEqual("^1.0.0", entry.Dependencies["@other/dep"]);
         }
-        finally
+        finally { Directory.Delete(tempDir, recursive: true); }
+    }
+
+    [TestMethod]
+    public void SaveAndLoad_PathDep_LinkFlagPreserved()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        Directory.CreateDirectory(tempDir);
+        try
         {
-            Directory.Delete(tempDir, recursive: true);
+            var lockFile = new LockFile();
+            lockFile.Packages["@myorg/local@1.0.0"] = new LockEntry
+            {
+                Version  = "1.0.0",
+                Resolved = "path:../local",
+                Link     = true,
+            };
+
+            LockManager.Save(lockFile, tempDir);
+            var loaded = LockManager.Load(tempDir);
+
+            var entry = loaded.Packages["@myorg/local@1.0.0"];
+            Assert.IsTrue(entry.Link);
+            Assert.AreEqual("path:../local", entry.Resolved);
         }
+        finally { Directory.Delete(tempDir, recursive: true); }
     }
 
     [TestMethod]
@@ -141,11 +97,96 @@ deps    = [""fmt@10.2.0""]
         try
         {
             var loaded = LockManager.Load(tempDir);
-            Assert.IsEmpty(loaded.Packages);
+            Assert.AreEqual(0, loaded.Packages.Count);
         }
-        finally
+        finally { Directory.Delete(tempDir, recursive: true); }
+    }
+
+    // ─── Legacy v1 migration ─────────────────────────────────────────────────
+
+    [TestMethod]
+    public void Load_LegacyTomlLock_MigratesAutomatically()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        Directory.CreateDirectory(tempDir);
+        try
         {
-            Directory.Delete(tempDir, recursive: true);
+            // Write legacy v1 lock file
+            var toml = """
+                lock-version = 1
+
+                [[package]]
+                name    = "fmt"
+                version = "10.2.0"
+                source  = "git+https://github.com/fmtlib/fmt#v10.2.0"
+                hash    = "sha256:abcdef"
+                deps    = ["spdlog@1.13.0"]
+                """;
+            File.WriteAllText(Path.Combine(tempDir, DotoriConstants.LockFileName), toml);
+
+            var loaded = LockManager.Load(tempDir);
+
+            Assert.AreEqual(1, loaded.Packages.Count);
+            Assert.IsTrue(loaded.Packages.ContainsKey("fmt@10.2.0"));
+
+            var entry = loaded.Packages["fmt@10.2.0"];
+            Assert.AreEqual("10.2.0", entry.Version);
+            Assert.AreEqual("git+https://github.com/fmtlib/fmt#v10.2.0", entry.Resolved);
+            Assert.AreEqual("sha256:abcdef", entry.Integrity);
+            Assert.IsTrue(entry.Dependencies.ContainsKey("spdlog"));
+            Assert.AreEqual("1.13.0", entry.Dependencies["spdlog"]);
         }
+        finally { Directory.Delete(tempDir, recursive: true); }
+    }
+
+    [TestMethod]
+    public void MigrateFromLegacy_MultiplePackages_AllMigrated()
+    {
+        var toml = """
+            lock-version = 1
+
+            [[package]]
+            name    = "fmt"
+            version = "10.2.0"
+            source  = "git+https://github.com/fmtlib/fmt#v10.2.0"
+
+            [[package]]
+            name    = "spdlog"
+            version = "1.13.0"
+            source  = "git+https://github.com/gabime/spdlog#v1.13.0"
+            deps    = ["fmt@10.2.0"]
+            """;
+
+        var migrated = LockManager.MigrateFromLegacy(toml);
+
+        Assert.AreEqual(2, migrated.Packages.Count);
+        Assert.IsTrue(migrated.Packages.ContainsKey("fmt@10.2.0"));
+        Assert.IsTrue(migrated.Packages.ContainsKey("spdlog@1.13.0"));
+        Assert.IsTrue(migrated.Packages["spdlog@1.13.0"].Dependencies.ContainsKey("fmt"));
+    }
+
+    // ─── npm registry entry ──────────────────────────────────────────────────
+
+    [TestMethod]
+    public void SaveAndLoad_ScopedPackageKey_PreservesAtSign()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var lockFile = new LockFile();
+            lockFile.Packages["@myorg/utils@2.1.0"] = new LockEntry
+            {
+                Version  = "2.1.0",
+                Resolved = "https://npm.pkg.github.com/@myorg/utils/-/utils-2.1.0.tgz",
+                Registry = "https://npm.pkg.github.com",
+            };
+
+            LockManager.Save(lockFile, tempDir);
+            var loaded = LockManager.Load(tempDir);
+
+            Assert.IsTrue(loaded.Packages.ContainsKey("@myorg/utils@2.1.0"));
+        }
+        finally { Directory.Delete(tempDir, recursive: true); }
     }
 }
