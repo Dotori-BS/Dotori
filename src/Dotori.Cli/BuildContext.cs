@@ -187,15 +187,34 @@ internal static class BuildContext
 
     /// <summary>
     /// Detect toolchain for the given target. Prints error and returns null on failure.
+    /// Priority: <paramref name="cliCompiler"/> &gt; DSL <c>toolchain</c> prop in root project &gt; CXX/CC env &gt; auto-detect.
     /// </summary>
-    internal static ToolchainInfo? DetectToolchain(string targetId, string? compiler)
+    internal static ToolchainInfo? DetectToolchain(string targetId, string? cliCompiler, string? rootDotoriPath = null)
     {
+        var compiler = cliCompiler ?? ReadDslToolchain(rootDotoriPath);
         var tc = ToolchainDetector.Detect(targetId, compiler);
         if (tc is null)
             Console.Error.WriteLine(
                 $"Error: No toolchain found for target '{targetId}'. " +
                 $"Ensure the compiler is installed and in PATH.");
         return tc;
+    }
+
+    /// <summary>
+    /// Read the <c>toolchain</c> property from the root .dotori file, or null if absent / unreadable.
+    /// </summary>
+    internal static string? ReadDslToolchain(string? dotoriPath)
+    {
+        if (dotoriPath is null || !File.Exists(dotoriPath)) return null;
+        try
+        {
+            var file = DotoriParser.ParseFile(dotoriPath);
+            return file.Project?.Items.OfType<ToolchainProp>().FirstOrDefault()?.Value;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     /// <summary>

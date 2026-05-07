@@ -178,6 +178,7 @@ public sealed partial class Parser
             "tvos-min"           => ParseSimpleProp(loc),
             "watchos-min"        => ParseSimpleProp(loc),
             "c-as-cpp"           => ParseSimpleProp(loc),
+            "toolchain"          => ParseSimpleProp(loc),
             "emscripten-flags"   => ParseEmscriptenFlags(loc),
             "sources"            => ParseSourcesBlock(loc, isModules: false),
             "modules"            => ParseSourcesBlock(loc, isModules: true),

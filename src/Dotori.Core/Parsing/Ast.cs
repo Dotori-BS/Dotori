@@ -200,6 +200,17 @@ public sealed class ManifestProp(string value) : ProjectItem
     public string Value { get; } = value;
 }
 
+/// <summary>
+/// Named toolchain preference: "apple-clang", "brew-llvm", "mise-llvm",
+/// "clang", "msvc", "msvc-2022", "msvc-2019", "msvc-2017",
+/// or an explicit compiler binary name / path.
+/// Equivalent to --compiler on the CLI.
+/// </summary>
+public sealed class ToolchainProp(string value) : ProjectItem
+{
+    public string Value { get; } = value;
+}
+
 public enum AssemblerTool
 {
     Auto,

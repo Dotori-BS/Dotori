@@ -181,6 +181,10 @@ public static class ProjectFlattener
                     model.Manifest = EnvExpander.Expand(p.Value);
                     break;
 
+                case ToolchainProp p:
+                    model.Toolchain = p.Value;
+                    break;
+
                 case DependenciesBlock b:
                     // Merge: later entries with same name overwrite earlier ones
                     foreach (var dep in b.Items)

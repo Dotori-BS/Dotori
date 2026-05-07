@@ -231,6 +231,36 @@ warnings-as-errors = false    # 기본값
 
 ---
 
+## toolchain — 툴체인 명시적 선택
+
+프로젝트 파일에서 툴체인을 지정합니다. `--compiler` CLI 플래그보다 낮은 우선순위이며, `CXX`/`CC` 환경 변수보다 높은 우선순위입니다.
+
+```
+toolchain = "brew-llvm"       # macOS: Homebrew LLVM clang++
+toolchain = "apple-clang"     # macOS: xcrun Apple Clang
+toolchain = "mise-llvm"       # mise 관리 LLVM
+toolchain = "msvc"            # 최신 MSVC (Windows)
+toolchain = "msvc-2022"       # Visual Studio 2022 (버전 17.x)
+toolchain = "msvc-2019"       # Visual Studio 2019 (버전 16.x)
+toolchain = "msvc-2017"       # Visual Studio 2017 (버전 15.x)
+toolchain = "clang"           # PATH의 clang++
+```
+
+| 값 | 설명 |
+|----|------|
+| `apple-clang` | xcrun으로 얻는 Apple Clang (macOS 전용) |
+| `brew-llvm` | Homebrew LLVM (`/opt/homebrew/opt/llvm/bin`) (macOS 전용) |
+| `mise-llvm` | mise 관리 LLVM (`~/.local/share/mise/installs/llvm/`) |
+| `clang` | PATH의 clang++ |
+| `msvc` | 최신 MSVC (vswhere 자동 탐색) |
+| `msvc-2022` | Visual Studio 2022 (버전 17.x) |
+| `msvc-2019` | Visual Studio 2019 (버전 16.x) |
+| `msvc-2017` | Visual Studio 2017 (버전 15.x) |
+| 바이너리 이름 | PATH 검색 (예: `"clang++-18"`) |
+| 절대 경로 | 직접 지정 (예: `"/opt/homebrew/opt/llvm/bin/clang++"`) |
+
+---
+
 ## c-as-cpp — C 소스 파일을 C++로 컴파일
 
 ```

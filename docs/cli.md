@@ -39,12 +39,29 @@ dotori build [옵션]
 |------|--------|------|
 | `--release` | Debug | Release 구성으로 빌드 |
 | `--target <타겟>` | 호스트 자동 감지 | 빌드 타겟 지정 (예: `macos-arm64`, `linux-x64`) |
-| `--compiler <msvc\|clang>` | 자동 감지 | 컴파일러 선택 |
+| `--compiler <값>` | 자동 감지 | 컴파일러 선택 (아래 표 참조) |
 | `--runtime-link <static\|dynamic>` | static | 런타임 링크 방식 |
 | `--libc <glibc\|musl>` | glibc | C 런타임 라이브러리 (Linux 전용) |
 | `--stdlib <libc++\|libstdc++>` | 플랫폼별 기본값 | C++ 표준 라이브러리 |
 | `--jobs <N>` | CPU 코어 수 | 병렬 빌드 작업 수 |
 | `--no-modules` | — | C++ Modules 지원 비활성화 |
+
+#### `--compiler` 값 목록
+
+| 값 | 설명 |
+|----|------|
+| `msvc` | 최신 MSVC (vswhere로 자동 탐색) |
+| `msvc-2022` | Visual Studio 2022 (버전 17.x) |
+| `msvc-2019` | Visual Studio 2019 (버전 16.x) |
+| `msvc-2017` | Visual Studio 2017 (버전 15.x) |
+| `clang` | PATH의 clang++ |
+| `apple-clang` | xcrun으로 얻는 Apple Clang (macOS 전용) |
+| `brew-llvm` | Homebrew LLVM (`/opt/homebrew/opt/llvm/bin`) (macOS 전용) |
+| `mise-llvm` | mise 관리 LLVM (`~/.local/share/mise/installs/llvm/`) |
+| `clang++-18` | PATH에서 특정 버전 바이너리 이름 |
+| `/usr/bin/clang++` | 절대 경로 |
+
+우선순위: `--compiler` 플래그 > `.dotori` 파일의 `toolchain` 속성 > `CXX`/`CC` 환경 변수 > 자동 감지
 
 ### 단일 파일 빌드 옵션
 

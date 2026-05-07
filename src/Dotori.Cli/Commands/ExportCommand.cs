@@ -64,8 +64,8 @@ internal static class ExportCommandFactory
             var dag = BuildContext.BuildDag(paths);
             if (dag is null) return 1;
 
-            // Detect toolchain
-            var toolchain = BuildContext.DetectToolchain(targetId, compiler);
+            // Detect toolchain (CLI --compiler > DSL toolchain > CXX env > auto-detect)
+            var toolchain = BuildContext.DetectToolchain(targetId, compiler, paths.FirstOrDefault());
             if (toolchain is null) return 1;
 
             var ctx      = BuildContext.MakeTargetContext(targetId, config, runtimeLink, libc, stdlib);

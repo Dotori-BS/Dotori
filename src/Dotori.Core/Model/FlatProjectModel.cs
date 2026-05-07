@@ -68,6 +68,10 @@ public sealed class FlatProjectModel
     public List<string> Resources { get; } = new();  // .rc file paths → compiled to .res by rc.exe
     public string?      Manifest  { get; set; }      // .manifest path → embedded by mt.exe after link
 
+    // Named toolchain override: "apple-clang", "brew-llvm", "mise-llvm", "msvc-2022", etc.
+    // Equivalent to --compiler on the CLI; CLI flag takes precedence if both are set.
+    public string? Toolchain { get; set; }
+
     // Optional blocks (last one wins)
     public PchConfig?         Pch         { get; set; }
     public UnityBuildConfig?  UnityBuild  { get; set; }

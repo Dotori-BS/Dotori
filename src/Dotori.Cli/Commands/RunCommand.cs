@@ -56,7 +56,7 @@ internal static class RunCommandFactory
             if (dag is null) return 1;
 
             var buildOrder = ProjectDagBuilder.BuildLevels(dag);
-            var toolchain  = BuildContext.DetectToolchain(targetId, compiler: null);
+            var toolchain  = BuildContext.DetectToolchain(targetId, cliCompiler: null, paths.FirstOrDefault());
             if (toolchain is null) return 1;
 
             var ctx = BuildContext.MakeTargetContext(targetId, config);

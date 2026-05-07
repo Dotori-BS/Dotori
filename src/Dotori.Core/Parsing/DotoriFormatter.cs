@@ -58,7 +58,7 @@ public static class DotoriFormatter
         DebugInfoProp or RuntimeLinkProp or LibcProp or StdlibProp or
         LtoProp or WarningsProp or WarningsAsErrorsProp or
         AndroidApiLevelProp or MacosMinProp or IosMinProp or
-        TvosMinProp or WatchosMinProp or ManifestProp or
+        TvosMinProp or WatchosMinProp or ManifestProp or ToolchainProp or
         EmscriptenFlagsProp;
 
     // ─── project block ──────────────────────────────────────────────────────
@@ -175,6 +175,9 @@ public static class DotoriFormatter
                 break;
             case ManifestProp p:
                 sb.AppendLine($"{I(indent)}manifest = {QuoteString(p.Value)}");
+                break;
+            case ToolchainProp p:
+                sb.AppendLine($"{I(indent)}toolchain = {QuoteString(p.Value)}");
                 break;
             case EmscriptenFlagsProp p:
                 sb.AppendLine($"{I(indent)}emscripten-flags {{");

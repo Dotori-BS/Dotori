@@ -198,6 +198,7 @@ public static class DotoriGrammarDefinition
         "objc-arc",
         "objc-as-objcpp",
         "manifest",
+        "toolchain",
     ];
 
     /// <summary>`{ STRING* }` 형태의 단순 문자열 목록 블록 키워드 (Tree-sitter string_list_block 용)</summary>

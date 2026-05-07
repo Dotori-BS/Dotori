@@ -30,6 +30,7 @@ public sealed partial class Parser
             "c-as-cpp"           => new ForceCxxProp(ParseBool())                                              { Location = loc },
             "objc-arc"           => new ObjcArcProp(ParseBool())                                               { Location = loc },
             "objc-as-objcpp"     => new ForceObjcppProp(ParseBool())                                          { Location = loc },
+            "toolchain"          => new ToolchainProp(Expect(TokenKind.String).Text)                           { Location = loc },
             _                    => throw new ParseException($"Unknown property '{key}'", loc),
         };
     }

@@ -6,14 +6,22 @@ public static partial class ToolchainDetector
 {
     // ─── macOS ───────────────────────────────────────────────────────────────
 
-    private static ToolchainInfo? DetectMacos(string triple)
+    private static ToolchainInfo? DetectMacos(string triple, string? toolchainPref = null)
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) return null;
 
         var sdkPath = RunXcrun("--sdk macosx --show-sdk-path");
 
-        // Prefer PATH clang++ (e.g. LLVM from brew/mise) over Apple Clang for better C++23 Modules support
-        var pathClang = FindInPath("clang++") ?? FindBrewLlvm("clang++");
+        // Named toolchain preference: skip auto-detect and go directly to the requested source.
+        // Default (null/"clang"): PATH → Brew → mise → AppleClang fallback.
+        string? pathClang = toolchainPref?.ToLowerInvariant() switch
+        {
+            "apple-clang" => null,                                                            // force xcrun path
+            "brew-llvm"   => FindBrewLlvm("clang++"),
+            "mise-llvm"   => FindMiseLlvm("clang++"),
+            _             => FindInPath("clang++") ?? FindBrewLlvm("clang++") ?? FindMiseLlvm("clang++"),
+        };
+
         if (pathClang is not null)
         {
             return new ToolchainInfo

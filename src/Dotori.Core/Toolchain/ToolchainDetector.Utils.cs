@@ -9,8 +9,14 @@ public static partial class ToolchainDetector
 
     /// <summary>Returns true for the two reserved kind-preference names.</summary>
     internal static bool IsKnownKindName(string value) =>
-        value.Equals("msvc", StringComparison.OrdinalIgnoreCase) ||
-        value.Equals("clang", StringComparison.OrdinalIgnoreCase);
+        value.Equals("msvc",        StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("msvc-2022",   StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("msvc-2019",   StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("msvc-2017",   StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("clang",       StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("apple-clang", StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("brew-llvm",   StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("mise-llvm",   StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Reads the CXX environment variable (then CC as fallback) and returns the
@@ -158,6 +164,29 @@ public static partial class ToolchainDetector
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Look for a tool in mise-managed LLVM installation (macOS/Linux).
+    /// Uses MISE_DATA_DIR env or falls back to ~/.local/share/mise.
+    /// Picks the lexicographically latest installed version.
+    /// </summary>
+    private static string? FindMiseLlvm(string toolName)
+    {
+        var miseHome = Environment.GetEnvironmentVariable("MISE_DATA_DIR")
+            ?? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".local", "share", "mise");
+        var installsDir = Path.Combine(miseHome, "installs", "llvm");
+        if (!Directory.Exists(installsDir)) return null;
+
+        var latest = Directory.GetDirectories(installsDir)
+            .OrderByDescending(d => d)
+            .FirstOrDefault();
+        if (latest is null) return null;
+
+        var candidate = Path.Combine(latest, "bin", toolName);
+        return File.Exists(candidate) ? candidate : null;
     }
 
     /// <summary>

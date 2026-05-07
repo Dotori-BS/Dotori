@@ -12,10 +12,19 @@ public static partial class ToolchainDetector
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             return DetectWindowsCross(arch);
 
+        // Extract VS version from "msvc-2022", "msvc-2019", "msvc-2017"; null = latest.
+        var vsVersion = preferred?.ToLowerInvariant() switch
+        {
+            "msvc-2022" => "2022",
+            "msvc-2019" => "2019",
+            "msvc-2017" => "2017",
+            _           => null,
+        };
+
         // Try MSVC first (unless clang preferred)
         if (preferred is not "clang")
         {
-            var msvc = TryFindMsvc(arch);
+            var msvc = TryFindMsvc(arch, vsVersion: vsVersion);
             if (msvc is not null) return msvc;
         }
 
@@ -110,10 +119,10 @@ public static partial class ToolchainDetector
         return TryFindMsvc(arch, uwp: true);
     }
 
-    private static ToolchainInfo? TryFindMsvc(string arch, bool uwp = false)
+    private static ToolchainInfo? TryFindMsvc(string arch, bool uwp = false, string? vsVersion = null)
     {
         // 1. Try vswhere.exe
-        var vswhereResult = RunVswhere();
+        var vswhereResult = RunVswhere(vsVersion);
         if (vswhereResult is null) return null;
 
         var vcToolsDir = FindVcToolsDir(vswhereResult, arch);
@@ -227,7 +236,7 @@ public static partial class ToolchainDetector
         };
     }
 
-    private static string? RunVswhere()
+    private static string? RunVswhere(string? vsVersion = null)
     {
         // Common vswhere.exe locations
         var candidates = new[]
@@ -245,7 +254,17 @@ public static partial class ToolchainDetector
 
         if (vswhere is null) return null;
 
-        return RunProcess(vswhere, "-latest -products * -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath");
+        // VS version range: 2017=15.x, 2019=16.x, 2022=17.x
+        var versionArg = vsVersion switch
+        {
+            "2017" => " -version \"[15,16)\"",
+            "2019" => " -version \"[16,17)\"",
+            "2022" => " -version \"[17,18)\"",
+            _      => string.Empty,
+        };
+
+        return RunProcess(vswhere,
+            $"-latest{versionArg} -products * -requires Microsoft.VisualCpp.Tools.HostX64.TargetX64 -property installationPath");
     }
 
     private static string? FindVcToolsDir(string vsInstallPath, string arch)
