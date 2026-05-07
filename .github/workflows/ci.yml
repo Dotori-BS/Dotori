@@ -37,18 +37,20 @@ jobs:
         if: startsWith(matrix.rid, 'linux')
         run: sudo apt-get install -y clang zlib1g-dev
 
-      - name: Install protoc override (Linux ARM64)
-        if: matrix.rid == 'linux-arm64'
-        run: |
-          sudo apt-get install -y protobuf-compiler
-          echo "DOTNET_BUILD_EXTRA=/p:Protobuf_ProtocExecutable=$(which protoc)" >> $GITHUB_ENV
-
       - name: Restore
         run: dotnet restore
 
+      - name: Fix protoc for Linux ARM64
+        if: matrix.rid == 'linux-arm64'
+        run: |
+          sudo apt-get install -y protobuf-compiler
+          BUNDLED_PROTOC=$(find ~/.nuget/packages/grpc.tools -name "protoc" -path "*/linux_arm64/*" 2>/dev/null | head -1)
+          if [ -n "$BUNDLED_PROTOC" ]; then
+            cp "$(which protoc)" "$BUNDLED_PROTOC"
+          fi
+
       - name: Build
-        shell: bash
-        run: dotnet build --no-restore -c Release $DOTNET_BUILD_EXTRA
+        run: dotnet build --no-restore -c Release
 
       - name: Test
         run: dotnet test --no-build -c Release --verbosity normal
