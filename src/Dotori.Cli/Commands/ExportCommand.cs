@@ -10,26 +10,28 @@ internal static class ExportCommandFactory
     {
         var exportCommand = new Command("export", "Export project information");
 
-        exportCommand.Add(CreateCompileCommandsSubcommand());
+        exportCommand.Add(CreateIdeSubcommand());
         exportCommand.Add(ExportGrammarCommandFactory.Create());
         exportCommand.Add(ExportBuildSystemCommandFactory.Create());
 
         return exportCommand;
     }
 
-    private static Command CreateCompileCommandsSubcommand()
+    private static Command CreateIdeSubcommand()
     {
-        var command = new Command("compile-commands", "Export compile_commands.json for IDE integration");
+        var command = new Command("ide", "Export IDE integration files (compile_commands.json + .clangd)");
 
-        var projectOption     = new Option<string?>("--project")      { Description = "Path to .dotori file or directory" };
-        var allOption         = new Option<bool>("--all")             { Description = "Include all projects" };
-        var releaseOption     = new Option<bool>("--release")         { Description = "Use Release configuration" };
-        var targetOption      = new Option<string?>("--target")       { Description = "Build target (e.g. macos-arm64)" };
-        var compilerOption    = new Option<string?>("--compiler")     { Description = "Compiler to use (msvc, clang)" };
-        var runtimeLinkOption = new Option<string?>("--runtime-link") { Description = "Runtime link mode (static, dynamic)" };
-        var libcOption        = new Option<string?>("--libc")         { Description = "C runtime library (glibc, musl)" };
-        var stdlibOption      = new Option<string?>("--stdlib")       { Description = "C++ standard library (libc++, libstdc++)" };
-        var outputOption      = new Option<string?>("--output")       { Description = "Output path (default: compile_commands.json)" };
+        var projectOption      = new Option<string?>("--project")        { Description = "Path to .dotori file or directory" };
+        var allOption          = new Option<bool>("--all")               { Description = "Include all projects" };
+        var releaseOption      = new Option<bool>("--release")           { Description = "Use Release configuration" };
+        var targetOption       = new Option<string?>("--target")         { Description = "Build target (e.g. macos-arm64)" };
+        var compilerOption     = new Option<string?>("--compiler")       { Description = "Compiler to use (msvc, clang)" };
+        var runtimeLinkOption  = new Option<string?>("--runtime-link")   { Description = "Runtime link mode (static, dynamic)" };
+        var libcOption         = new Option<string?>("--libc")           { Description = "C runtime library (glibc, musl)" };
+        var stdlibOption       = new Option<string?>("--stdlib")         { Description = "C++ standard library (libc++, libstdc++)" };
+        var outputOption       = new Option<string?>("--output")         { Description = "Output path (default: compile_commands.json)" };
+        var clangdOption       = new Option<bool>("--clangd")            { Description = "Generate .clangd config file (default: true)", DefaultValueFactory = _ => true };
+        var clangdOutputOption = new Option<string?>("--clangd-output")  { Description = "Output path for .clangd (default: same directory as compile_commands.json)" };
 
         command.Add(projectOption);
         command.Add(allOption);
@@ -40,18 +42,22 @@ internal static class ExportCommandFactory
         command.Add(libcOption);
         command.Add(stdlibOption);
         command.Add(outputOption);
+        command.Add(clangdOption);
+        command.Add(clangdOutputOption);
 
         command.SetAction(async (parseResult, ct) =>
         {
-            var projectArg  = parseResult.GetValue(projectOption);
-            var buildAll    = parseResult.GetValue(allOption);
-            var release     = parseResult.GetValue(releaseOption);
-            var targetArg   = parseResult.GetValue(targetOption);
-            var compiler    = parseResult.GetValue(compilerOption);
-            var runtimeLink = parseResult.GetValue(runtimeLinkOption);
-            var libc        = parseResult.GetValue(libcOption);
-            var stdlib      = parseResult.GetValue(stdlibOption);
-            var outputArg   = parseResult.GetValue(outputOption);
+            var projectArg     = parseResult.GetValue(projectOption);
+            var buildAll       = parseResult.GetValue(allOption);
+            var release        = parseResult.GetValue(releaseOption);
+            var targetArg      = parseResult.GetValue(targetOption);
+            var compiler       = parseResult.GetValue(compilerOption);
+            var runtimeLink    = parseResult.GetValue(runtimeLinkOption);
+            var libc           = parseResult.GetValue(libcOption);
+            var stdlib         = parseResult.GetValue(stdlibOption);
+            var outputArg      = parseResult.GetValue(outputOption);
+            var generateClangd = parseResult.GetValue(clangdOption);
+            var clangdOutputArg = parseResult.GetValue(clangdOutputOption);
 
             var config   = release ? "release" : "debug";
             var targetId = BuildContext.ResolveTargetId(targetArg);
@@ -99,12 +105,20 @@ internal static class ExportCommandFactory
             }
             else
             {
-                // Default: use current working directory (works for both single and multi-project)
                 outputPath = Path.Combine(Directory.GetCurrentDirectory(), "compile_commands.json");
             }
 
             await CompileCommandsExporter.WriteAsync(outputPath, allEntries, ct);
             Console.WriteLine($"Exported {allEntries.Count} entries to '{outputPath}'");
+
+            if (generateClangd)
+            {
+                var clangdPath = clangdOutputArg is not null
+                    ? (Path.IsPathRooted(clangdOutputArg) ? clangdOutputArg : Path.GetFullPath(clangdOutputArg))
+                    : Path.Combine(Path.GetDirectoryName(outputPath) ?? Directory.GetCurrentDirectory(), ".clangd");
+                await ClangdConfigGenerator.WriteAsync(clangdPath, toolchain.CompilerPath, ct);
+                Console.WriteLine($"Generated .clangd at '{clangdPath}'");
+            }
 
             return 0;
         });

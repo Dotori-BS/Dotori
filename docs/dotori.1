@@ -93,10 +93,20 @@ npm 호환 레지스트리에 인증 토큰을 저장합니다. \-\-token 생략
 .B lsp
 stdio transport로 LSP 서버를 시작합니다 (IDE 플러그인 전용).
 .TP
-.B generate-compile-commands
+.B "export ide"
 clangd 통합을 위한
 .I compile_commands.json
-을 생성합니다.
+및
+.I .clangd
+설정 파일을 생성합니다.
+.TP
+.B generate-compile-commands
+.RB "(deprecated: " "export ide" " 사용 권장)"
+clangd 통합을 위한
+.I compile_commands.json
+및
+.I .clangd
+를 생성합니다.
 .TP
 .B "export build-system"
 IDE 통합을 위한 빌드 시스템 파일을 생성합니다.
@@ -319,7 +329,10 @@ WASM Emscripten 빌드:
 특정 소스 파일만 컴파일 (링크 없음):
 .B dotori build --file src/renderer.cpp --no-link
 .TP
-clangd용 compile_commands.json 생성:
+IDE 통합 파일 생성 (brew-llvm 컴파일러):
+.B dotori export ide --compiler=brew-llvm
+.TP
+clangd용 compile_commands.json 생성 (deprecated):
 .B dotori generate-compile-commands
 .TP
 패키지 추가:
