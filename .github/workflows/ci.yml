@@ -37,11 +37,18 @@ jobs:
         if: startsWith(matrix.rid, 'linux')
         run: sudo apt-get install -y clang zlib1g-dev
 
+      - name: Install protoc override (Linux ARM64)
+        if: matrix.rid == 'linux-arm64'
+        run: |
+          sudo apt-get install -y protobuf-compiler
+          echo "DOTNET_BUILD_EXTRA=/p:Protobuf_ProtocExecutable=$(which protoc)" >> $GITHUB_ENV
+
       - name: Restore
         run: dotnet restore
 
       - name: Build
-        run: dotnet build --no-restore -c Release
+        shell: bash
+        run: dotnet build --no-restore -c Release $DOTNET_BUILD_EXTRA
 
       - name: Test
         run: dotnet test --no-build -c Release --verbosity normal
