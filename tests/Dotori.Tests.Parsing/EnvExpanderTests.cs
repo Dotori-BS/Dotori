@@ -74,28 +74,28 @@ public sealed class EnvExpanderTests
     [TestMethod]
     public void Expand_VarAtStart_Replaced()
     {
-        Environment.SetEnvironmentVariable("DOTORI_TEST_SDK", "/opt/sdk");
+        Environment.SetEnvironmentVariable("DOTORI_TEST_SDK_START", "/opt/sdk");
         try
         {
-            Assert.AreEqual("/opt/sdk/lib", EnvExpander.Expand("${DOTORI_TEST_SDK}/lib"));
+            Assert.AreEqual("/opt/sdk/lib", EnvExpander.Expand("${DOTORI_TEST_SDK_START}/lib"));
         }
         finally
         {
-            Environment.SetEnvironmentVariable("DOTORI_TEST_SDK", null);
+            Environment.SetEnvironmentVariable("DOTORI_TEST_SDK_START", null);
         }
     }
 
     [TestMethod]
     public void Expand_VarAtEnd_Replaced()
     {
-        Environment.SetEnvironmentVariable("DOTORI_TEST_VER", "1.2.3");
+        Environment.SetEnvironmentVariable("DOTORI_TEST_VER_END", "1.2.3");
         try
         {
-            Assert.AreEqual("-DAPP_VERSION=1.2.3", EnvExpander.Expand("-DAPP_VERSION=${DOTORI_TEST_VER}"));
+            Assert.AreEqual("-DAPP_VERSION=1.2.3", EnvExpander.Expand("-DAPP_VERSION=${DOTORI_TEST_VER_END}"));
         }
         finally
         {
-            Environment.SetEnvironmentVariable("DOTORI_TEST_VER", null);
+            Environment.SetEnvironmentVariable("DOTORI_TEST_VER_END", null);
         }
     }
 
