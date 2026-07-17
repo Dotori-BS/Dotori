@@ -31,35 +31,43 @@ public sealed partial class BuildPlanner
         {
             var args = new List<string> { "rcs", $"\"{outFile}\"" };
             foreach (var obj in objFiles) args.Add($"\"{obj}\"");
-            return new LinkJob
+            var archiveJob = new LinkJob
             {
                 InputFiles = objFiles.ToArray(),
                 OutputFile = outFile,
                 Args       = args.ToArray(),
             };
+            archiveJob.Fingerprint = BuildActionFingerprint.Compute(FindAr(), archiveJob.Args);
+            return archiveJob;
         }
 
         if (_toolchain.Kind == CompilerKind.Msvc)
         {
             var flags = MsvcLinker.LinkFlags(_model, _toolchain, _config, outFile);
-            return MsvcLinker.MakeLinkJob(objFiles, outFile, flags);
+            return WithFingerprint(MsvcLinker.MakeLinkJob(objFiles, outFile, flags));
         }
         else if (_toolchain.Kind == CompilerKind.Emscripten)
         {
             var flags = EmscriptenDriver.LinkFlags(_model, outFile);
-            return EmscriptenDriver.MakeLinkJob(objFiles, outFile, flags);
+            return WithFingerprint(EmscriptenDriver.MakeLinkJob(objFiles, outFile, flags));
         }
         else if (AppleLinker.IsAppleTarget(_toolchain))
         {
             var flags = AppleLinker.LinkFlags(_model, _toolchain, outFile);
-            return AppleLinker.MakeLinkJob(objFiles, outFile, flags);
+            return WithFingerprint(AppleLinker.MakeLinkJob(objFiles, outFile, flags));
         }
         else
         {
             // Linux, Android, WASM-bare: use LLD via clang++
             var flags = LldLinker.LinkFlags(_model, _toolchain, outFile);
-            return LldLinker.MakeLinkJob(objFiles, outFile, flags);
+            return WithFingerprint(LldLinker.MakeLinkJob(objFiles, outFile, flags));
         }
+    }
+
+    private LinkJob WithFingerprint(LinkJob job)
+    {
+        job.Fingerprint = BuildActionFingerprint.Compute(_toolchain.LinkerPath, job.Args);
+        return job;
     }
 
     /// <summary>

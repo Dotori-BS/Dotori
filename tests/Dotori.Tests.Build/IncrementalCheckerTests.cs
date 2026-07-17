@@ -127,6 +127,8 @@ public sealed class IncrementalCheckerTests
         Assert.HasCount(1, missingOutputJobs);
 
         File.WriteAllText(missingOutputJobs[0].OutputFile, "object");
+        checker.RecordFingerprint(
+            missingOutputJobs[0].OutputFile, missingOutputJobs[0].Fingerprint);
         Assert.HasCount(0, planner.PlanCompileJobs(checker));
     }
 
@@ -161,9 +163,66 @@ public sealed class IncrementalCheckerTests
         File.WriteAllText(initialJob.OutputFile, "object");
         checker.Record(source);
         foreach (var dependency in initialJob.DependencyFiles) checker.Record(dependency);
+        checker.RecordFingerprint(initialJob.OutputFile, initialJob.Fingerprint);
         Assert.HasCount(0, planner.PlanCompileJobs(checker));
 
         File.WriteAllText(leaf, "constexpr int value = 2;");
         Assert.HasCount(1, planner.PlanCompileJobs(checker));
+    }
+
+    [TestMethod]
+    public void PlanCompileJobs_CompileFlagsChanged_RebuildsSource()
+    {
+        var source = Path.Combine(_tempDir, "main.cpp");
+        File.WriteAllText(source, "int main() { return 0; }");
+        var model = new FlatProjectModel
+        {
+            Name = "app", ProjectDir = _tempDir,
+            DotoriPath = Path.Combine(_tempDir, ".dotori"),
+        };
+        model.Sources.Add(new SourceItem(true, "main.cpp"));
+        var toolchain = new ToolchainInfo
+        {
+            Kind = CompilerKind.Clang, CompilerPath = "missing-test-clang++",
+            LinkerPath = "missing-test-clang++", TargetTriple = "x86_64-unknown-linux-gnu",
+        };
+
+        using var checker = new IncrementalChecker(_tempDir, "linux-x64-debug");
+        var initialPlanner = new BuildPlanner(model, toolchain, "debug", "linux-x64");
+        var initialJob = initialPlanner.PlanCompileJobs()[0];
+        File.WriteAllText(initialJob.OutputFile, "object");
+        checker.Record(source);
+        checker.RecordFingerprint(initialJob.OutputFile, initialJob.Fingerprint);
+        Assert.HasCount(0, initialPlanner.PlanCompileJobs(checker));
+
+        model.Defines.Add("FEATURE_ENABLED=1");
+        var changedPlanner = new BuildPlanner(model, toolchain, "debug", "linux-x64");
+        Assert.HasCount(1, changedPlanner.PlanCompileJobs(checker));
+    }
+
+    [TestMethod]
+    public void PlanLinkJob_LinkFlagsChanged_ChangesFingerprint()
+    {
+        var model = new FlatProjectModel
+        {
+            Name = "app", ProjectDir = _tempDir,
+            DotoriPath = Path.Combine(_tempDir, ".dotori"),
+        };
+        var toolchain = new ToolchainInfo
+        {
+            Kind = CompilerKind.Clang, CompilerPath = "missing-test-clang++",
+            LinkerPath = "missing-test-clang++", TargetTriple = "x86_64-unknown-linux-gnu",
+        };
+        using var checker = new IncrementalChecker(_tempDir, "linux-x64-debug");
+
+        var initial = new BuildPlanner(model, toolchain, "debug", "linux-x64")
+            .PlanLinkJob(["main.o"])!;
+        checker.RecordFingerprint(initial.OutputFile, initial.Fingerprint);
+        Assert.IsFalse(checker.IsFingerprintChanged(initial.OutputFile, initial.Fingerprint));
+
+        model.LinkFlags.Add("-Wl,--gc-sections");
+        var changed = new BuildPlanner(model, toolchain, "debug", "linux-x64")
+            .PlanLinkJob(["main.o"])!;
+        Assert.IsTrue(checker.IsFingerprintChanged(changed.OutputFile, changed.Fingerprint));
     }
 }

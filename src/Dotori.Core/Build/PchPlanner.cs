@@ -104,13 +104,6 @@ public static class PchPlanner
             $"/Fp\"{pchFile}\"",
         };
 
-        // Check if PCH is up-to-date
-        bool upToDate = File.Exists(pchFile) &&
-                        (checker is null || !checker.IsChanged(pchHeader));
-
-        if (upToDate)
-            return new PchPlan { PchFile = pchFile, UseFlags = useFlags, IsUpToDate = true };
-
         // Build the PCH from the source file (or from the header directly if no source)
         var buildSource = pchSource is not null
             ? Path.GetFullPath(Path.Combine(model.ProjectDir, pchSource))
@@ -131,6 +124,16 @@ public static class PchPlanner
             OutputFile = objFile,
             Args       = buildArgs.ToArray(),
         };
+        AttachState(model, toolchain, job, pchHeader);
+
+        bool upToDate = File.Exists(pchFile) && File.Exists(objFile) &&
+                        (checker is null ||
+                         (!checker.IsChanged(job.SourceFile) &&
+                          !job.DependencyFiles.Any(checker.IsChanged) &&
+                          !checker.IsFingerprintChanged(job.OutputFile, job.Fingerprint)));
+
+        if (upToDate)
+            return new PchPlan { PchFile = pchFile, UseFlags = useFlags, IsUpToDate = true };
 
         return new PchPlan { BuildJob = job, PchFile = pchFile, UseFlags = useFlags };
     }
@@ -152,13 +155,6 @@ public static class PchPlanner
         // Use flags: -include-pch "path/pch.h.pch"
         var useFlags = new List<string> { $"-include-pch \"{pchFile}\"" };
 
-        // Check if PCH is up-to-date
-        bool upToDate = File.Exists(pchFile) &&
-                        (checker is null || !checker.IsChanged(pchHeader));
-
-        if (upToDate)
-            return new PchPlan { PchFile = pchFile, UseFlags = useFlags, IsUpToDate = true };
-
         // Build PCH: clang++ -x c++-header pch.h -o pch.h.pch
         var buildArgs = new List<string>(compileFlags);
         buildArgs.Remove("-c");  // No -c when generating PCH
@@ -172,8 +168,32 @@ public static class PchPlanner
             OutputFile = pchFile,
             Args       = buildArgs.ToArray(),
         };
+        AttachState(model, toolchain, job, pchHeader);
+
+        bool upToDate = File.Exists(pchFile) &&
+                        (checker is null ||
+                         (!checker.IsChanged(job.SourceFile) &&
+                          !job.DependencyFiles.Any(checker.IsChanged) &&
+                          !checker.IsFingerprintChanged(job.OutputFile, job.Fingerprint)));
+
+        if (upToDate)
+            return new PchPlan { PchFile = pchFile, UseFlags = useFlags, IsUpToDate = true };
 
         return new PchPlan { BuildJob = job, PchFile = pchFile, UseFlags = useFlags };
+    }
+
+    private static void AttachState(
+        FlatProjectModel model, ToolchainInfo toolchain, CompileJob job, string pchHeader)
+    {
+        var searchPaths = model.Headers
+            .Select(header => PathUtils.MakeAbsolute(model.ProjectDir, header.Path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        job.DependencyFiles = IncludeScanner.CollectResolvedFiles(
+            pchHeader, searchPaths, includeSystem: false);
+        if (!string.Equals(job.SourceFile, pchHeader, StringComparison.OrdinalIgnoreCase))
+            job.DependencyFiles = job.DependencyFiles.Append(pchHeader).ToArray();
+        job.Fingerprint = BuildActionFingerprint.Compute(toolchain.CompilerPath, job.Args);
     }
 
     /// <summary>

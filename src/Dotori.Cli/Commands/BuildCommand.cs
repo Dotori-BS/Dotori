@@ -232,6 +232,10 @@ internal static class BuildCommandFactory
                 var pchCode = PrintResults(pchResults);
                 if (pchCode != 0) return pchCode;
                 checker.Record(pchPlan.BuildJob.SourceFile);
+                foreach (var dependency in pchPlan.BuildJob.DependencyFiles)
+                    checker.Record(dependency);
+                checker.RecordFingerprint(
+                    pchPlan.BuildJob.OutputFile, pchPlan.BuildJob.Fingerprint);
             }
 
             var singleJob = planner.PlanSingleFileJob(absFile, noUnity);
@@ -295,6 +299,10 @@ internal static class BuildCommandFactory
             int pchCode = PrintResults(pchResults);
             if (pchCode != 0) return pchCode;
             checker.Record(pchPlan.BuildJob.SourceFile);
+            foreach (var dependency in pchPlan.BuildJob.DependencyFiles)
+                checker.Record(dependency);
+            checker.RecordFingerprint(
+                pchPlan.BuildJob.OutputFile, pchPlan.BuildJob.Fingerprint);
         }
 
         // Modules next (order-sensitive BMI generation)
@@ -355,6 +363,7 @@ internal static class BuildCommandFactory
                 checker.Record(job.SourceFile);
                 foreach (var dependency in job.DependencyFiles)
                     checker.Record(dependency);
+                checker.RecordFingerprint(job.OutputFile, job.Fingerprint);
             }
         }
 
@@ -383,7 +392,8 @@ internal static class BuildCommandFactory
             File.Exists(path) && File.GetLastWriteTimeUtc(path) > outputTimestamp);
         var needsLink = !linkOutputExists || compileJobs.Count > 0 ||
                         moduleJobs.Count > 0 || rcJobs.Count > 0 || asmJobs.Count > 0 ||
-                        inputIsNewer;
+                        inputIsNewer ||
+                        checker.IsFingerprintChanged(linkJob.OutputFile, linkJob.Fingerprint);
 
         if (!needsLink)
         {
@@ -408,6 +418,7 @@ internal static class BuildCommandFactory
 
         Console.WriteLine($"  Linked: {linkJob.OutputFile}");
         builtLibraries[node.DotoriPath] = linkJob.OutputFile;
+        checker.RecordFingerprint(linkJob.OutputFile, linkJob.Fingerprint);
 
         // Manifest embedding (Windows MSVC only, runs after link)
         if (!await planner.EmbedManifestAsync(linkJob.OutputFile, ct))

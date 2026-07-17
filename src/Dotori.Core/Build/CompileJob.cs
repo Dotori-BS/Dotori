@@ -7,6 +7,7 @@ public sealed class CompileJob
     public required string OutputFile  { get; init; }
     public required string[] Args      { get; init; }
     public IReadOnlyList<string> DependencyFiles { get; set; } = [];
+    public string? Fingerprint { get; set; }
 }
 
 /// <summary>A link job (produces an executable or library).</summary>
@@ -15,6 +16,7 @@ public sealed class LinkJob
     public required string[] InputFiles  { get; init; }  // .obj / .o files
     public required string   OutputFile  { get; init; }
     public required string[] Args        { get; init; }
+    public string? Fingerprint { get; set; }
 }
 
 /// <summary>

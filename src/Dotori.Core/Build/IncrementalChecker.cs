@@ -68,6 +68,26 @@ public sealed class IncrementalChecker : IDisposable
             });
     }
 
+    public bool IsFingerprintChanged(string outputPath, string? fingerprint) =>
+        fingerprint is not null &&
+        (!_hashes.TryGetValue(FingerprintKey(outputPath), out var stored) || stored != fingerprint);
+
+    public void RecordFingerprint(string outputPath, string? fingerprint)
+    {
+        if (fingerprint is null) return;
+        _hashes.AddOrUpdate(
+            FingerprintKey(outputPath),
+            _ => { _dirty = true; return fingerprint; },
+            (_, existing) =>
+            {
+                if (existing != fingerprint) _dirty = true;
+                return fingerprint;
+            });
+    }
+
+    private static string FingerprintKey(string outputPath) =>
+        $"action:{Path.GetFullPath(outputPath)}";
+
     /// <summary>Flush the hash DB to disk if it has been modified.</summary>
     public void Save()
     {

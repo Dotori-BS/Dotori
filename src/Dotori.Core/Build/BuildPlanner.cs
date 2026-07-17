@@ -211,7 +211,8 @@ public sealed partial class BuildPlanner
     private bool IsUpToDate(CompileJob job, IncrementalChecker? checker) =>
         checker is not null && File.Exists(job.OutputFile) &&
         !checker.IsChanged(job.SourceFile) &&
-        !job.DependencyFiles.Any(checker.IsChanged);
+        !job.DependencyFiles.Any(checker.IsChanged) &&
+        !checker.IsFingerprintChanged(job.OutputFile, job.Fingerprint);
 
     private void AttachDependencies(CompileJob job)
     {
@@ -221,6 +222,7 @@ public sealed partial class BuildPlanner
             .ToArray();
         job.DependencyFiles = IncludeScanner.CollectResolvedFiles(
             job.SourceFile, searchPaths, includeSystem: false);
+        job.Fingerprint = BuildActionFingerprint.Compute(_toolchain.CompilerPath, job.Args);
     }
 
     /// <summary>
