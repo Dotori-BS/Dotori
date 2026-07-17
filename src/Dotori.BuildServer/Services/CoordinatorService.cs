@@ -23,7 +23,8 @@ public sealed class CoordinatorService(
     {
         // ── 1. Cache hit? ──────────────────────────────────────────────
         var cacheKey = BuildCache.ComputeKey(
-            request.SourceHash, request.Args, request.Compiler, request.TargetTriple);
+            request.SourceHash, request.Args, request.Compiler, request.TargetTriple,
+            request.CompilerFingerprint, request.DependencyHash);
         if (cache.TryGet(cacheKey, out var cachedObj))
         {
             logger.LogDebug("Cache hit: {Key}", cacheKey);

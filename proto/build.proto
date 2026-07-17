@@ -21,6 +21,8 @@ message CompileRequest {
   string source_hash   = 4;  // SHA-256 hex of source file (for cache lookup)
   bytes  source_bytes  = 5;  // actual source content (omit if server has it cached)
   string source_path   = 6;  // original path for diagnostics / relative includes
+  string compiler_fingerprint = 7; // compiler binary fingerprint
+  string dependency_hash = 8;      // resolved include content fingerprint
 }
 
 message CompileEvent {

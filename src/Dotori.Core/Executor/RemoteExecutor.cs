@@ -3,6 +3,9 @@ using Dotori.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
 using Grpc.Net.Client;
+using System.Collections.Concurrent;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Dotori.Core.Executor;
 
@@ -12,6 +15,8 @@ namespace Dotori.Core.Executor;
 /// </summary>
 public sealed class RemoteExecutor : IExecutor, IDisposable
 {
+    private static readonly ConcurrentDictionary<string, string> CompilerFingerprints = new(
+        StringComparer.OrdinalIgnoreCase);
     private readonly GrpcChannel                        _channel;
     private readonly BuildCoordinator.BuildCoordinatorClient _client;
     private readonly LocalExecutor                      _fallback;
@@ -69,6 +74,8 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
     {
         var sourceBytes = await ReadSourceAsync(job.SourceFile, ct);
         var sourceHash  = ComputeHash(sourceBytes);
+        var compilerFingerprint = CompilerFingerprints.GetOrAdd(compiler, ComputeCompilerFingerprint);
+        var dependencyHash = ComputeDependencyHash(job.SourceFile, job.Args);
 
         var request = new CompileRequest
         {
@@ -77,6 +84,8 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
             SourceHash   = sourceHash,
             SourceBytes  = ByteString.CopyFrom(sourceBytes),
             SourcePath   = Path.GetFileName(job.SourceFile),
+            CompilerFingerprint = compilerFingerprint,
+            DependencyHash = dependencyHash,
         };
         request.Args.AddRange(job.Args);
 
@@ -164,6 +173,56 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
     {
         var hash = System.Security.Cryptography.SHA256.HashData(bytes);
         return Convert.ToHexStringLower(hash);
+    }
+
+    private static string ComputeCompilerFingerprint(string compiler)
+    {
+        var path = ResolveExecutable(compiler);
+        if (path is null) return ComputeHash(Encoding.UTF8.GetBytes(compiler));
+        using var stream = File.OpenRead(path);
+        return Convert.ToHexStringLower(SHA256.HashData(stream));
+    }
+
+    private static string? ResolveExecutable(string executable)
+    {
+        if (File.Exists(executable)) return Path.GetFullPath(executable);
+        foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+                     .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var candidate = Path.Combine(dir, executable);
+            if (File.Exists(candidate)) return candidate;
+        }
+        return null;
+    }
+
+    private static string ComputeDependencyHash(string sourceFile, IReadOnlyList<string> args)
+    {
+        var searchPaths = args
+            .Where(arg => arg.StartsWith("-I", StringComparison.Ordinal) ||
+                          arg.StartsWith("/I", StringComparison.OrdinalIgnoreCase))
+            .Select(arg => arg[2..].Trim('"'))
+            .Where(path => path.Length > 0)
+            .Select(path => Path.GetFullPath(path))
+            .ToList();
+        var tree = IncludeScanner.BuildTree(sourceFile, searchPaths, includeSystem: false);
+        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        static void Collect(IncludeScanner.IncludeNode node, HashSet<string> output)
+        {
+            if (node.IsResolved && File.Exists(node.FilePath)) output.Add(node.FilePath);
+            foreach (var child in node.Children) Collect(child, output);
+        }
+        Collect(tree, files);
+
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var file in files.OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+        {
+            hash.AppendData(Encoding.UTF8.GetBytes(Path.GetFullPath(file)));
+            using var stream = File.OpenRead(file);
+            var contentHash = SHA256.HashData(stream);
+            hash.AppendData(contentHash);
+        }
+        return Convert.ToHexStringLower(hash.GetHashAndReset());
     }
 
     private static JobResult Failure(CompileJob job, string message) =>

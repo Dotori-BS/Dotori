@@ -79,4 +79,18 @@ public sealed class BuildCacheTests
 
         Assert.AreEqual(first, second);
     }
+
+    [TestMethod]
+    public void ComputeKey_DistinguishesCompilerAndDependencyFingerprints()
+    {
+        var first = BuildCache.ComputeKey(
+            "source", ["-O2"], "clang", "x86_64-linux", "clang-v1", "headers-v1");
+        var compilerChanged = BuildCache.ComputeKey(
+            "source", ["-O2"], "clang", "x86_64-linux", "clang-v2", "headers-v1");
+        var headerChanged = BuildCache.ComputeKey(
+            "source", ["-O2"], "clang", "x86_64-linux", "clang-v1", "headers-v2");
+
+        Assert.AreNotEqual(first, compilerChanged);
+        Assert.AreNotEqual(first, headerChanged);
+    }
 }

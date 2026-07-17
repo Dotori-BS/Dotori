@@ -25,7 +25,9 @@ public sealed class BuildCache
         string sourceHash,
         IEnumerable<string> args,
         string compiler = "",
-        string targetTriple = "")
+        string targetTriple = "",
+        string compilerFingerprint = "",
+        string dependencyHash = "")
     {
         // Delimit every field: simple concatenation lets distinct argument lists
         // such as ["-D", "AB"] and ["-DA", "B"] collide.  The compiler and
@@ -35,6 +37,8 @@ public sealed class BuildCache
         WriteField(stream, sourceHash);
         WriteField(stream, compiler);
         WriteField(stream, targetTriple);
+        WriteField(stream, compilerFingerprint);
+        WriteField(stream, dependencyHash);
         foreach (var arg in args)
             WriteField(stream, arg);
 
