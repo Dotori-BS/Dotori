@@ -52,4 +52,23 @@ public sealed class WorkerServiceTests
         Assert.IsFalse(response.Success);
         StringAssert.Contains(response.Stderr, "limits");
     }
+
+    [TestMethod]
+    public async Task Health_ReportsConfiguredTargetTriples()
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["DOTORI_SUPPORTED_TARGETS"] =
+                "x86_64-unknown-linux-gnu, aarch64-unknown-linux-musl",
+        }).Build();
+        var service = new WorkerService(NullLogger<WorkerService>.Instance, config);
+
+        var response = await service.Health(new HealthRequest(), null!);
+
+        Assert.IsTrue(response.Ok);
+        CollectionAssert.AreEquivalent(new[]
+        {
+            "x86_64-unknown-linux-gnu", "aarch64-unknown-linux-musl",
+        }, response.SupportedTargets.ToArray());
+    }
 }

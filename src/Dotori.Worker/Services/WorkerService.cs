@@ -28,6 +28,9 @@ public sealed class WorkerService(
     private readonly int _maxArguments = configuration?.GetValue<int?>("DOTORI_MAX_ARGUMENTS") ?? 4096;
     private readonly TimeSpan _executionTimeout = TimeSpan.FromSeconds(
         configuration?.GetValue<int?>("DOTORI_EXECUTION_TIMEOUT_SECONDS") ?? 300);
+    private readonly Lazy<IReadOnlyList<string>> _supportedTargets = new(
+        () => ResolveSupportedTargets(configuration?["DOTORI_SUPPORTED_TARGETS"]),
+        LazyThreadSafetyMode.ExecutionAndPublication);
 
     public override async Task Compile(
         WorkerCompileRequest                          request,
@@ -230,14 +233,13 @@ public sealed class WorkerService(
         HealthRequest     request,
         ServerCallContext context)
     {
-        var available = ToolchainDetector.DetectAvailable();
         var resp = new HealthResponse
         {
             Ok      = true,
             Version = Assembly.GetExecutingAssembly()
                           .GetName().Version?.ToString() ?? "0.0.0",
         };
-        resp.SupportedTargets.AddRange(available);
+        resp.SupportedTargets.AddRange(_supportedTargets.Value);
         return Task.FromResult(resp);
     }
 
@@ -307,4 +309,19 @@ public sealed class WorkerService(
             .Select(value => Path.GetFileName(value.Trim()))
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    private static IReadOnlyList<string> ResolveSupportedTargets(string? configured)
+    {
+        if (!string.IsNullOrWhiteSpace(configured))
+            return configured.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+        return ToolchainDetector.DetectAvailable()
+            .Select(target => ToolchainDetector.Detect(target)?.TargetTriple)
+            .Where(triple => !string.IsNullOrWhiteSpace(triple))
+            .Select(triple => triple!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
 }

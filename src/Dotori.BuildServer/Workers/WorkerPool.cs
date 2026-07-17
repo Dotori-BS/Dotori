@@ -1,4 +1,5 @@
 using Dotori.Grpc;
+using Grpc.Core;
 using Grpc.Net.Client;
 
 namespace Dotori.BuildServer.Workers;
@@ -12,12 +13,15 @@ public sealed class WorkerPool : IDisposable
 {
     private readonly List<WorkerEntry> _workers = [];
     private readonly TimeSpan _failureCooldown;
+    private readonly TimeSpan _healthTimeout;
     private int _roundRobin;
 
     public WorkerPool(IConfiguration config, ILogger<WorkerPool> logger)
     {
         _failureCooldown = TimeSpan.FromSeconds(Math.Max(1,
             config.GetValue("DOTORI_WORKER_FAILURE_COOLDOWN_SECONDS", 30)));
+        _healthTimeout = TimeSpan.FromSeconds(Math.Max(1,
+            config.GetValue("DOTORI_WORKER_HEALTH_TIMEOUT_SECONDS", 5)));
         var addresses = config["DOTORI_WORKERS"] ?? string.Empty;
         var token = RemoteBuildAuth.ResolveToken(
             config["DOTORI_WORKER_TOKEN"], config["DOTORI_WORKER_TOKEN_FILE"]);
@@ -65,6 +69,41 @@ public sealed class WorkerPool : IDisposable
         return healthy.Length > 0 ? healthy : ordered;
     }
 
+    /// <summary>Probes unknown workers and returns only those supporting the requested triple.</summary>
+    public async Task<IReadOnlyList<WorkerEntry>> CandidatesAsync(
+        string targetTriple, CancellationToken ct)
+    {
+        var candidates = Candidates();
+        await RefreshCapabilitiesAsync(candidates, ct);
+        return candidates.Where(worker =>
+                worker.IsAvailable && worker.SupportsTarget(targetTriple))
+            .ToArray();
+    }
+
+    public Task RefreshCapabilitiesAsync(CancellationToken ct) =>
+        RefreshCapabilitiesAsync(_workers, ct);
+
+    private async Task RefreshCapabilitiesAsync(
+        IEnumerable<WorkerEntry> workers, CancellationToken ct)
+    {
+        foreach (var worker in workers.Where(worker => !worker.CapabilitiesKnown))
+        {
+            try
+            {
+                var health = await worker.Client.HealthAsync(
+                    new HealthRequest(), worker.Headers,
+                    deadline: DateTime.UtcNow.Add(_healthTimeout), cancellationToken: ct);
+                if (!health.Ok) throw new RpcException(new Status(StatusCode.Unavailable, "Worker unhealthy"));
+                worker.SetSupportedTargets(health.SupportedTargets);
+                worker.ReportSuccess();
+            }
+            catch (RpcException) when (!ct.IsCancellationRequested)
+            {
+                worker.ReportTransportFailure();
+            }
+        }
+    }
+
     public IReadOnlyList<WorkerEntry> All => _workers;
 
     public void Dispose()
@@ -83,6 +122,7 @@ public sealed class WorkerEntry(
 {
     private int _consecutiveFailures;
     private long _retryAfterTicks;
+    private string[]? _supportedTargets;
 
     public string Address { get; } = address;
     public GrpcChannel Channel { get; } = channel;
@@ -90,6 +130,17 @@ public sealed class WorkerEntry(
     public global::Grpc.Core.Metadata Headers { get; } = headers;
     public bool IsAvailable => DateTime.UtcNow.Ticks >= Interlocked.Read(ref _retryAfterTicks);
     public int ConsecutiveFailures => Volatile.Read(ref _consecutiveFailures);
+    public bool CapabilitiesKnown => Volatile.Read(ref _supportedTargets) is not null;
+    public IReadOnlyList<string> SupportedTargets =>
+        Volatile.Read(ref _supportedTargets) ?? [];
+
+    public void SetSupportedTargets(IEnumerable<string> targets) =>
+        Volatile.Write(ref _supportedTargets,
+            targets.Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
+
+    public bool SupportsTarget(string targetTriple) =>
+        Volatile.Read(ref _supportedTargets)?.Contains(
+            targetTriple, StringComparer.OrdinalIgnoreCase) == true;
 
     public void ReportSuccess()
     {

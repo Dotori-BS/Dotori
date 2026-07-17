@@ -194,5 +194,8 @@ public sealed class BuildCacheTests
         worker.ReportSuccess();
         Assert.IsTrue(worker.IsAvailable);
         Assert.AreEqual(0, worker.ConsecutiveFailures);
+        worker.SetSupportedTargets(["x86_64-unknown-linux-gnu"]);
+        Assert.IsTrue(worker.SupportsTarget("x86_64-unknown-linux-gnu"));
+        Assert.IsFalse(worker.SupportsTarget("aarch64-unknown-linux-gnu"));
     }
 }

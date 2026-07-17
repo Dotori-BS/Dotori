@@ -42,14 +42,15 @@ public sealed class CoordinatorService(
         }
 
         // ── 2. Try healthy workers in round-robin order ───────────────
-        var workers = workerPool.Candidates();
+        var workers = await workerPool.CandidatesAsync(
+            request.TargetTriple, context.CancellationToken);
         if (workers.Count == 0)
         {
             await responseStream.WriteAsync(new CompileEvent
             {
                 Result = new CompileResult { Success = false, ExitCode = -1 }
             });
-            logger.LogError("No workers available for compile job.");
+            logger.LogError("No workers support target {Target} for compile job.", request.TargetTriple);
             return;
         }
 
@@ -77,6 +78,14 @@ public sealed class CoordinatorService(
                 }
                 if (finalResult is not null)
                 {
+                    if (!finalResult.Success && finalResult.ExitCode == -1)
+                    {
+                        worker.ReportTransportFailure();
+                        logger.LogWarning(
+                            "Worker {Worker} rejected compile job; retrying.", worker.Address);
+                        finalResult = null;
+                        continue;
+                    }
                     worker.ReportSuccess();
                     break;
                 }
@@ -120,10 +129,11 @@ public sealed class CoordinatorService(
         LinkRequest       request,
         ServerCallContext context)
     {
-        var workers = workerPool.Candidates();
+        var workers = await workerPool.CandidatesAsync(
+            request.TargetTriple, context.CancellationToken);
         if (workers.Count == 0)
         {
-            logger.LogError("No workers available for link job.");
+            logger.LogError("No workers support target {Target} for link job.", request.TargetTriple);
             return new LinkResponse { Success = false, ExitCode = -1 };
         }
 
@@ -141,6 +151,13 @@ public sealed class CoordinatorService(
             {
                 var response = await worker.Client.LinkAsync(workerRequest, worker.Headers,
                     cancellationToken: context.CancellationToken);
+                if (!response.Success && response.ExitCode == -1)
+                {
+                    worker.ReportTransportFailure();
+                    logger.LogWarning(
+                        "Worker {Worker} rejected link job; retrying.", worker.Address);
+                    continue;
+                }
                 worker.ReportSuccess();
                 return new LinkResponse
                 {
@@ -166,19 +183,22 @@ public sealed class CoordinatorService(
         };
     }
 
-    public override Task<ListWorkersResponse> ListWorkers(
+    public override async Task<ListWorkersResponse> ListWorkers(
         ListWorkersRequest request,
         ServerCallContext  context)
     {
+        await workerPool.RefreshCapabilitiesAsync(context.CancellationToken);
         var resp = new ListWorkersResponse();
         foreach (var w in workerPool.All)
         {
-            resp.Workers.Add(new WorkerInfo
+            var info = new WorkerInfo
             {
                 Id      = w.Address,
                 Address = w.Address,
-            });
+            };
+            info.Targets.AddRange(w.SupportedTargets);
+            resp.Workers.Add(info);
         }
-        return Task.FromResult(resp);
+        return resp;
     }
 }

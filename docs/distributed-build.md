@@ -100,6 +100,7 @@ dotori-server \
 | `DOTORI_SERVER_TOKEN_FILE` | — | 토큰을 읽을 secret 파일 경로 |
 | `DOTORI_REQUIRE_HTTPS` | `false` | `true`이면 HTTPS가 아닌 gRPC 요청을 거부 |
 | `DOTORI_WORKER_FAILURE_COOLDOWN_SECONDS` | `30` | 전송 실패 worker를 스케줄링에서 제외하는 기본 시간. 연속 실패 시 지수 증가 |
+| `DOTORI_WORKER_HEALTH_TIMEOUT_SECONDS` | `5` | Coordinator가 worker capability를 조회할 때의 제한 시간 |
 
 ### Worker
 
@@ -113,6 +114,7 @@ dotori-server \
 | `DOTORI_REQUIRE_HTTPS` | `false` | `true`이면 HTTPS가 아닌 gRPC 요청을 거부 |
 | `DOTORI_MAX_INPUT_BYTES` | `67108864` | 요청 하나의 소스 또는 오브젝트 총 입력 크기 제한 |
 | `DOTORI_MAX_ARGUMENTS` | `4096` | 컴파일러·링커 인수 최대 개수 |
+| `DOTORI_SUPPORTED_TARGETS` | 자동 감지 | worker가 처리할 target triple 목록(쉼표 구분). 컨테이너·교차 toolchain 환경에서는 명시 권장 |
 | `DOTORI_EXECUTION_TIMEOUT_SECONDS` | `300` | worker 프로세스 최대 실행 시간 |
 
 운영 환경에서는 토큰 값을 환경 변수에 직접 넣기보다 Docker/Kubernetes secret 파일을 권장합니다.
@@ -290,6 +292,8 @@ WorkerInfo 응답 필드:
 | `address` | 워커 gRPC 주소 |
 | `targets` | 지원 타겟 트리플 목록 |
 | `busy` | 현재 작업 중 여부 |
+
+Coordinator는 첫 작업 또는 `ListWorkers` 조회 시 worker의 `Health` RPC를 호출하고, 요청의 `target_triple`을 지원한다고 응답한 worker만 선택합니다. capability 조회 또는 작업 전송이 실패하거나 worker가 실행 파일·요청을 거부하면 다음 호환 worker로 재시도합니다.
 
 ---
 
