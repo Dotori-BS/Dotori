@@ -23,14 +23,20 @@ public sealed class IncrementalChecker : IDisposable
     private readonly ConcurrentDictionary<string, string> _hashes;  // path → SHA256 hex
     private volatile bool _dirty;
 
-    public IncrementalChecker(string projectDir)
+    public IncrementalChecker(string projectDir, string? scope = null)
     {
         var cacheDir = Path.Combine(projectDir, DotoriConstants.CacheDir);
         Directory.CreateDirectory(cacheDir);
-        _dbPath  = Path.Combine(cacheDir, DotoriConstants.HashDbFileName);
+        var dbName = string.IsNullOrWhiteSpace(scope)
+            ? DotoriConstants.HashDbFileName
+            : $"hashes.{SanitizeScope(scope)}.db";
+        _dbPath  = Path.Combine(cacheDir, dbName);
         _hashes  = Load(_dbPath);
         _dirty   = false;
     }
+
+    private static string SanitizeScope(string scope) => string.Concat(
+        scope.Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' ? ch : '_'));
 
     /// <summary>
     /// Returns true if the file has changed since it was last recorded.

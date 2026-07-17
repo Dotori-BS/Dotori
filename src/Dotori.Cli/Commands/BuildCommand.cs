@@ -192,7 +192,7 @@ internal static class BuildCommandFactory
 
         Console.WriteLine($"  Building {model.Name} ({node.DotoriPath})");
 
-        using var checker = new IncrementalChecker(model.ProjectDir);
+        using var checker = new IncrementalChecker(model.ProjectDir, $"{targetId}-{config}");
         var planner = new BuildPlanner(model, toolchain, config, targetId);
 
         // Collect transitive dependency library paths

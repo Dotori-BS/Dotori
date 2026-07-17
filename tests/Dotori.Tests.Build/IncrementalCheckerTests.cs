@@ -81,4 +81,22 @@ public sealed class IncrementalCheckerTests
         using var checker2 = new IncrementalChecker(_tempDir);
         Assert.IsFalse(checker2.IsChanged(file));
     }
+
+    [TestMethod]
+    public void IsChanged_UsesIndependentTargetAndConfigScopes()
+    {
+        var file = Path.Combine(_tempDir, "foo.cpp");
+        File.WriteAllText(file, "int main() {}");
+
+        using (var debug = new IncrementalChecker(_tempDir, "macos-arm64-debug"))
+        {
+            debug.Record(file);
+            debug.Save();
+        }
+
+        using var debugAgain = new IncrementalChecker(_tempDir, "macos-arm64-debug");
+        using var release = new IncrementalChecker(_tempDir, "macos-arm64-release");
+        Assert.IsFalse(debugAgain.IsChanged(file));
+        Assert.IsTrue(release.IsChanged(file));
+    }
 }

@@ -77,7 +77,7 @@ internal static class RunCommandFactory
 
                     Console.WriteLine($"  Building {model.Name}...");
 
-                    using var checker = new IncrementalChecker(model.ProjectDir);
+                    using var checker = new IncrementalChecker(model.ProjectDir, $"{targetId}-{config}");
                     var planner = new BuildPlanner(model, toolchain, config, targetId);
 
                     var linkOutDir = Path.Combine(model.ProjectDir, DotoriConstants.CacheDir,
