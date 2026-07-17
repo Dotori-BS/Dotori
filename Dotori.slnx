@@ -27,6 +27,6 @@
     <Project Path="tests/Dotori.Tests.Parsing/Dotori.Tests.Parsing.csproj" />
     <Project Path="tests/Dotori.Tests.LanguageServer/Dotori.Tests.LanguageServer.csproj" />
     <Project Path="tests/Dotori.Tests.Generators/Dotori.Tests.Generators.csproj" />
+    <Project Path="tests/Dotori.Tests.BuildServer/Dotori.Tests.BuildServer.csproj" />
   </Folder>
 </Solution>
-

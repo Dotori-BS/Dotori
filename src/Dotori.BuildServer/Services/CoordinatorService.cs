@@ -22,7 +22,8 @@ public sealed class CoordinatorService(
         ServerCallContext                       context)
     {
         // ── 1. Cache hit? ──────────────────────────────────────────────
-        var cacheKey = BuildCache.ComputeKey(request.SourceHash, request.Args);
+        var cacheKey = BuildCache.ComputeKey(
+            request.SourceHash, request.Args, request.Compiler, request.TargetTriple);
         if (cache.TryGet(cacheKey, out var cachedObj))
         {
             logger.LogDebug("Cache hit: {Key}", cacheKey);

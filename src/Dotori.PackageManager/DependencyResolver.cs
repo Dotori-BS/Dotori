@@ -59,6 +59,13 @@ public static class DependencyResolver
             // Re-use existing entry if unchanged
             if (existingLock.Packages.TryGetValue(lockKey, out var existing))
             {
+                if (source.IsRegistryPackage(name) && !PackageInstaller.IsInstalled(depsRoot, name))
+                {
+                    var registryUrl = existing.Registry ?? source.GetRegistryUrl(name);
+                    await PackageInstaller.InstallFromTarballAsync(
+                        depsRoot, name, version.ToString(), existing.Resolved,
+                        config.GetRegistry(registryUrl).Token, existing.Integrity, ct);
+                }
                 newLock.Packages[lockKey] = existing;
                 continue;
             }
@@ -89,7 +96,7 @@ public static class DependencyResolver
 
                 await PackageInstaller.InstallFromTarballAsync(
                     depsRoot, name, version.ToString(), tarballUrl,
-                    config.GetRegistry(registryUrl).Token, ct);
+                    config.GetRegistry(registryUrl).Token, versionManifest?.Dist?.Integrity, ct);
 
                 var depMap = await source.GetDependenciesAsync(name, version, ct);
                 var entry = new LockEntry

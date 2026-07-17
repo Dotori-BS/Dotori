@@ -72,8 +72,8 @@ internal static partial class PackageCommandFactory
             else
             {
                 // name or name@version
-                var atIdx = nameArg2!.IndexOf('@');
-                if (atIdx >= 0)
+                var atIdx = nameArg2!.LastIndexOf('@');
+                if (atIdx > 0)
                 {
                     depName = nameArg2[..atIdx];
                     var version = nameArg2[(atIdx + 1)..];

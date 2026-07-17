@@ -46,8 +46,7 @@ internal sealed class RegistryPackageSource : IPackageSource
         return false;
     }
 
-    public bool IsRegistryPackage(string name) =>
-        name.StartsWith('@') && !_gitInfo.ContainsKey(name);
+    public bool IsRegistryPackage(string name) => !_gitInfo.ContainsKey(name);
 
     public string GetRegistryUrl(string name) => _config.ResolveRegistryUrl(name);
 
