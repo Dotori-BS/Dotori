@@ -10,6 +10,25 @@ namespace Dotori.PackageManager;
 /// </summary>
 public static class LockManager
 {
+    public static bool ContentEquals(LockFile left, LockFile right)
+    {
+        if (left.LockVersion != right.LockVersion || left.Name != right.Name ||
+            left.Version != right.Version || left.Packages.Count != right.Packages.Count)
+            return false;
+
+        foreach (var (key, a) in left.Packages)
+        {
+            if (!right.Packages.TryGetValue(key, out var b) ||
+                a.Version != b.Version || a.Resolved != b.Resolved ||
+                a.Integrity != b.Integrity || a.Registry != b.Registry || a.Link != b.Link ||
+                a.Dependencies.Count != b.Dependencies.Count ||
+                a.Dependencies.Any(dep =>
+                    !b.Dependencies.TryGetValue(dep.Key, out var value) || value != dep.Value))
+                return false;
+        }
+        return true;
+    }
+
     /// <summary>Load lock file from project directory. Returns empty if not found.</summary>
     public static LockFile Load(string projectDir)
     {

@@ -11,6 +11,7 @@ internal sealed class RegistryPackageSource : IPackageSource
     private readonly LockFile _existingLock;
     private readonly DotoriConfig _config;
     private readonly CancellationToken _ct;
+    private readonly bool _offline;
 
     // git-only deps: name → (url, tagOrCommit)
     private readonly Dictionary<string, (string url, string tagOrCommit)> _gitInfo = new();
@@ -24,10 +25,12 @@ internal sealed class RegistryPackageSource : IPackageSource
     private readonly Dictionary<string, NpmPackument?> _packumentCache
         = new(StringComparer.OrdinalIgnoreCase);
 
-    public RegistryPackageSource(LockFile existingLock, DotoriConfig config, CancellationToken ct)
+    public RegistryPackageSource(
+        LockFile existingLock, DotoriConfig config, bool offline, CancellationToken ct)
     {
         _existingLock = existingLock;
         _config = config;
+        _offline = offline;
         _ct = ct;
     }
 
@@ -147,6 +150,12 @@ internal sealed class RegistryPackageSource : IPackageSource
     {
         if (_packumentCache.TryGetValue(scopedName, out var cached))
             return cached;
+
+        if (_offline)
+        {
+            _packumentCache[scopedName] = null;
+            return null;
+        }
 
         NpmPackument? packument = null;
         try

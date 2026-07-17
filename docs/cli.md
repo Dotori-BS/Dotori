@@ -45,6 +45,9 @@ dotori build [옵션]
 | `--stdlib <libc++\|libstdc++>` | 플랫폼별 기본값 | C++ 표준 라이브러리 |
 | `--jobs <N>` | CPU 코어 수 | 병렬 빌드 작업 수 |
 | `--no-modules` | — | C++ Modules 지원 비활성화 |
+| `--locked` | — | 의존성 선언과 lock 파일이 다르면 실패하고 lock 파일을 변경하지 않음 |
+| `--offline` | — | 네트워크 접근 없이 설치된 패키지와 lock 파일만 사용 |
+| `--frozen` | — | `--locked --offline`과 동일 |
 
 #### `--compiler` 값 목록
 

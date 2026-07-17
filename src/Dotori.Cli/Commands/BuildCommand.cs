@@ -25,6 +25,9 @@ internal static class BuildCommandFactory
         var noLinkOption      = new Option<bool>("--no-link")         { Description = "Compile only, do not link" };
         var noUnityOption     = new Option<bool>("--no-unity")        { Description = "Bypass Unity Build for --file (compile file directly)" };
         var remoteOption      = new Option<string?>("--remote")       { Description = "Remote build server address (e.g. http://build-server:5100)" };
+        var lockedOption      = new Option<bool>("--locked")         { Description = "Require dotori-lock.json to remain unchanged" };
+        var offlineOption     = new Option<bool>("--offline")        { Description = "Disable dependency network access" };
+        var frozenOption      = new Option<bool>("--frozen")         { Description = "Equivalent to --locked --offline" };
 
         command.Add(projectOption);
         command.Add(allOption);
@@ -39,6 +42,9 @@ internal static class BuildCommandFactory
         command.Add(noLinkOption);
         command.Add(noUnityOption);
         command.Add(remoteOption);
+        command.Add(lockedOption);
+        command.Add(offlineOption);
+        command.Add(frozenOption);
 
         // Allow unknown --flags so project-declared options can be passed as --option-name / --no-option-name
         command.TreatUnmatchedTokensAsErrors = false;
@@ -59,6 +65,9 @@ internal static class BuildCommandFactory
             var noUnity     = parseResult.GetValue(noUnityOption);
             var remoteArg   = parseResult.GetValue(remoteOption)
                            ?? Environment.GetEnvironmentVariable(DotoriConstants.EnvServer);
+            var frozen     = parseResult.GetValue(frozenOption);
+            var locked     = frozen || parseResult.GetValue(lockedOption);
+            var offline    = frozen || parseResult.GetValue(offlineOption);
 
             var config   = release ? "release" : "debug";
             var targetId = BuildContext.ResolveTargetId(targetArg);
@@ -68,7 +77,17 @@ internal static class BuildCommandFactory
             if (paths.Count == 0) return 1;
 
             // Resolve and fetch git dependencies, then include them in the DAG
-            var gitPackageMap = await BuildContext.ResolveAndFetchGitPackagesAsync(paths, ct);
+            IReadOnlyDictionary<string, string> gitPackageMap;
+            try
+            {
+                gitPackageMap = await BuildContext.ResolveAndFetchGitPackagesAsync(
+                    paths, locked, offline, ct);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error: dependency resolution failed: {ex.Message}");
+                return 1;
+            }
 
             // Build DAG (includes git package nodes when their .dotori is found)
             var dag = BuildContext.BuildDag(paths, gitPackageMap);

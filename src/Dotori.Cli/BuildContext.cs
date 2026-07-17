@@ -73,6 +73,8 @@ internal static class BuildContext
     /// </summary>
     internal static async Task<IReadOnlyDictionary<string, string>> ResolveAndFetchGitPackagesAsync(
         IReadOnlyList<string> rootPaths,
+        bool locked = false,
+        bool offline = false,
         CancellationToken ct = default)
     {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -93,11 +95,17 @@ internal static class BuildContext
             {
                 try
                 {
-                    lockFile = await DependencyResolver.ResolveAsync(projectDir, existingLock, file.Project, ct);
-                    LockManager.Save(lockFile, projectDir);
+                    lockFile = await DependencyResolver.ResolveAsync(
+                        projectDir, existingLock, file.Project,
+                        new DependencyResolver.Options(locked, offline), ct);
+                    if (locked && !LockManager.ContentEquals(existingLock, lockFile))
+                        throw new PackageManagerException(
+                            "Dependency manifest does not match dotori-lock.json (--locked).");
+                    if (!locked) LockManager.Save(lockFile, projectDir);
                 }
                 catch (Exception ex)
                 {
+                    if (locked || offline) throw;
                     Console.Error.WriteLine($"Warning: dependency resolution failed for '{rootPath}': {ex.Message}");
                     lockFile = existingLock;
                 }
@@ -129,13 +137,23 @@ internal static class BuildContext
                 string localDir;
                 try
                 {
-                    Console.WriteLine($"  Fetching {pkgName} ({tagOrCommit})...");
-                    localDir = await GitFetcher.FetchAsync(
-                        Path.Combine(projectDir, DotoriConstants.DepsDir),
-                        pkgName, gitUrl, tagOrCommit, ct);
+                    var depsRoot = Path.Combine(projectDir, DotoriConstants.DepsDir);
+                    if (offline)
+                    {
+                        localDir = GitFetcher.GetLocalDepDir(depsRoot, pkgName)
+                            ?? throw new PackageManagerException(
+                                $"Git package '{pkgName}' is not available in offline mode.");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"  Fetching {pkgName} ({tagOrCommit})...");
+                        localDir = await GitFetcher.FetchAsync(
+                            depsRoot, pkgName, gitUrl, tagOrCommit, ct);
+                    }
                 }
                 catch (Exception ex)
                 {
+                    if (locked || offline) throw;
                     Console.Error.WriteLine($"Warning: Failed to fetch '{pkgName}': {ex.Message}");
                     continue;
                 }

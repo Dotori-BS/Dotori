@@ -180,6 +180,16 @@ C++ Modules 지원을 비활성화합니다.
 .BI \-\-remote " URL"
 분산 빌드 서버 주소를 지정합니다.
 예: \fIhttp://build-server:5100\fR
+.TP
+.B \-\-locked
+의존성 선언과 lock 파일이 다르면 실패하며 lock 파일을 변경하지 않습니다.
+.TP
+.B \-\-offline
+의존성 네트워크 접근을 금지하고 설치된 패키지와 lock 파일만 사용합니다.
+.TP
+.B \-\-frozen
+.B \-\-locked \-\-offline
+과 동일합니다.
 .
 .SH RUN OPTIONS
 .TP

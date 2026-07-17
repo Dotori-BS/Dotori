@@ -200,7 +200,8 @@ internal static partial class PackageCommandFactory
                 existingLock = new LockFile();
             }
 
-            var newLock = await DependencyResolver.ResolveAsync(projectDir, existingLock, file.Project, ct);
+            var newLock = await DependencyResolver.ResolveAsync(
+                projectDir, existingLock, file.Project, ct: ct);
             LockManager.Save(newLock, projectDir);
 
             Console.WriteLine($"  Lock file updated ({newLock.Packages.Count} package(s)).");

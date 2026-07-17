@@ -102,6 +102,27 @@ public sealed class LockManagerTests
         finally { Directory.Delete(tempDir, recursive: true); }
     }
 
+    [TestMethod]
+    public void ContentEquals_IgnoresDictionaryInsertionOrder()
+    {
+        var first = new LockFile { Name = "app", Version = "1.0.0" };
+        var second = new LockFile { Name = "app", Version = "1.0.0" };
+        first.Packages["a@1.0.0"] = new LockEntry
+        {
+            Version = "1.0.0", Resolved = "https://example/a.tgz",
+            Dependencies = new() { ["b"] = "^2", ["c"] = "^3" },
+        };
+        second.Packages["a@1.0.0"] = new LockEntry
+        {
+            Version = "1.0.0", Resolved = "https://example/a.tgz",
+            Dependencies = new() { ["c"] = "^3", ["b"] = "^2" },
+        };
+
+        Assert.IsTrue(LockManager.ContentEquals(first, second));
+        second.Packages["a@1.0.0"].Dependencies["b"] = "^4";
+        Assert.IsFalse(LockManager.ContentEquals(first, second));
+    }
+
     // ─── Legacy v1 migration ─────────────────────────────────────────────────
 
     [TestMethod]

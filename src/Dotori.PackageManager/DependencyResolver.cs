@@ -10,6 +10,8 @@ namespace Dotori.PackageManager;
 /// </summary>
 public static class DependencyResolver
 {
+    public sealed record Options(bool Locked = false, bool Offline = false);
+
     /// <summary>
     /// Resolve all non-path dependencies and return an updated lock file.
     /// </summary>
@@ -17,8 +19,10 @@ public static class DependencyResolver
         string projectDir,
         LockFile existingLock,
         ProjectDecl? project = null,
+        Options? options = null,
         CancellationToken ct = default)
     {
+        options ??= new Options();
         var depsRoot = Path.Combine(projectDir, DotoriConstants.DepsDir);
         var config = DotoriConfigManager.Load(projectDir);
 
@@ -33,7 +37,7 @@ public static class DependencyResolver
         if (rootDeps.Count == 0)
             return existingLock;
 
-        var source = new RegistryPackageSource(existingLock, config, ct);
+        var source = new RegistryPackageSource(existingLock, config, options.Offline, ct);
 
         // Register git deps from dotoriDependencies or .dotori block
         if (manifest?.DotoriDependencies is not null)
@@ -61,6 +65,9 @@ public static class DependencyResolver
             {
                 if (source.IsRegistryPackage(name) && !PackageInstaller.IsInstalled(depsRoot, name))
                 {
+                    if (options.Offline)
+                        throw new PackageManagerException(
+                            $"Package '{name}' is not installed and cannot be downloaded in offline mode.");
                     var registryUrl = existing.Registry ?? source.GetRegistryUrl(name);
                     await PackageInstaller.InstallFromTarballAsync(
                         depsRoot, name, version.ToString(), existing.Resolved,
@@ -72,6 +79,9 @@ public static class DependencyResolver
 
             if (source.TryGetGitInfo(name, out var gitUrl, out var tagOrCommit))
             {
+                if (options.Offline && GitFetcher.GetLocalDepDir(depsRoot, name) is null)
+                    throw new PackageManagerException(
+                        $"Git package '{name}' is not available in the local deps cache.");
                 var dir  = await GitFetcher.FetchAsync(depsRoot, name, gitUrl!, tagOrCommit!, ct);
                 var hash = GitFetcher.ComputeDirectoryHash(dir);
 
@@ -89,6 +99,9 @@ public static class DependencyResolver
             }
             else if (source.IsRegistryPackage(name))
             {
+                if (options.Offline)
+                    throw new PackageManagerException(
+                        $"Package '{name}' is not present in the lock file for offline resolution.");
                 var registryUrl = source.GetRegistryUrl(name);
                 var versionManifest = await source.GetVersionManifestAsync(name, version, ct);
                 var tarballUrl = versionManifest?.Dist?.Tarball
