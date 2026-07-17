@@ -92,6 +92,16 @@ public sealed class WorkerService(ILogger<WorkerService> logger)
         WorkerLinkRequest request,
         ServerCallContext  context)
     {
+        if (!IsSafeFileName(request.OutputName))
+        {
+            return new WorkerLinkResponse
+            {
+                Success = false,
+                ExitCode = -1,
+                Stderr = "Invalid output file name.",
+            };
+        }
+
         var tmpDir = Directory.CreateTempSubdirectory("dotori-worker-link-").FullName;
         try
         {
@@ -176,4 +186,9 @@ public sealed class WorkerService(ILogger<WorkerService> logger)
             }, ct);
         }
     }
+
+    private static bool IsSafeFileName(string value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        Path.GetFileName(value).Equals(value, StringComparison.Ordinal) &&
+        !value.Contains("..", StringComparison.Ordinal);
 }
