@@ -21,6 +21,7 @@ public sealed class IncrementalChecker : IDisposable
 {
     private readonly string _dbPath;
     private readonly ConcurrentDictionary<string, string> _hashes;  // path → SHA256 hex
+    private readonly ConcurrentDictionary<string, string> _updates;
     private volatile bool _dirty;
 
     public IncrementalChecker(string projectDir, string? scope = null)
@@ -32,6 +33,7 @@ public sealed class IncrementalChecker : IDisposable
             : $"hashes.{SanitizeScope(scope)}.db";
         _dbPath  = Path.Combine(cacheDir, dbName);
         _hashes  = Load(_dbPath);
+        _updates = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         _dirty   = false;
     }
 
@@ -66,6 +68,7 @@ public sealed class IncrementalChecker : IDisposable
                 if (existing != hash) _dirty = true;
                 return hash;
             });
+        _updates[filePath] = hash;
     }
 
     public bool IsFingerprintChanged(string outputPath, string? fingerprint) =>
@@ -83,6 +86,7 @@ public sealed class IncrementalChecker : IDisposable
                 if (existing != fingerprint) _dirty = true;
                 return fingerprint;
             });
+        _updates[FingerprintKey(outputPath)] = fingerprint;
     }
 
     private static string FingerprintKey(string outputPath) =>
@@ -92,14 +96,50 @@ public sealed class IncrementalChecker : IDisposable
     public void Save()
     {
         if (!_dirty) return;
-        // Snapshot to a plain Dictionary for serialization
-        var snapshot = new Dictionary<string, string>(_hashes, StringComparer.OrdinalIgnoreCase);
+
+        var lockPath = _dbPath + ".lock";
+        using var lockStream = AcquireLock(lockPath);
+
+        // Reload under the lock and apply only this instance's changes. This
+        // preserves updates written by another concurrently-running build.
+        var snapshot = new Dictionary<string, string>(Load(_dbPath),
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in _updates)
+            snapshot[key] = value;
+
         var json = JsonSerializer.Serialize(snapshot, HashDbJsonContext.Default.DictionaryStringString);
-        File.WriteAllText(_dbPath, json, Encoding.UTF8);
-        _dirty = false;
+        var tempPath = $"{_dbPath}.tmp.{Environment.ProcessId}.{Guid.NewGuid():N}";
+        try
+        {
+            File.WriteAllText(tempPath, json, Encoding.UTF8);
+            File.Move(tempPath, _dbPath, overwrite: true);
+            _updates.Clear();
+            _dirty = false;
+        }
+        finally
+        {
+            if (File.Exists(tempPath)) File.Delete(tempPath);
+        }
     }
 
     public void Dispose() => Save();
+
+    private static FileStream AcquireLock(string lockPath)
+    {
+        for (var attempt = 0; attempt < 200; attempt++)
+        {
+            try
+            {
+                return new FileStream(lockPath, FileMode.OpenOrCreate,
+                    FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException) when (attempt < 199)
+            {
+                Thread.Sleep(25);
+            }
+        }
+        throw new IOException($"Unable to acquire incremental cache lock: {lockPath}");
+    }
 
     private static ConcurrentDictionary<string, string> Load(string path)
     {

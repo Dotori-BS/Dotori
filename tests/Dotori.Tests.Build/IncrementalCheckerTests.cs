@@ -86,6 +86,28 @@ public sealed class IncrementalCheckerTests
     }
 
     [TestMethod]
+    public void Save_ConcurrentInstances_MergesIndependentUpdates()
+    {
+        var firstFile = Path.Combine(_tempDir, "first.cpp");
+        var secondFile = Path.Combine(_tempDir, "second.cpp");
+        File.WriteAllText(firstFile, "int first;");
+        File.WriteAllText(secondFile, "int second;");
+
+        using var first = new IncrementalChecker(_tempDir, "debug");
+        using var second = new IncrementalChecker(_tempDir, "debug");
+        first.Record(firstFile);
+        second.Record(secondFile);
+        first.Save();
+        second.Save();
+
+        using var reloaded = new IncrementalChecker(_tempDir, "debug");
+        Assert.IsFalse(reloaded.IsChanged(firstFile));
+        Assert.IsFalse(reloaded.IsChanged(secondFile));
+        Assert.IsFalse(Directory.GetFiles(
+            Path.Combine(_tempDir, ".dotori-cache"), "*.tmp.*").Any());
+    }
+
+    [TestMethod]
     public void IsChanged_UsesIndependentTargetAndConfigScopes()
     {
         var file = Path.Combine(_tempDir, "foo.cpp");
