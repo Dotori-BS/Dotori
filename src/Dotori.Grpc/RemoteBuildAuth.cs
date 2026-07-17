@@ -13,8 +13,14 @@ public static class RemoteBuildAuth
     /// A configured token is always required. Without one, only loopback callers
     /// are accepted so an accidentally exposed development process is not public.
     /// </summary>
-    public static bool IsAuthorized(string? expectedToken, string? presentedToken, IPAddress? remoteAddress)
+    public static bool IsAuthorized(
+        string? expectedToken,
+        string? presentedToken,
+        IPAddress? remoteAddress,
+        bool isHttps = false,
+        bool requireHttps = false)
     {
+        if (requireHttps && !isHttps) return false;
         if (string.IsNullOrWhiteSpace(expectedToken))
             return remoteAddress is not null && IPAddress.IsLoopback(remoteAddress);
         if (string.IsNullOrEmpty(presentedToken)) return false;

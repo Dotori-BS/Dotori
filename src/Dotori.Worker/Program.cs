@@ -13,7 +13,9 @@ app.Use(async (context, next) =>
         !RemoteBuildAuth.IsAuthorized(
             builder.Configuration["DOTORI_WORKER_TOKEN"],
             context.Request.Headers[RemoteBuildAuth.HeaderName],
-            context.Connection.RemoteIpAddress))
+            context.Connection.RemoteIpAddress,
+            context.Request.IsHttps,
+            builder.Configuration.GetValue("DOTORI_REQUIRE_HTTPS", false)))
     {
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
         return;

@@ -41,6 +41,17 @@ public sealed class BuildCacheTests
     }
 
     [TestMethod]
+    public void RemoteBuildAuth_HttpsRequirementIsOptionalAndOffByDefault()
+    {
+        Assert.IsTrue(RemoteBuildAuth.IsAuthorized(
+            "secret", "secret", IPAddress.Loopback, isHttps: false));
+        Assert.IsFalse(RemoteBuildAuth.IsAuthorized(
+            "secret", "secret", IPAddress.Loopback, isHttps: false, requireHttps: true));
+        Assert.IsTrue(RemoteBuildAuth.IsAuthorized(
+            "secret", "secret", IPAddress.Loopback, isHttps: true, requireHttps: true));
+    }
+
+    [TestMethod]
     public void ComputeKey_DistinguishesArgumentBoundaries()
     {
         var first = BuildCache.ComputeKey("source", ["-D", "AB"], "clang", "x86_64-linux");

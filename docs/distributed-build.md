@@ -95,6 +95,7 @@ dotori-server \
 | `ASPNETCORE_URLS` | `http://+:5100` | 서버 수신 주소 |
 | `BUILD_CACHE_DIR` | `/tmp/dotori-cache` | 오브젝트 캐시 저장 경로 |
 | `DOTORI_SERVER_TOKEN` | — | CLI → Coordinator 인증 토큰. 미설정 시 loopback 요청만 허용 |
+| `DOTORI_REQUIRE_HTTPS` | `false` | `true`이면 HTTPS가 아닌 gRPC 요청을 거부 |
 
 ### Worker
 
@@ -104,6 +105,7 @@ dotori-server \
 | `ASPNETCORE_URLS` | `http://+:5100` | 워커 수신 주소 |
 | `DOTORI_WORKER_TOKEN` | — | Coordinator → Worker 인증 토큰. 미설정 시 loopback 요청만 허용 |
 | `DOTORI_ALLOWED_EXECUTABLES` | 기본 C/C++ 툴체인 | 쉼표로 구분한 worker 실행 파일 allowlist |
+| `DOTORI_REQUIRE_HTTPS` | `false` | `true`이면 HTTPS가 아닌 gRPC 요청을 거부 |
 
 ---
 
