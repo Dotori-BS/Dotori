@@ -21,4 +21,16 @@ public sealed class WorkerServiceTests
         Assert.IsFalse(response.Success);
         Assert.AreEqual(-1, response.ExitCode);
     }
+
+    [TestMethod]
+    public async Task Link_RejectsExecutableOutsideDefaultAllowlist()
+    {
+        var service = new WorkerService(NullLogger<WorkerService>.Instance);
+
+        var response = await service.Link(
+            new WorkerLinkRequest { OutputName = "output.o", Linker = "/bin/sh" }, null!);
+
+        Assert.IsFalse(response.Success);
+        Assert.AreEqual(-1, response.ExitCode);
+    }
 }

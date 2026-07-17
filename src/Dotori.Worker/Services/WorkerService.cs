@@ -12,14 +12,31 @@ namespace Dotori.Worker.Services;
 /// Receives compile/link requests, executes the compiler locally,
 /// and streams results back to the coordinator.
 /// </summary>
-public sealed class WorkerService(ILogger<WorkerService> logger)
+public sealed class WorkerService(
+    ILogger<WorkerService> logger,
+    IConfiguration? configuration = null)
     : BuildWorker.BuildWorkerBase
 {
+    private static readonly string[] DefaultExecutables =
+        ["clang", "clang++", "gcc", "g++", "cl", "link", "lld", "ld", "emcc", "em++"];
+
+    private readonly HashSet<string> _allowedExecutables = ParseAllowedExecutables(
+        configuration?["DOTORI_ALLOWED_EXECUTABLES"]);
+
     public override async Task Compile(
         WorkerCompileRequest                          request,
         IServerStreamWriter<WorkerCompileEvent>       responseStream,
         ServerCallContext                             context)
     {
+        if (!IsAllowedExecutable(request.Compiler))
+        {
+            await responseStream.WriteAsync(new WorkerCompileEvent
+            {
+                Result = new WorkerCompileResult { Success = false, ExitCode = -1 },
+            }, context.CancellationToken);
+            return;
+        }
+
         // Write source file to a temp directory
         var tmpDir     = Directory.CreateTempSubdirectory("dotori-worker-").FullName;
         var sourceFile = Path.Combine(tmpDir, Path.GetFileName(request.SourcePath));
@@ -99,6 +116,15 @@ public sealed class WorkerService(ILogger<WorkerService> logger)
                 Success = false,
                 ExitCode = -1,
                 Stderr = "Invalid output file name.",
+            };
+        }
+        if (!IsAllowedExecutable(request.Linker))
+        {
+            return new WorkerLinkResponse
+            {
+                Success = false,
+                ExitCode = -1,
+                Stderr = "Executable is not allowed by this worker.",
             };
         }
 
@@ -191,4 +217,13 @@ public sealed class WorkerService(ILogger<WorkerService> logger)
         !string.IsNullOrWhiteSpace(value) &&
         Path.GetFileName(value).Equals(value, StringComparison.Ordinal) &&
         !value.Contains("..", StringComparison.Ordinal);
+
+    private bool IsAllowedExecutable(string executable) =>
+        _allowedExecutables.Contains(Path.GetFileName(executable));
+
+    private static HashSet<string> ParseAllowedExecutables(string? configured) =>
+        (string.IsNullOrWhiteSpace(configured) ? DefaultExecutables : configured.Split(','))
+            .Select(value => Path.GetFileName(value.Trim()))
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 }

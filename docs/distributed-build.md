@@ -103,6 +103,7 @@ dotori-server \
 | `WORKER_PORT` | `5100` | 수신 포트 |
 | `ASPNETCORE_URLS` | `http://+:5100` | 워커 수신 주소 |
 | `DOTORI_WORKER_TOKEN` | — | Coordinator → Worker 인증 토큰. 미설정 시 loopback 요청만 허용 |
+| `DOTORI_ALLOWED_EXECUTABLES` | 기본 C/C++ 툴체인 | 쉼표로 구분한 worker 실행 파일 allowlist |
 
 ---
 
