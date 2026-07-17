@@ -14,9 +14,7 @@ public static class GasDriver
         string cacheDir,
         AssemblerConfig config)
     {
-        var objFile = Path.Combine(
-            cacheDir,
-            Path.GetFileNameWithoutExtension(absPath) + ".o");
+        var objFile = BuildOutputPath.ForSource(absPath, cacheDir, ".o");
 
         var args = new List<string>();
 

@@ -122,7 +122,7 @@ public static class PchPlanner
         buildArgs.Add($"/Fp\"{pchFile}\"");
         buildArgs.Add($"\"{buildSource}\"");
 
-        var objFile = Path.Combine(pchDir, Path.GetFileNameWithoutExtension(buildSource) + ".obj");
+        var objFile = BuildOutputPath.ForSource(buildSource, pchDir, ".obj");
         buildArgs.Add($"/Fo\"{objFile}\"");
 
         var job = new CompileJob

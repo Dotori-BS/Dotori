@@ -216,8 +216,7 @@ public static class ClangDriver
         bool forceObjcpp = false)
     {
         var ext     = isModule ? ".pcm" : ".o";
-        var objFile = Path.Combine(objDir,
-            Path.GetFileNameWithoutExtension(sourceFile) + ext);
+        var objFile = BuildOutputPath.ForSource(sourceFile, objDir, ext);
 
         var args = new List<string>(commonFlags);
 

@@ -135,10 +135,10 @@ public static class ModuleSorter
         foreach (var dep in sortedDeps)
         {
             var ext    = compilerKind == CompilerKind.Msvc ? ".ifc" : ".pcm";
-            var bmiName = (dep.Provides is not null
-                ? dep.Provides.Replace(':', '_').Replace('.', '_')
-                : Path.GetFileNameWithoutExtension(dep.SourceFile)) + ext;
-            var bmiFile = Path.Combine(bmiDir, bmiName);
+            var bmiFile = dep.Provides is not null
+                ? Path.Combine(bmiDir,
+                    dep.Provides.Replace(':', '_').Replace('.', '_') + ext)
+                : BuildOutputPath.ForSource(dep.SourceFile, bmiDir, ext);
 
             var args = new List<string>(commonFlags);
 

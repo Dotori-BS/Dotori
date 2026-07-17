@@ -65,8 +65,7 @@ public static class EmscriptenDriver
         IReadOnlyList<string> commonFlags,
         bool cAsCpp = false)
     {
-        var objFile = Path.Combine(objDir,
-            Path.GetFileNameWithoutExtension(sourceFile) + ".o");
+        var objFile = BuildOutputPath.ForSource(sourceFile, objDir, ".o");
 
         var args = new List<string>(commonFlags);
         if (cAsCpp && sourceFile.EndsWith(".c", StringComparison.OrdinalIgnoreCase))

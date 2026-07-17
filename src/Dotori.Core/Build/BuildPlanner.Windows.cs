@@ -32,8 +32,7 @@ public sealed partial class BuildPlanner
                 continue;
             }
 
-            var resFile = Path.Combine(_cacheDir,
-                Path.GetFileNameWithoutExtension(absRc) + ".res");
+            var resFile = BuildOutputPath.ForSource(absRc, _cacheDir, ".res");
 
             var args = new List<string> { "/nologo" };
 

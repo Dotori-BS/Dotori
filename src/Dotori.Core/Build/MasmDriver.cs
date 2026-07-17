@@ -13,9 +13,7 @@ public static class MasmDriver
         string cacheDir,
         AssemblerConfig config)
     {
-        var objFile = Path.Combine(
-            cacheDir,
-            Path.GetFileNameWithoutExtension(absPath) + ".obj");
+        var objFile = BuildOutputPath.ForSource(absPath, cacheDir, ".obj");
 
         var args = new List<string> { "/nologo", "/c" };
 

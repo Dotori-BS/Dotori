@@ -90,11 +90,6 @@ public static class MsvcDriver
         foreach (var h in model.Headers)
             flags.Add($"/I\"{PathUtils.MakeAbsolute(model.ProjectDir, h.Path)}\"");
 
-        // Output dir for .obj
-        // Note: use \\" (double backslash before closing quote) so Windows command-line
-        // parsing sees it as one literal backslash followed by end-of-quote, not an escaped quote.
-        flags.Add($"/Fo\"{objDir}\\\\\"");
-
         // No logo
         flags.Add("/nologo");
 
@@ -116,14 +111,14 @@ public static class MsvcDriver
         IReadOnlyList<string> commonFlags,
         bool cAsCpp = false)
     {
-        var objFile = Path.Combine(objDir,
-            Path.GetFileNameWithoutExtension(sourceFile) + ".obj");
+        var objFile = BuildOutputPath.ForSource(sourceFile, objDir, ".obj");
 
         var args = new List<string>(commonFlags);
         if (cAsCpp && sourceFile.EndsWith(".c", StringComparison.OrdinalIgnoreCase))
             args.Add($"/Tp\"{sourceFile}\"");
         else
             args.Add($"\"{sourceFile}\"");
+        args.Add($"/Fo\"{objFile}\"");
 
         return new CompileJob
         {

@@ -78,6 +78,32 @@ public sealed class CompilerDriverTests
         Assert.IsTrue(toolchain.IsGccDriver);
     }
 
+    [TestMethod]
+    public void CompileDrivers_SameBasenameInDifferentDirectories_UseDistinctOutputs()
+    {
+        var clang = MakeClangToolchain();
+        var clangFlags = ClangDriver.CompileFlags(MakeModel(), clang, "debug", "/tmp/obj");
+        var clangA = ClangDriver.MakeCompileJob("/tmp/project/client/main.cpp", "/tmp/obj", clangFlags);
+        var clangB = ClangDriver.MakeCompileJob("/tmp/project/server/main.cpp", "/tmp/obj", clangFlags);
+        Assert.AreNotEqual(clangA.OutputFile, clangB.OutputFile);
+
+        var emFlags = EmscriptenDriver.CompileFlags(MakeModel(), "/tmp/obj");
+        var emA = EmscriptenDriver.MakeCompileJob("/tmp/project/client/main.cpp", "/tmp/obj", emFlags);
+        var emB = EmscriptenDriver.MakeCompileJob("/tmp/project/server/main.cpp", "/tmp/obj", emFlags);
+        Assert.AreNotEqual(emA.OutputFile, emB.OutputFile);
+
+        var msvc = new ToolchainInfo
+        {
+            Kind = CompilerKind.Msvc, CompilerPath = "cl.exe", LinkerPath = "link.exe",
+            TargetTriple = "x86_64-pc-windows-msvc",
+        };
+        var msvcFlags = MsvcDriver.CompileFlags(MakeModel(), msvc, "debug", "/tmp/obj");
+        var msvcA = MsvcDriver.MakeCompileJob("/tmp/project/client/main.cpp", "/tmp/obj", msvcFlags);
+        var msvcB = MsvcDriver.MakeCompileJob("/tmp/project/server/main.cpp", "/tmp/obj", msvcFlags);
+        Assert.AreNotEqual(msvcA.OutputFile, msvcB.OutputFile);
+        Assert.IsTrue(msvcA.Args.Any(a => a.Contains(msvcA.OutputFile)));
+    }
+
     // ─── MsvcDriver ────────────────────────────────────────────────────────
 
     [TestMethod]
