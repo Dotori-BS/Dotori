@@ -222,7 +222,8 @@ public sealed partial class BuildPlanner
             .ToArray();
         job.DependencyFiles = IncludeScanner.CollectResolvedFiles(
             job.SourceFile, searchPaths, includeSystem: false);
-        job.Fingerprint = BuildActionFingerprint.Compute(_toolchain.CompilerPath, job.Args);
+        job.Fingerprint = BuildActionFingerprint.Compute(
+            _toolchain.CompilerPath, job.Args, job.DependencyFiles);
     }
 
     /// <summary>

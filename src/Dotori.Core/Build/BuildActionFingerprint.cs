@@ -9,12 +9,22 @@ internal static class BuildActionFingerprint
     private static readonly ConcurrentDictionary<string, string> ExecutableCache =
         new(StringComparer.OrdinalIgnoreCase);
 
-    public static string Compute(string executable, IReadOnlyList<string> args)
+    public static string Compute(
+        string executable,
+        IReadOnlyList<string> args,
+        IReadOnlyList<string>? dependencyFiles = null)
     {
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         Append(hash, ResolveExecutableFingerprint(executable));
         foreach (var arg in args)
             Append(hash, arg);
+        if (dependencyFiles is not null)
+        {
+            foreach (var dependency in dependencyFiles
+                         .Select(Path.GetFullPath)
+                         .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+                Append(hash, dependency);
+        }
         return Convert.ToHexStringLower(hash.GetHashAndReset());
     }
 

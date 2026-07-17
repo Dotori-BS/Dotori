@@ -193,6 +193,37 @@ public sealed class IncrementalCheckerTests
     }
 
     [TestMethod]
+    public void PlanCompileJobs_TrackedHeaderRemoved_RebuildsSource()
+    {
+        var header = Path.Combine(_tempDir, "library.h");
+        var source = Path.Combine(_tempDir, "main.cpp");
+        File.WriteAllText(header, "constexpr int value = 1;");
+        File.WriteAllText(source, "#include \"library.h\"\nint main() { return value; }");
+        var model = new FlatProjectModel
+        {
+            Name = "app", ProjectDir = _tempDir,
+            DotoriPath = Path.Combine(_tempDir, ".dotori"),
+        };
+        model.Sources.Add(new SourceItem(true, "main.cpp"));
+        var toolchain = new ToolchainInfo
+        {
+            Kind = CompilerKind.Clang, CompilerPath = "missing-test-clang++",
+            LinkerPath = "missing-test-clang++", TargetTriple = "x86_64-unknown-linux-gnu",
+        };
+        var planner = new BuildPlanner(model, toolchain, "debug", "linux-x64");
+        using var checker = new IncrementalChecker(_tempDir, "linux-x64-debug");
+        var initial = planner.PlanCompileJobs()[0];
+        File.WriteAllText(initial.OutputFile, "object");
+        checker.Record(source);
+        checker.Record(header);
+        checker.RecordFingerprint(initial.OutputFile, initial.Fingerprint);
+        Assert.HasCount(0, planner.PlanCompileJobs(checker));
+
+        File.Delete(header);
+        Assert.HasCount(1, planner.PlanCompileJobs(checker));
+    }
+
+    [TestMethod]
     public void PlanCompileJobs_CompileFlagsChanged_RebuildsSource()
     {
         var source = Path.Combine(_tempDir, "main.cpp");

@@ -193,7 +193,8 @@ public static class PchPlanner
             pchHeader, searchPaths, includeSystem: false);
         if (!string.Equals(job.SourceFile, pchHeader, StringComparison.OrdinalIgnoreCase))
             job.DependencyFiles = job.DependencyFiles.Append(pchHeader).ToArray();
-        job.Fingerprint = BuildActionFingerprint.Compute(toolchain.CompilerPath, job.Args);
+        job.Fingerprint = BuildActionFingerprint.Compute(
+            toolchain.CompilerPath, job.Args, job.DependencyFiles);
     }
 
     /// <summary>
