@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using Dotori.Core.Toolchain;
+using Dotori.Core.Executor;
 using Dotori.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
@@ -68,16 +69,16 @@ public sealed class WorkerService(
                 .Append($"-o \"{objFile}\"")
                 .ToList();
 
-            var argString = string.Join(" ", args);
-            logger.LogDebug("Compile: {Compiler} {Args}", request.Compiler, argString);
+            logger.LogDebug("Compile: {Compiler} {Args}", request.Compiler, string.Join(" ", args));
 
-            var psi = new ProcessStartInfo(request.Compiler, argString)
+            var psi = new ProcessStartInfo(request.Compiler)
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError  = true,
                 UseShellExecute        = false,
                 CreateNoWindow         = true,
             };
+            ProcessArguments.AddTo(psi, args);
 
             using var proc = new Process { StartInfo = psi };
             proc.Start();
@@ -173,18 +174,22 @@ public sealed class WorkerService(
             }
 
             var outputPath = Path.Combine(tmpDir, request.OutputName);
-            var objArgs    = string.Join(" ", objPaths.Select(p => $"\"{p}\""));
-            var argString  = string.Join(" ", request.Args) + $" {objArgs} -o \"{outputPath}\"";
+            var args = request.Args
+                .Concat(objPaths.Select(path => $"\"{path}\""))
+                .Append("-o")
+                .Append($"\"{outputPath}\"")
+                .ToArray();
 
-            logger.LogDebug("Link: {Linker} {Args}", request.Linker, argString);
+            logger.LogDebug("Link: {Linker} {Args}", request.Linker, string.Join(" ", args));
 
-            var psi = new ProcessStartInfo(request.Linker, argString)
+            var psi = new ProcessStartInfo(request.Linker)
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError  = true,
                 UseShellExecute        = false,
                 CreateNoWindow         = true,
             };
+            ProcessArguments.AddTo(psi, args);
 
             using var proc = new Process { StartInfo = psi };
             proc.Start();

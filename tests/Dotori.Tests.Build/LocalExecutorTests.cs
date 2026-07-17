@@ -8,6 +8,22 @@ namespace Dotori.Tests.Build;
 public sealed class LocalExecutorTests
 {
     [TestMethod]
+    public void ProcessArguments_ExpandsFlagsAndPreservesQuotedPaths()
+    {
+        var args = ProcessArguments.Expand([
+            "-Wall -Wextra",
+            "-I\"/tmp/project with spaces/include\"",
+            "-DNAME=\"hello world\"",
+        ]);
+
+        CollectionAssert.AreEqual(new[]
+        {
+            "-Wall", "-Wextra", "/tmp/project with spaces/include".Insert(0, "-I"),
+            "-DNAME=hello world",
+        }, args.ToArray());
+    }
+
+    [TestMethod]
     public async Task RunCompileJobsAsync_Cancellation_StopsProcessPromptly()
     {
         if (OperatingSystem.IsWindows()) return;

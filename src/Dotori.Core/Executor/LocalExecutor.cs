@@ -37,7 +37,7 @@ public sealed class LocalExecutor : IExecutor
     {
         var semaphore = new SemaphoreSlim(_maxParallelism);
         var tasks     = jobs.Select(job => RunWithSemaphoreAsync(
-            semaphore, () => RunProcessAsync(compiler, string.Join(" ", job.Args), ct), ct));
+            semaphore, () => RunProcessAsync(compiler, job.Args, ct), ct));
         return await Task.WhenAll(tasks);
     }
 
@@ -47,7 +47,7 @@ public sealed class LocalExecutor : IExecutor
         LinkJob job,
         CancellationToken ct = default)
     {
-        return await RunProcessAsync(linker, string.Join(" ", job.Args), ct);
+        return await RunProcessAsync(linker, job.Args, ct);
     }
 
     private static async Task<T> RunWithSemaphoreAsync<T>(
@@ -67,15 +67,16 @@ public sealed class LocalExecutor : IExecutor
     }
 
     private static async Task<JobResult> RunProcessAsync(
-        string exe, string args, CancellationToken ct)
+        string exe, IReadOnlyList<string> args, CancellationToken ct)
     {
-        var psi = new ProcessStartInfo(exe, args)
+        var psi = new ProcessStartInfo(exe)
         {
             RedirectStandardOutput = true,
             RedirectStandardError  = true,
             UseShellExecute        = false,
             CreateNoWindow         = true,
         };
+        ProcessArguments.AddTo(psi, args);
 
         using var proc = new Process { StartInfo = psi };
         proc.Start();
@@ -105,7 +106,7 @@ public sealed class LocalExecutor : IExecutor
         return new JobResult
         {
             Success  = proc.ExitCode == 0,
-            Command  = $"{exe} {args}",
+            Command  = $"{exe} {string.Join(" ", args)}",
             Stdout   = stdout,
             Stderr   = stderr,
             ExitCode = proc.ExitCode,
