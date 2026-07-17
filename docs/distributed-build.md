@@ -99,6 +99,7 @@ dotori-server \
 | `DOTORI_SERVER_TOKEN` | — | CLI → Coordinator 인증 토큰. 미설정 시 loopback 요청만 허용 |
 | `DOTORI_SERVER_TOKEN_FILE` | — | 토큰을 읽을 secret 파일 경로 |
 | `DOTORI_REQUIRE_HTTPS` | `false` | `true`이면 HTTPS가 아닌 gRPC 요청을 거부 |
+| `DOTORI_WORKER_FAILURE_COOLDOWN_SECONDS` | `30` | 전송 실패 worker를 스케줄링에서 제외하는 기본 시간. 연속 실패 시 지수 증가 |
 
 ### Worker
 

@@ -41,9 +41,9 @@ public sealed class CoordinatorService(
             return;
         }
 
-        // ── 2. Pick a worker ───────────────────────────────────────────
-        var worker = workerPool.NextWorker();
-        if (worker is null)
+        // ── 2. Try healthy workers in round-robin order ───────────────
+        var workers = workerPool.Candidates();
+        if (workers.Count == 0)
         {
             await responseStream.WriteAsync(new CompileEvent
             {
@@ -53,7 +53,6 @@ public sealed class CoordinatorService(
             return;
         }
 
-        // ── 3. Forward to worker, stream events back ───────────────────
         var workerRequest = new WorkerCompileRequest
         {
             Compiler    = request.Compiler,
@@ -62,20 +61,33 @@ public sealed class CoordinatorService(
         };
         workerRequest.Args.AddRange(request.Args);
 
-        using var call = worker.Client.Compile(workerRequest, worker.Headers,
-            cancellationToken: context.CancellationToken);
-
         WorkerCompileResult? finalResult = null;
-
-        await foreach (var ev in call.ResponseStream.ReadAllAsync(context.CancellationToken))
+        foreach (var worker in workers)
         {
-            if (ev.PayloadCase == WorkerCompileEvent.PayloadOneofCase.Log)
+            try
             {
-                await responseStream.WriteAsync(new CompileEvent { Log = ev.Log });
+                using var call = worker.Client.Compile(workerRequest, worker.Headers,
+                    cancellationToken: context.CancellationToken);
+                await foreach (var ev in call.ResponseStream.ReadAllAsync(context.CancellationToken))
+                {
+                    if (ev.PayloadCase == WorkerCompileEvent.PayloadOneofCase.Log)
+                        await responseStream.WriteAsync(new CompileEvent { Log = ev.Log });
+                    else if (ev.PayloadCase == WorkerCompileEvent.PayloadOneofCase.Result)
+                        finalResult = ev.Result;
+                }
+                if (finalResult is not null)
+                {
+                    worker.ReportSuccess();
+                    break;
+                }
+                worker.ReportTransportFailure();
+                logger.LogWarning("Worker {Worker} returned no compile result; retrying.", worker.Address);
             }
-            else if (ev.PayloadCase == WorkerCompileEvent.PayloadOneofCase.Result)
+            catch (RpcException ex) when (
+                ex.StatusCode != StatusCode.Cancelled || !context.CancellationToken.IsCancellationRequested)
             {
-                finalResult = ev.Result;
+                worker.ReportTransportFailure();
+                logger.LogWarning(ex, "Worker {Worker} compile transport failed; retrying.", worker.Address);
             }
         }
 
@@ -108,8 +120,8 @@ public sealed class CoordinatorService(
         LinkRequest       request,
         ServerCallContext context)
     {
-        var worker = workerPool.NextWorker();
-        if (worker is null)
+        var workers = workerPool.Candidates();
+        if (workers.Count == 0)
         {
             logger.LogError("No workers available for link job.");
             return new LinkResponse { Success = false, ExitCode = -1 };
@@ -123,16 +135,34 @@ public sealed class CoordinatorService(
         workerRequest.Args.AddRange(request.Args);
         workerRequest.ObjFiles.AddRange(request.ObjFiles);
 
-        var response = await worker.Client.LinkAsync(workerRequest, worker.Headers,
-            cancellationToken: context.CancellationToken);
-
+        foreach (var worker in workers)
+        {
+            try
+            {
+                var response = await worker.Client.LinkAsync(workerRequest, worker.Headers,
+                    cancellationToken: context.CancellationToken);
+                worker.ReportSuccess();
+                return new LinkResponse
+                {
+                    Success = response.Success,
+                    ExitCode = response.ExitCode,
+                    OutputBytes = response.OutputBytes,
+                    Stdout = response.Stdout,
+                    Stderr = response.Stderr,
+                };
+            }
+            catch (RpcException ex) when (
+                ex.StatusCode != StatusCode.Cancelled || !context.CancellationToken.IsCancellationRequested)
+            {
+                worker.ReportTransportFailure();
+                logger.LogWarning(ex, "Worker {Worker} link transport failed; retrying.", worker.Address);
+            }
+        }
         return new LinkResponse
         {
-            Success     = response.Success,
-            ExitCode    = response.ExitCode,
-            OutputBytes = response.OutputBytes,
-            Stdout      = response.Stdout,
-            Stderr      = response.Stderr,
+            Success = false,
+            ExitCode = -1,
+            Stderr = "All remote workers failed or are unavailable.",
         };
     }
 

@@ -1,5 +1,7 @@
 using Dotori.BuildServer.Cache;
+using Dotori.BuildServer.Workers;
 using Dotori.Grpc;
+using Grpc.Net.Client;
 using System.Net;
 
 namespace Dotori.Tests.BuildServer;
@@ -175,5 +177,22 @@ public sealed class BuildCacheTests
 
         Assert.AreNotEqual(first, compilerChanged);
         Assert.AreNotEqual(first, headerChanged);
+    }
+
+    [TestMethod]
+    public void WorkerEntry_TransportFailureStartsCooldownAndSuccessRecovers()
+    {
+        using var channel = GrpcChannel.ForAddress("http://127.0.0.1:1");
+        var worker = new WorkerEntry(
+            "worker", channel, new BuildWorker.BuildWorkerClient(channel),
+            new global::Grpc.Core.Metadata(), TimeSpan.FromMinutes(1));
+
+        worker.ReportTransportFailure();
+
+        Assert.IsFalse(worker.IsAvailable);
+        Assert.AreEqual(1, worker.ConsecutiveFailures);
+        worker.ReportSuccess();
+        Assert.IsTrue(worker.IsAvailable);
+        Assert.AreEqual(0, worker.ConsecutiveFailures);
     }
 }
