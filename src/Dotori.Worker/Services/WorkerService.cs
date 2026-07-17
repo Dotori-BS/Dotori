@@ -22,6 +22,11 @@ public sealed class WorkerService(
 
     private readonly HashSet<string> _allowedExecutables = ParseAllowedExecutables(
         configuration?["DOTORI_ALLOWED_EXECUTABLES"]);
+    private readonly long _maxInputBytes = configuration?.GetValue<long?>("DOTORI_MAX_INPUT_BYTES")
+        ?? 64L * 1024 * 1024;
+    private readonly int _maxArguments = configuration?.GetValue<int?>("DOTORI_MAX_ARGUMENTS") ?? 4096;
+    private readonly TimeSpan _executionTimeout = TimeSpan.FromSeconds(
+        configuration?.GetValue<int?>("DOTORI_EXECUTION_TIMEOUT_SECONDS") ?? 300);
 
     public override async Task Compile(
         WorkerCompileRequest                          request,
@@ -29,6 +34,14 @@ public sealed class WorkerService(
         ServerCallContext                             context)
     {
         if (!IsAllowedExecutable(request.Compiler))
+        {
+            await responseStream.WriteAsync(new WorkerCompileEvent
+            {
+                Result = new WorkerCompileResult { Success = false, ExitCode = -1 },
+            }, context.CancellationToken);
+            return;
+        }
+        if (request.SourceBytes.Length > _maxInputBytes || !AreArgumentsValid(request.Args))
         {
             await responseStream.WriteAsync(new WorkerCompileEvent
             {
@@ -73,9 +86,18 @@ public sealed class WorkerService(
             var stderrTask = StreamStderrAsync(proc, responseStream, context.CancellationToken);
             var stdoutTask = proc.StandardOutput.ReadToEndAsync(context.CancellationToken);
 
-            await proc.WaitForExitAsync(context.CancellationToken);
+            var exited = await WaitForExitAsync(proc, context.CancellationToken);
             var stdout = await stdoutTask;
             await stderrTask;
+
+            if (!exited)
+            {
+                await responseStream.WriteAsync(new WorkerCompileEvent
+                {
+                    Result = new WorkerCompileResult { Success = false, ExitCode = -1 },
+                }, context.CancellationToken);
+                return;
+            }
 
             if (!string.IsNullOrEmpty(stdout))
             {
@@ -127,6 +149,15 @@ public sealed class WorkerService(
                 Stderr = "Executable is not allowed by this worker.",
             };
         }
+        if (!AreArgumentsValid(request.Args) || TotalBytes(request.ObjFiles) > _maxInputBytes)
+        {
+            return new WorkerLinkResponse
+            {
+                Success = false,
+                ExitCode = -1,
+                Stderr = "Worker request exceeds configured limits.",
+            };
+        }
 
         var tmpDir = Directory.CreateTempSubdirectory("dotori-worker-link-").FullName;
         try
@@ -160,10 +191,20 @@ public sealed class WorkerService(
 
             var stdoutTask = proc.StandardOutput.ReadToEndAsync(context.CancellationToken);
             var stderrTask = proc.StandardError.ReadToEndAsync(context.CancellationToken);
-            await proc.WaitForExitAsync(context.CancellationToken);
+            var exited = await WaitForExitAsync(proc, context.CancellationToken);
 
             var stdout = await stdoutTask;
             var stderr = await stderrTask;
+
+            if (!exited)
+            {
+                return new WorkerLinkResponse
+                {
+                    Success = false,
+                    ExitCode = -1,
+                    Stderr = "Worker process exceeded its execution timeout.",
+                };
+            }
 
             byte[] outBytes = proc.ExitCode == 0 && File.Exists(outputPath)
                 ? await File.ReadAllBytesAsync(outputPath, context.CancellationToken)
@@ -220,6 +261,45 @@ public sealed class WorkerService(
 
     private bool IsAllowedExecutable(string executable) =>
         _allowedExecutables.Contains(Path.GetFileName(executable));
+
+    private bool AreArgumentsValid(IEnumerable<string> args)
+    {
+        var count = 0;
+        foreach (var arg in args)
+        {
+            if (++count > _maxArguments || arg.Length > 32_768 || arg.IndexOf('\0') >= 0)
+                return false;
+        }
+        return true;
+    }
+
+    private static long TotalBytes(IEnumerable<ByteString> values)
+    {
+        long total = 0;
+        foreach (var value in values)
+        {
+            if (long.MaxValue - total < value.Length) return long.MaxValue;
+            total += value.Length;
+        }
+        return total;
+    }
+
+    private async Task<bool> WaitForExitAsync(Process process, CancellationToken requestToken)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(requestToken);
+        timeout.CancelAfter(_executionTimeout);
+        try
+        {
+            await process.WaitForExitAsync(timeout.Token);
+            return true;
+        }
+        catch (OperationCanceledException) when (!requestToken.IsCancellationRequested)
+        {
+            try { process.Kill(entireProcessTree: true); } catch { /* already exited */ }
+            await process.WaitForExitAsync(CancellationToken.None);
+            return false;
+        }
+    }
 
     private static HashSet<string> ParseAllowedExecutables(string? configured) =>
         (string.IsNullOrWhiteSpace(configured) ? DefaultExecutables : configured.Split(','))

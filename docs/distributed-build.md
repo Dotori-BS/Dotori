@@ -96,6 +96,9 @@ dotori-server \
 | `BUILD_CACHE_DIR` | `/tmp/dotori-cache` | 오브젝트 캐시 저장 경로 |
 | `DOTORI_SERVER_TOKEN` | — | CLI → Coordinator 인증 토큰. 미설정 시 loopback 요청만 허용 |
 | `DOTORI_REQUIRE_HTTPS` | `false` | `true`이면 HTTPS가 아닌 gRPC 요청을 거부 |
+| `DOTORI_MAX_INPUT_BYTES` | `67108864` | 요청 하나의 소스 또는 오브젝트 총 입력 크기 제한 |
+| `DOTORI_MAX_ARGUMENTS` | `4096` | 컴파일러·링커 인수 최대 개수 |
+| `DOTORI_EXECUTION_TIMEOUT_SECONDS` | `300` | worker 프로세스 최대 실행 시간 |
 
 ### Worker
 
