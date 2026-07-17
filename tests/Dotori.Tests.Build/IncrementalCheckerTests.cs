@@ -247,4 +247,15 @@ public sealed class IncrementalCheckerTests
             .PlanLinkJob(["main.o"])!;
         Assert.IsTrue(checker.IsFingerprintChanged(changed.OutputFile, changed.Fingerprint));
     }
+
+    [TestMethod]
+    public void SafeCleanDirectory_RejectsProjectAndOutsidePaths()
+    {
+        var inside = Path.Combine(_tempDir, "build", "output");
+        var outside = Path.Combine(Path.GetDirectoryName(_tempDir)!, "shared-output");
+
+        Assert.IsTrue(PathUtils.IsSafeCleanDirectory(_tempDir, inside));
+        Assert.IsFalse(PathUtils.IsSafeCleanDirectory(_tempDir, _tempDir));
+        Assert.IsFalse(PathUtils.IsSafeCleanDirectory(_tempDir, outside));
+    }
 }

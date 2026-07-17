@@ -200,6 +200,20 @@ Release 구성으로 빌드 후 실행합니다.
 .B \-\-release
 Release 구성으로 테스트합니다.
 .
+.SH CLEAN OPTIONS
+.TP
+.B \-\-all
+검색된 모든 프로젝트를 정리합니다.
+.TP
+.B \-\-deps
+받아온 패키지가 있는
+.I deps/
+디렉토리도 삭제합니다.
+.TP
+.B \-\-dry\-run
+파일을 삭제하지 않고 정리 대상만 출력합니다.
+재귀 삭제는 프로젝트 내부의 출력 하위 디렉토리에만 허용됩니다.
+.
 .SH LSP OPTIONS
 .TP
 .BI \-\-log-file " path"

@@ -14,18 +14,21 @@ internal static class CleanCommandFactory
         var projectOption = new Option<string?>("--project") { Description = "Path to .dotori file or directory" };
         var allOption     = new Option<bool>("--all")        { Description = "Remove all cached build artifacts (use --deps to also remove fetched packages)" };
         var depsOption    = new Option<bool>("--deps")       { Description = "Also remove the deps/ directory containing fetched packages" };
+        var dryRunOption  = new Option<bool>("--dry-run")    { Description = "Show what would be removed without deleting it" };
 
         command.Add(projectOption);
         command.Add(allOption);
         command.Add(depsOption);
+        command.Add(dryRunOption);
 
         command.SetAction((parseResult) =>
         {
             var projectArg = parseResult.GetValue(projectOption);
             var cleanAll   = parseResult.GetValue(allOption);
             var cleanDeps  = parseResult.GetValue(depsOption);
+            var dryRun     = parseResult.GetValue(dryRunOption);
 
-            var paths = BuildContext.ResolveProjectPaths(projectArg, buildAll: true);
+            var paths = BuildContext.ResolveProjectPaths(projectArg, buildAll: cleanAll);
 
             foreach (var dotoriPath in paths)
             {
@@ -43,7 +46,7 @@ internal static class CleanCommandFactory
                         if (File.Exists(destPath))
                         {
                             Console.WriteLine($"  Removing {destPath}");
-                            File.Delete(destPath);
+                            if (!dryRun) File.Delete(destPath);
                         }
                     }
                 }
@@ -52,7 +55,7 @@ internal static class CleanCommandFactory
                 if (Directory.Exists(cacheDir))
                 {
                     Console.WriteLine($"  Removing {cacheDir}");
-                    Directory.Delete(cacheDir, recursive: true);
+                    if (!dryRun) Directory.Delete(cacheDir, recursive: true);
                 }
 
                 // Remove output directories declared in output { } blocks
@@ -65,8 +68,14 @@ internal static class CleanCommandFactory
                         {
                             if (Directory.Exists(dir))
                             {
+                                if (!PathUtils.IsSafeCleanDirectory(projectDir, dir))
+                                {
+                                    Console.Error.WriteLine(
+                                        $"Warning: refusing to recursively remove output outside the project: {dir}");
+                                    continue;
+                                }
                                 Console.WriteLine($"  Removing {dir}");
-                                Directory.Delete(dir, recursive: true);
+                                if (!dryRun) Directory.Delete(dir, recursive: true);
                             }
                         }
                     }
@@ -84,12 +93,12 @@ internal static class CleanCommandFactory
                     if (Directory.Exists(depsDir))
                     {
                         Console.WriteLine($"  Removing {depsDir}");
-                        Directory.Delete(depsDir, recursive: true);
+                        if (!dryRun) Directory.Delete(depsDir, recursive: true);
                     }
                 }
             }
 
-            Console.WriteLine("  Clean complete.");
+            Console.WriteLine(dryRun ? "  Clean dry run complete." : "  Clean complete.");
             return 0;
         });
 

@@ -3,7 +3,7 @@ namespace Dotori.Core.Build;
 /// <summary>
 /// Shared path helper utilities used by compiler drivers and the build planner.
 /// </summary>
-internal static class PathUtils
+public static class PathUtils
 {
     /// <summary>
     /// Returns <paramref name="path"/> as an absolute path.
@@ -14,4 +14,20 @@ internal static class PathUtils
         Path.IsPathRooted(path)
             ? path
             : Path.GetFullPath(Path.Combine(basePath, path));
+
+    /// <summary>Only project-owned subdirectories may be recursively cleaned.</summary>
+    public static bool IsSafeCleanDirectory(string projectDir, string candidate)
+    {
+        var project = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectDir));
+        var target = Path.TrimEndingDirectorySeparator(Path.GetFullPath(candidate));
+        if (string.Equals(project, target, PathComparison)) return false;
+
+        var prefix = project + Path.DirectorySeparatorChar;
+        return target.StartsWith(prefix, PathComparison);
+    }
+
+    private static StringComparison PathComparison =>
+        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
 }
