@@ -8,6 +8,32 @@ namespace Dotori.Tests.Build;
 public sealed class LocalExecutorTests
 {
     [TestMethod]
+    public void ResponseFileArguments_ShortCommand_RemainsInline()
+    {
+        using var invocation = ResponseFileArguments.Create(["-c", "main.cpp"], threshold: 100);
+
+        CollectionAssert.AreEqual(new[] { "-c", "main.cpp" }, invocation.Arguments.ToArray());
+    }
+
+    [TestMethod]
+    public void ResponseFileArguments_LongCommand_WritesEscapedResponseFile()
+    {
+        using var invocation = ResponseFileArguments.Create(
+            ["-DNAME=\"hello world\"", "\"C:\\source dir\\main.cpp\""], threshold: 1);
+
+        Assert.HasCount(1, invocation.Arguments);
+        Assert.StartsWith("@", invocation.Arguments[0]);
+        var path = invocation.Arguments[0][1..];
+        Assert.IsTrue(File.Exists(path));
+        var contents = File.ReadAllLines(path);
+        CollectionAssert.AreEqual(new[]
+        {
+            "\"-DNAME=hello world\"",
+            "\"C:\\source dir\\main.cpp\"",
+        }, contents);
+    }
+
+    [TestMethod]
     public void ProcessArguments_ExpandsFlagsAndPreservesQuotedPaths()
     {
         var args = ProcessArguments.Expand([

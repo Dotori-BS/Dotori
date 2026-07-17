@@ -73,7 +73,9 @@ public sealed class WorkerService(
                 UseShellExecute        = false,
                 CreateNoWindow         = true,
             };
-            ProcessArguments.AddTo(psi, args);
+            using var responseFile = ResponseFileArguments.Create(args, directory: tmpDir);
+            foreach (var argument in responseFile.Arguments)
+                psi.ArgumentList.Add(argument);
 
             using var proc = new Process { StartInfo = psi };
             proc.Start();
@@ -181,7 +183,9 @@ public sealed class WorkerService(
                 UseShellExecute        = false,
                 CreateNoWindow         = true,
             };
-            ProcessArguments.AddTo(psi, args);
+            using var responseFile = ResponseFileArguments.Create(args, directory: tmpDir);
+            foreach (var argument in responseFile.Arguments)
+                psi.ArgumentList.Add(argument);
 
             using var proc = new Process { StartInfo = psi };
             proc.Start();

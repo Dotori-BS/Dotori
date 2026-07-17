@@ -69,6 +69,7 @@ public sealed class LocalExecutor : IExecutor
     private static async Task<JobResult> RunProcessAsync(
         string exe, IReadOnlyList<string> args, CancellationToken ct)
     {
+        using var responseFile = ResponseFileArguments.Create(args);
         var psi = new ProcessStartInfo(exe)
         {
             RedirectStandardOutput = true,
@@ -76,7 +77,8 @@ public sealed class LocalExecutor : IExecutor
             UseShellExecute        = false,
             CreateNoWindow         = true,
         };
-        ProcessArguments.AddTo(psi, args);
+        foreach (var argument in responseFile.Arguments)
+            psi.ArgumentList.Add(argument);
 
         using var proc = new Process { StartInfo = psi };
         proc.Start();
