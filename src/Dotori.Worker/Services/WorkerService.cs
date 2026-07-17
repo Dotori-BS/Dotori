@@ -61,13 +61,8 @@ public sealed class WorkerService(
             await File.WriteAllBytesAsync(sourceFile, request.SourceBytes.ToByteArray(),
                 context.CancellationToken);
 
-            // Build final arg list: replace any placeholder with actual paths
-            var args = request.Args
-                .Select(a => a.Replace("{SOURCE}", $"\"{sourceFile}\"")
-                              .Replace("{OUTPUT}", $"\"{objFile}\""))
-                .Append($"\"{sourceFile}\"")
-                .Append($"-o \"{objFile}\"")
-                .ToList();
+            var args = RemoteArgumentMapper.MaterializeCompile(
+                request.Args, sourceFile, objFile);
 
             logger.LogDebug("Compile: {Compiler} {Args}", request.Compiler, string.Join(" ", args));
 
@@ -174,11 +169,8 @@ public sealed class WorkerService(
             }
 
             var outputPath = Path.Combine(tmpDir, request.OutputName);
-            var args = request.Args
-                .Concat(objPaths.Select(path => $"\"{path}\""))
-                .Append("-o")
-                .Append($"\"{outputPath}\"")
-                .ToArray();
+            var args = RemoteArgumentMapper.MaterializeLink(
+                request.Args, objPaths, outputPath);
 
             logger.LogDebug("Link: {Linker} {Args}", request.Linker, string.Join(" ", args));
 

@@ -89,7 +89,7 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
             CompilerFingerprint = compilerFingerprint,
             DependencyHash = dependencyHash,
         };
-        request.Args.AddRange(job.Args);
+        request.Args.AddRange(RemoteArgumentMapper.MapCompile(job));
 
         var stdout = new System.Text.StringBuilder();
         var stderr = new System.Text.StringBuilder();
@@ -139,7 +139,7 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
             Linker     = linker,
             OutputName = Path.GetFileName(job.OutputFile),
         };
-        request.Args.AddRange(job.Args);
+        request.Args.AddRange(RemoteArgumentMapper.MapLink(job));
 
         foreach (var obj in job.InputFiles)
         {
