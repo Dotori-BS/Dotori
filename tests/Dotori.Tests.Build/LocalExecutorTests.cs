@@ -8,6 +8,15 @@ namespace Dotori.Tests.Build;
 public sealed class LocalExecutorTests
 {
     [TestMethod]
+    public void RemoteExecutor_RetainsRequestedTargetTriple()
+    {
+        using var executor = new RemoteExecutor(
+            "http://127.0.0.1:1", "aarch64-unknown-linux-musl");
+
+        Assert.AreEqual("aarch64-unknown-linux-musl", executor.TargetTriple);
+    }
+
+    [TestMethod]
     public async Task DryRunExecutor_ReportsCommandWithoutCreatingOutput()
     {
         var output = Path.Combine(Path.GetTempPath(), $"dotori-dry-{Guid.NewGuid():N}.o");

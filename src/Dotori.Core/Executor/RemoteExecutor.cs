@@ -21,13 +21,16 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
     private readonly BuildCoordinator.BuildCoordinatorClient _client;
     private readonly LocalExecutor                      _fallback;
     private readonly Metadata                           _headers;
+    private readonly string                             _targetTriple;
+    internal string TargetTriple => _targetTriple;
 
-    public RemoteExecutor(string serverAddress, int localJobs = 0)
+    public RemoteExecutor(string serverAddress, string targetTriple, int localJobs = 0)
     {
         _channel  = GrpcChannel.ForAddress(serverAddress);
         _client   = new BuildCoordinator.BuildCoordinatorClient(_channel);
         _fallback = new LocalExecutor(localJobs);
         _headers  = new Metadata();
+        _targetTriple = targetTriple;
         var token = RemoteBuildAuth.ResolveToken(
             Environment.GetEnvironmentVariable("DOTORI_SERVER_TOKEN"),
             Environment.GetEnvironmentVariable("DOTORI_SERVER_TOKEN_FILE"));
@@ -82,7 +85,7 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
         var request = new CompileRequest
         {
             Compiler     = compiler,
-            TargetTriple = string.Empty,  // coordinator will infer from worker
+            TargetTriple = _targetTriple,
             SourceHash   = sourceHash,
             SourceBytes  = ByteString.CopyFrom(sourceBytes),
             SourcePath   = Path.GetFileName(job.SourceFile),
@@ -137,6 +140,7 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
         var request = new LinkRequest
         {
             Linker     = linker,
+            TargetTriple = _targetTriple,
             OutputName = Path.GetFileName(job.OutputFile),
         };
         request.Args.AddRange(RemoteArgumentMapper.MapLink(job));

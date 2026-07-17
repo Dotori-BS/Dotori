@@ -156,7 +156,7 @@ internal static class BuildCommandFactory
             IExecutor executor = dryRun
                 ? new DryRunExecutor()
                 : remoteArg is not null
-                ? new RemoteExecutor(remoteArg, jobs ?? 0)
+                ? new RemoteExecutor(remoteArg, toolchain.TargetTriple, jobs ?? 0)
                 : new LocalExecutor(jobs ?? 0);
 
             if (remoteArg is not null && !dryRun)
