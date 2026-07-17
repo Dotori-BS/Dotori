@@ -35,6 +35,60 @@ public sealed class PackageInstallerTests
     }
 
     [TestMethod]
+    public async Task InstallFromTarballAsync_GlobalCacheSupportsOfflineSecondProject()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"dotori-test-{Guid.NewGuid():N}");
+        var archive = CreateTarball(("package/package.json", "{\"name\":\"cached\"}"));
+        var integrity = "sha512-" + Convert.ToBase64String(SHA512.HashData(archive));
+        var handler = new StaticResponseHandler(archive);
+        using var http = new HttpClient(handler);
+        var cacheDir = Path.Combine(root, "global-cache");
+        try
+        {
+            await PackageInstaller.InstallFromTarballAsync(
+                Path.Combine(root, "first", "deps"), "cached", "1.0.0",
+                "https://registry/cached.tgz", null, integrity,
+                httpClient: http, cacheDir: cacheDir);
+            await PackageInstaller.InstallFromTarballAsync(
+                Path.Combine(root, "second", "deps"), "cached", "1.0.0",
+                "https://registry/cached.tgz", null, integrity,
+                httpClient: http, offline: true, cacheDir: cacheDir);
+
+            Assert.AreEqual(1, handler.RequestCount);
+            Assert.IsTrue(File.Exists(Path.Combine(
+                root, "second", "deps", "cached", "package.json")));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public async Task InstallFromTarballAsync_OfflineCacheMissFailsWithoutNetwork()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"dotori-test-{Guid.NewGuid():N}");
+        var archive = CreateTarball(("package/package.json", "{}"));
+        var integrity = "sha512-" + Convert.ToBase64String(SHA512.HashData(archive));
+        var handler = new StaticResponseHandler(archive);
+        using var http = new HttpClient(handler);
+        try
+        {
+            await Assert.ThrowsAsync<PackageManagerException>(() =>
+                PackageInstaller.InstallFromTarballAsync(
+                    Path.Combine(root, "deps"), "missing", "1.0.0",
+                    "https://registry/missing.tgz", null, integrity,
+                    httpClient: http, offline: true,
+                    cacheDir: Path.Combine(root, "empty-cache")));
+            Assert.AreEqual(0, handler.RequestCount);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [TestMethod]
     public async Task InstallFromTarballAsync_DoesNotExtractTraversalEntry()
     {
         var root = Path.Combine(Path.GetTempPath(), $"dotori-test-{Guid.NewGuid():N}");
@@ -195,11 +249,16 @@ public sealed class PackageInstallerTests
 
     private sealed class StaticResponseHandler(byte[] content) : HttpMessageHandler
     {
+        public int RequestCount { get; private set; }
+
         protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request, CancellationToken cancellationToken) =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new ByteArrayContent(content),
             });
+        }
     }
 }

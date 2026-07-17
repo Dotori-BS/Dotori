@@ -45,7 +45,9 @@ public static class PackageInstaller
         string? token,
         string? integrity = null,
         CancellationToken ct = default,
-        System.Net.Http.HttpClient? httpClient = null)
+        System.Net.Http.HttpClient? httpClient = null,
+        bool offline = false,
+        string? cacheDir = null)
     {
         var depDir = GetLocalDepDir(depsRoot, scopedName);
         if (IsInstalled(depsRoot, scopedName))
@@ -64,16 +66,38 @@ public static class PackageInstaller
         var tmpFile = Path.Combine(stagingDir, $"{version}.tgz");
         try
         {
-            using var response = await http.GetAsync(
-                tarballUrl, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, ct);
-            response.EnsureSuccessStatusCode();
-            await using var stream = await response.Content.ReadAsStreamAsync(ct);
-            await using (var fs = new FileStream(tmpFile, FileMode.Create, FileAccess.Write,
-                             FileShare.None, bufferSize: 81920, useAsync: true))
+            var cachedArchive = GetCachedArchivePath(integrity, cacheDir);
+            if (cachedArchive is not null && File.Exists(cachedArchive))
             {
-                await stream.CopyToAsync(fs, ct);
+                try
+                {
+                    await VerifyIntegrityAsync(cachedArchive, integrity, ct);
+                    File.Copy(cachedArchive, tmpFile, overwrite: true);
+                }
+                catch (PackageManagerException)
+                {
+                    File.Delete(cachedArchive);
+                }
             }
-            await VerifyIntegrityAsync(tmpFile, integrity, ct);
+
+            if (!File.Exists(tmpFile))
+            {
+                if (offline)
+                    throw new PackageManagerException(
+                        $"Package '{scopedName}@{version}' is not available in the global tarball cache.");
+                using var response = await http.GetAsync(
+                    tarballUrl, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, ct);
+                response.EnsureSuccessStatusCode();
+                await using var stream = await response.Content.ReadAsStreamAsync(ct);
+                await using (var fs = new FileStream(tmpFile, FileMode.Create, FileAccess.Write,
+                                 FileShare.None, bufferSize: 81920, useAsync: true))
+                {
+                    await stream.CopyToAsync(fs, ct);
+                }
+                await VerifyIntegrityAsync(tmpFile, integrity, ct);
+                if (cachedArchive is not null)
+                    StoreCachedArchive(tmpFile, cachedArchive);
+            }
             var packageDir = Path.Combine(stagingDir, "package");
             Directory.CreateDirectory(packageDir);
             await ExtractNpmTarballAsync(tmpFile, packageDir, ct);
@@ -89,6 +113,33 @@ public static class PackageInstaller
         }
 
         return depDir;
+    }
+
+    private static string? GetCachedArchivePath(string? integrity, string? cacheDir)
+    {
+        if (string.IsNullOrWhiteSpace(integrity)) return null;
+        var root = cacheDir
+            ?? Environment.GetEnvironmentVariable("DOTORI_PACKAGE_CACHE_DIR")
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".dotori", "package-cache");
+        var key = Convert.ToHexStringLower(SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(integrity)));
+        return Path.Combine(root, key + ".tgz");
+    }
+
+    private static void StoreCachedArchive(string source, string destination)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+        var temporary = destination + $".{Environment.ProcessId}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            File.Copy(source, temporary, overwrite: true);
+            File.Move(temporary, destination, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporary)) File.Delete(temporary);
+        }
     }
 
     private static async Task ExtractNpmTarballAsync(

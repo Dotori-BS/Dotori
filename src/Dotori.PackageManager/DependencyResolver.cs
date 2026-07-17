@@ -65,13 +65,11 @@ public static class DependencyResolver
             {
                 if (source.IsRegistryPackage(name) && !PackageInstaller.IsInstalled(depsRoot, name))
                 {
-                    if (options.Offline)
-                        throw new PackageManagerException(
-                            $"Package '{name}' is not installed and cannot be downloaded in offline mode.");
                     var registryUrl = existing.Registry ?? source.GetRegistryUrl(name);
                     await PackageInstaller.InstallFromTarballAsync(
                         depsRoot, name, version.ToString(), existing.Resolved,
-                        config.GetRegistry(registryUrl).Token, existing.Integrity, ct);
+                        config.GetRegistry(registryUrl).Token, existing.Integrity, ct,
+                        offline: options.Offline);
                 }
                 newLock.Packages[lockKey] = existing;
                 continue;

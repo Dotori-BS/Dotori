@@ -46,7 +46,7 @@ dotori build [옵션]
 | `--jobs <N>` | CPU 코어 수 | 병렬 빌드 작업 수 |
 | `--no-modules` | — | C++ Modules 지원 비활성화 |
 | `--locked` | — | 의존성 선언과 lock 파일이 다르면 실패하고 lock 파일을 변경하지 않음 |
-| `--offline` | — | 네트워크 접근 없이 설치된 패키지와 lock 파일만 사용 |
+| `--offline` | — | 네트워크 접근 없이 설치된 패키지, lock 파일, 전역 tarball 캐시만 사용 |
 | `--frozen` | — | `--locked --offline`과 동일 |
 | `--dry-run` | — | 외부 빌드 명령과 스크립트를 실행하지 않고 예정된 컴파일·링크 명령 출력 |
 | `--explain` | — | 소스 재컴파일과 재링크가 필요한 캐시 판단 사유 출력 |
@@ -607,6 +607,8 @@ dotori search <키워드> --registry https://npm.pkg.github.com
 | `DOTORI_ARCH` | `x64`, `arm64`, `wasm32` | 타겟 CPU 아키텍처 |
 | `DOTORI_PROJECT_DIR` | `/path/to/project` | 프로젝트 루트 절대 경로 |
 | `DOTORI_OUTPUT_DIR` | `.dotori-cache/obj/...` | 링크 결과물 위치 |
+
+패키지 tarball은 SRI integrity별로 `~/.dotori/package-cache/`에 저장되어 여러 프로젝트에서 재사용됩니다. `DOTORI_PACKAGE_CACHE_DIR` 환경 변수로 위치를 변경할 수 있습니다. `--offline`은 프로젝트의 `deps/`가 비어 있어도 lock 파일에 기록된 tarball이 이 캐시에 있으면 설치할 수 있으며, 캐시가 없으면 네트워크 요청 없이 실패합니다.
 
 ---
 
