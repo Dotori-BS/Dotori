@@ -11,6 +11,14 @@ namespace Dotori.Core.Build;
 [JsonSerializable(typeof(Dictionary<string, string>))]
 internal sealed partial class HashDbJsonContext : JsonSerializerContext { }
 
+public enum IncrementalFileState
+{
+    Unchanged,
+    Missing,
+    Untracked,
+    Modified,
+}
+
 /// <summary>
 /// Hash-based incremental build checker.
 /// Stores file hashes in <c>.dotori-cache/hashes.db</c> (JSON format).
@@ -46,10 +54,17 @@ public sealed class IncrementalChecker : IDisposable
     /// </summary>
     public bool IsChanged(string filePath)
     {
-        var hash = ComputeHash(filePath);
-        if (hash is null) return true;  // file doesn't exist — treat as changed
+        return GetFileState(filePath) != IncrementalFileState.Unchanged;
+    }
 
-        return !_hashes.TryGetValue(filePath, out var stored) || stored != hash;
+    /// <summary>Returns the precise cache state used by incremental planning.</summary>
+    public IncrementalFileState GetFileState(string filePath)
+    {
+        if (!File.Exists(filePath)) return IncrementalFileState.Missing;
+        var hash = ComputeHash(filePath);
+        if (hash is null) return IncrementalFileState.Modified;
+        if (!_hashes.TryGetValue(filePath, out var stored)) return IncrementalFileState.Untracked;
+        return stored == hash ? IncrementalFileState.Unchanged : IncrementalFileState.Modified;
     }
 
     /// <summary>

@@ -122,7 +122,8 @@ public sealed partial class BuildPlanner
         IncrementalChecker? checker = null,
         PchPlanner.PchPlan? pchPlan = null,
         bool                noUnity = false,
-        IReadOnlyDictionary<string, string>? bmiPaths = null)
+        IReadOnlyDictionary<string, string>? bmiPaths = null,
+        Action<CompileJob, IReadOnlyList<string>>? explain = null)
     {
         var allSources    = ExpandSources();
         var moduleSources = ExpandModules();
@@ -148,14 +149,15 @@ public sealed partial class BuildPlanner
             filesToCompile = allSources.Where(f => !moduleSet.Contains(f)).ToList();
         }
 
-        return BuildCompileJobs(filesToCompile, checker, pchPlan, bmiPaths);
+        return BuildCompileJobs(filesToCompile, checker, pchPlan, bmiPaths, explain);
     }
 
     private IReadOnlyList<CompileJob> BuildCompileJobs(
         IReadOnlyList<string> files,
         IncrementalChecker? checker,
         PchPlanner.PchPlan? pchPlan,
-        IReadOnlyDictionary<string, string>? bmiPaths = null)
+        IReadOnlyDictionary<string, string>? bmiPaths = null,
+        Action<CompileJob, IReadOnlyList<string>>? explain = null)
     {
         var jobs = new List<CompileJob>();
 
@@ -169,7 +171,7 @@ public sealed partial class BuildPlanner
                     AddModuleImportFlags(src, baseFlags, bmiPaths, _toolchain.Kind),
                     _model.ForceCxx);
                 AttachDependencies(job);
-                if (IsUpToDate(job, checker))
+                if (!NeedsBuild(job, checker, explain))
                     continue;
                 jobs.Add(job);
             }
@@ -181,7 +183,7 @@ public sealed partial class BuildPlanner
             {
                 var job = EmscriptenDriver.MakeCompileJob(src, _cacheDir, baseFlags, _model.ForceCxx);
                 AttachDependencies(job);
-                if (IsUpToDate(job, checker))
+                if (!NeedsBuild(job, checker, explain))
                     continue;
                 jobs.Add(job);
             }
@@ -199,7 +201,7 @@ public sealed partial class BuildPlanner
                     objcArc: _model.ObjcArc,
                     forceObjcpp: _model.ForceObjcpp);
                 AttachDependencies(job);
-                if (IsUpToDate(job, checker))
+                if (!NeedsBuild(job, checker, explain))
                     continue;
                 jobs.Add(job);
             }
@@ -208,11 +210,40 @@ public sealed partial class BuildPlanner
         return jobs;
     }
 
-    private bool IsUpToDate(CompileJob job, IncrementalChecker? checker) =>
-        checker is not null && File.Exists(job.OutputFile) &&
-        !checker.IsChanged(job.SourceFile) &&
-        !job.DependencyFiles.Any(checker.IsChanged) &&
-        !checker.IsFingerprintChanged(job.OutputFile, job.Fingerprint);
+    private static bool NeedsBuild(
+        CompileJob job,
+        IncrementalChecker? checker,
+        Action<CompileJob, IReadOnlyList<string>>? explain)
+    {
+        var reasons = new List<string>();
+        if (checker is null)
+            reasons.Add("incremental checking disabled");
+        else
+        {
+            if (!File.Exists(job.OutputFile)) reasons.Add("output is missing");
+            AddFileReason(reasons, checker.GetFileState(job.SourceFile), "source", job.SourceFile);
+            foreach (var dependency in job.DependencyFiles)
+                AddFileReason(reasons, checker.GetFileState(dependency), "dependency", dependency);
+            if (checker.IsFingerprintChanged(job.OutputFile, job.Fingerprint))
+                reasons.Add("compiler command or dependency set changed");
+        }
+
+        if (reasons.Count > 0) explain?.Invoke(job, reasons);
+        return reasons.Count > 0;
+    }
+
+    private static void AddFileReason(
+        List<string> reasons, IncrementalFileState state, string kind, string path)
+    {
+        var detail = state switch
+        {
+            IncrementalFileState.Missing => "is missing",
+            IncrementalFileState.Untracked => "is not in the build cache",
+            IncrementalFileState.Modified => "content changed",
+            _ => null,
+        };
+        if (detail is not null) reasons.Add($"{kind} {detail}: {path}");
+    }
 
     private void AttachDependencies(CompileJob job)
     {

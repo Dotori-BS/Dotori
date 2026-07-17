@@ -29,6 +29,7 @@ internal static class BuildCommandFactory
         var offlineOption     = new Option<bool>("--offline")        { Description = "Disable dependency network access" };
         var frozenOption      = new Option<bool>("--frozen")         { Description = "Equivalent to --locked --offline" };
         var dryRunOption      = new Option<bool>("--dry-run")        { Description = "Print build commands without executing them" };
+        var explainOption     = new Option<bool>("--explain")        { Description = "Explain why compile and link steps run" };
 
         command.Add(projectOption);
         command.Add(allOption);
@@ -47,6 +48,7 @@ internal static class BuildCommandFactory
         command.Add(offlineOption);
         command.Add(frozenOption);
         command.Add(dryRunOption);
+        command.Add(explainOption);
 
         // Allow unknown --flags so project-declared options can be passed as --option-name / --no-option-name
         command.TreatUnmatchedTokensAsErrors = false;
@@ -71,6 +73,7 @@ internal static class BuildCommandFactory
             var locked     = frozen || parseResult.GetValue(lockedOption);
             var offline    = frozen || parseResult.GetValue(offlineOption);
             var dryRun     = parseResult.GetValue(dryRunOption);
+            var explain    = parseResult.GetValue(explainOption);
 
             var config   = release ? "release" : "debug";
             var targetId = BuildContext.ResolveTargetId(targetArg);
@@ -173,7 +176,7 @@ internal static class BuildCommandFactory
                     // Compile all projects in this level in parallel
                     var levelTasks = level.Select(node => BuildProjectAsync(
                         node, ctx, toolchain, executor, targetId, config,
-                        fileArg, noLink, noUnity, dryRun, builtLibraries, fileFound, ct));
+                        fileArg, noLink, noUnity, dryRun, explain, builtLibraries, fileFound, ct));
 
                     var levelResults = await Task.WhenAll(levelTasks);
                     if (levelResults.Any(r => r != 0)) { exitCode = 1; break; }
@@ -209,6 +212,7 @@ internal static class BuildCommandFactory
         bool noLink,
         bool noUnity,
         bool dryRun,
+        bool explain,
         System.Collections.Concurrent.ConcurrentDictionary<string, string> builtLibraries,
         int[] fileFound,
         CancellationToken ct)
@@ -360,7 +364,8 @@ internal static class BuildCommandFactory
             checker: null, pchPlan: pchPlan, bmiPaths: bmiPaths);
         var compileJobs = pchPlan?.BuildJob is not null
             ? allCompileJobs
-            : planner.PlanCompileJobs(checker, pchPlan: pchPlan, bmiPaths: bmiPaths);
+            : planner.PlanCompileJobs(checker, pchPlan: pchPlan, bmiPaths: bmiPaths,
+                explain: explain ? PrintCompileExplanation : null);
         // RC resource compilation (Windows MSVC only, runs before link)
         var rcJobs = planner.PlanRcJobs();
         if (rcJobs.Count > 0)
@@ -421,10 +426,22 @@ internal static class BuildCommandFactory
             : DateTime.MinValue;
         var inputIsNewer = linkJob.InputFiles.Any(path =>
             File.Exists(path) && File.GetLastWriteTimeUtc(path) > outputTimestamp);
-        var needsLink = !linkOutputExists || compileJobs.Count > 0 ||
-                        moduleJobs.Count > 0 || rcJobs.Count > 0 || asmJobs.Count > 0 ||
-                        inputIsNewer ||
-                        checker.IsFingerprintChanged(linkJob.OutputFile, linkJob.Fingerprint);
+        var linkReasons = new List<string>();
+        if (!linkOutputExists) linkReasons.Add("output is missing");
+        if (compileJobs.Count > 0) linkReasons.Add($"{compileJobs.Count} source file(s) require compilation");
+        if (moduleJobs.Count > 0) linkReasons.Add($"{moduleJobs.Count} module(s) were built");
+        if (rcJobs.Count > 0) linkReasons.Add($"{rcJobs.Count} resource file(s) were built");
+        if (asmJobs.Count > 0) linkReasons.Add($"{asmJobs.Count} assembler file(s) were built");
+        if (inputIsNewer) linkReasons.Add("an input is newer than the output");
+        if (checker.IsFingerprintChanged(linkJob.OutputFile, linkJob.Fingerprint))
+            linkReasons.Add("linker command or input set changed");
+        var needsLink = linkReasons.Count > 0;
+
+        if (explain)
+        {
+            var detail = needsLink ? string.Join("; ", linkReasons) : "up to date";
+            Console.WriteLine($"  [explain] link {linkJob.OutputFile}: {detail}");
+        }
 
         if (!needsLink)
         {
@@ -482,6 +499,10 @@ internal static class BuildCommandFactory
             new HashSet<string>(StringComparer.OrdinalIgnoreCase));
         return libs;
     }
+
+    private static void PrintCompileExplanation(
+        CompileJob job, IReadOnlyList<string> reasons) =>
+        Console.WriteLine($"  [explain] compile {job.SourceFile}: {string.Join("; ", reasons)}");
 
     private static void CollectDepLibsRecursive(
         ProjectNode node,

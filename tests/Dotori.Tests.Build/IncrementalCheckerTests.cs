@@ -70,6 +70,21 @@ public sealed class IncrementalCheckerTests
     }
 
     [TestMethod]
+    public void GetFileState_DistinguishesCacheReasons()
+    {
+        var file = Path.Combine(_tempDir, "state.cpp");
+        using var checker = new IncrementalChecker(_tempDir);
+
+        Assert.AreEqual(IncrementalFileState.Missing, checker.GetFileState(file));
+        File.WriteAllText(file, "int value = 1;");
+        Assert.AreEqual(IncrementalFileState.Untracked, checker.GetFileState(file));
+        checker.Record(file);
+        Assert.AreEqual(IncrementalFileState.Unchanged, checker.GetFileState(file));
+        File.WriteAllText(file, "int value = 2;");
+        Assert.AreEqual(IncrementalFileState.Modified, checker.GetFileState(file));
+    }
+
+    [TestMethod]
     public void Save_PersistsAcrossInstances()
     {
         var file = Path.Combine(_tempDir, "foo.cpp");
@@ -145,8 +160,11 @@ public sealed class IncrementalCheckerTests
 
         using var checker = new IncrementalChecker(_tempDir, "linux-x64-debug");
         checker.Record(source);
-        var missingOutputJobs = planner.PlanCompileJobs(checker);
+        IReadOnlyList<string>? reasons = null;
+        var missingOutputJobs = planner.PlanCompileJobs(checker,
+            explain: (_, reported) => reasons = reported);
         Assert.HasCount(1, missingOutputJobs);
+        CollectionAssert.Contains(reasons!.ToArray(), "output is missing");
 
         File.WriteAllText(missingOutputJobs[0].OutputFile, "object");
         checker.RecordFingerprint(
