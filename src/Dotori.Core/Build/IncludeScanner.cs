@@ -73,6 +73,26 @@ public static class IncludeScanner
         return BuildNode(rootFile, isSystem: false, searchPaths, includeSystem, maxDepth, depth: 0, visited);
     }
 
+    /// <summary>Return the resolved transitive includes of a source file.</summary>
+    public static IReadOnlyList<string> CollectResolvedFiles(
+        string rootFile, IReadOnlyList<string> searchPaths, bool includeSystem = false)
+    {
+        var tree = BuildTree(rootFile, searchPaths, includeSystem);
+        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        static void Collect(IncludeNode node, string root, HashSet<string> output)
+        {
+            if (node.IsResolved && !string.Equals(node.FilePath, root,
+                    StringComparison.OrdinalIgnoreCase))
+                output.Add(node.FilePath);
+            foreach (var child in node.Children)
+                Collect(child, root, output);
+        }
+
+        Collect(tree, Path.GetFullPath(rootFile), files);
+        return files.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
     // ─── Tree construction ────────────────────────────────────────────────────
 
     private static IncludeNode BuildNode(

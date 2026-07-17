@@ -351,7 +351,11 @@ internal static class BuildCommandFactory
             if (code != 0) return code;
 
             foreach (var job in compileJobs)
+            {
                 checker.Record(job.SourceFile);
+                foreach (var dependency in job.DependencyFiles)
+                    checker.Record(dependency);
+            }
         }
 
         if (noLink) return 0;

@@ -173,6 +173,19 @@ public sealed class IncludeScannerTests
     }
 
     [TestMethod]
+    public void CollectResolvedFiles_ReturnsTransitiveHeadersWithoutRoot()
+    {
+        var types = CreateFile("include/types.h", "// leaf");
+        var library = CreateFile("include/library.h", "#include \"types.h\"");
+        var main = CreateFile("src/main.cpp", "#include \"library.h\"");
+
+        var files = IncludeScanner.CollectResolvedFiles(
+            main, [Path.Combine(_tempDir, "include")]);
+
+        CollectionAssert.AreEquivalent(new[] { library, types }, files.ToArray());
+    }
+
+    [TestMethod]
     public void BuildTree_CircularIncludes_NoCycle()
     {
         // a.h includes b.h, b.h includes a.h — should not loop

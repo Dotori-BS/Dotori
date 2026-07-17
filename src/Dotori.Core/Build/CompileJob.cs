@@ -6,6 +6,7 @@ public sealed class CompileJob
     public required string SourceFile  { get; init; }
     public required string OutputFile  { get; init; }
     public required string[] Args      { get; init; }
+    public IReadOnlyList<string> DependencyFiles { get; set; } = [];
 }
 
 /// <summary>A link job (produces an executable or library).</summary>

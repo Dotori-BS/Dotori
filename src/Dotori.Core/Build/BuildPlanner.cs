@@ -168,7 +168,8 @@ public sealed partial class BuildPlanner
                 var job = MsvcDriver.MakeCompileJob(src, _cacheDir,
                     AddModuleImportFlags(src, baseFlags, bmiPaths, _toolchain.Kind),
                     _model.ForceCxx);
-                if (checker is not null && File.Exists(job.OutputFile) && !checker.IsChanged(src))
+                AttachDependencies(job);
+                if (IsUpToDate(job, checker))
                     continue;
                 jobs.Add(job);
             }
@@ -179,7 +180,8 @@ public sealed partial class BuildPlanner
             foreach (var src in files)
             {
                 var job = EmscriptenDriver.MakeCompileJob(src, _cacheDir, baseFlags, _model.ForceCxx);
-                if (checker is not null && File.Exists(job.OutputFile) && !checker.IsChanged(src))
+                AttachDependencies(job);
+                if (IsUpToDate(job, checker))
                     continue;
                 jobs.Add(job);
             }
@@ -196,13 +198,29 @@ public sealed partial class BuildPlanner
                     cAsCpp: _model.ForceCxx,
                     objcArc: _model.ObjcArc,
                     forceObjcpp: _model.ForceObjcpp);
-                if (checker is not null && File.Exists(job.OutputFile) && !checker.IsChanged(src))
+                AttachDependencies(job);
+                if (IsUpToDate(job, checker))
                     continue;
                 jobs.Add(job);
             }
         }
 
         return jobs;
+    }
+
+    private bool IsUpToDate(CompileJob job, IncrementalChecker? checker) =>
+        checker is not null && File.Exists(job.OutputFile) &&
+        !checker.IsChanged(job.SourceFile) &&
+        !job.DependencyFiles.Any(checker.IsChanged);
+
+    private void AttachDependencies(CompileJob job)
+    {
+        var searchPaths = _model.Headers
+            .Select(header => PathUtils.MakeAbsolute(_model.ProjectDir, header.Path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        job.DependencyFiles = IncludeScanner.CollectResolvedFiles(
+            job.SourceFile, searchPaths, includeSystem: false);
     }
 
     /// <summary>

@@ -129,4 +129,41 @@ public sealed class IncrementalCheckerTests
         File.WriteAllText(missingOutputJobs[0].OutputFile, "object");
         Assert.HasCount(0, planner.PlanCompileJobs(checker));
     }
+
+    [TestMethod]
+    public void PlanCompileJobs_TransitiveHeaderChanged_RebuildsSource()
+    {
+        var includeDir = Path.Combine(_tempDir, "include");
+        Directory.CreateDirectory(includeDir);
+        var leaf = Path.Combine(includeDir, "leaf.h");
+        var header = Path.Combine(includeDir, "library.h");
+        var source = Path.Combine(_tempDir, "main.cpp");
+        File.WriteAllText(leaf, "constexpr int value = 1;");
+        File.WriteAllText(header, "#include \"leaf.h\"");
+        File.WriteAllText(source, "#include \"library.h\"\nint main() { return value; }");
+
+        var model = new FlatProjectModel
+        {
+            Name = "app", ProjectDir = _tempDir,
+            DotoriPath = Path.Combine(_tempDir, ".dotori"),
+        };
+        model.Sources.Add(new SourceItem(true, "main.cpp"));
+        model.Headers.Add(new HeaderItem(isPublic: false, path: includeDir));
+        var toolchain = new ToolchainInfo
+        {
+            Kind = CompilerKind.Clang, CompilerPath = "clang++", LinkerPath = "clang++",
+            TargetTriple = "x86_64-unknown-linux-gnu",
+        };
+        var planner = new BuildPlanner(model, toolchain, "debug", "linux-x64");
+
+        using var checker = new IncrementalChecker(_tempDir, "linux-x64-debug");
+        var initialJob = planner.PlanCompileJobs()[0];
+        File.WriteAllText(initialJob.OutputFile, "object");
+        checker.Record(source);
+        foreach (var dependency in initialJob.DependencyFiles) checker.Record(dependency);
+        Assert.HasCount(0, planner.PlanCompileJobs(checker));
+
+        File.WriteAllText(leaf, "constexpr int value = 2;");
+        Assert.HasCount(1, planner.PlanCompileJobs(checker));
+    }
 }
