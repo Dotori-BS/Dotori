@@ -93,7 +93,9 @@ dotori-server \
 |------|--------|------|
 | `DOTORI_WORKERS` | — | 워커 주소 목록 (쉼표 구분). 예: `http://w1:5100,http://w2:5100` |
 | `ASPNETCORE_URLS` | `http://+:5100` | 서버 수신 주소 |
-| `BUILD_CACHE_DIR` | `/tmp/dotori-cache` | 오브젝트 캐시 저장 경로 |
+| `BUILD_CACHE_DIR` | `~/.dotori/build-cache` | 오브젝트 캐시 저장 경로 |
+| `BUILD_CACHE_MAX_BYTES` | `0` | 캐시 최대 크기(bytes). `0`이면 용량 제한 비활성화 |
+| `BUILD_CACHE_MAX_AGE_DAYS` | `0` | 마지막 사용 후 보존 기간(days). `0`이면 만료 비활성화 |
 | `DOTORI_SERVER_TOKEN` | — | CLI → Coordinator 인증 토큰. 미설정 시 loopback 요청만 허용 |
 | `DOTORI_SERVER_TOKEN_FILE` | — | 토큰을 읽을 secret 파일 경로 |
 | `DOTORI_REQUIRE_HTTPS` | `false` | `true`이면 HTTPS가 아닌 gRPC 요청을 거부 |

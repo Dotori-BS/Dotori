@@ -26,6 +26,73 @@ public sealed class BuildCacheTests
     }
 
     [TestMethod]
+    public void Prune_SizeLimit_RemovesLeastRecentlyUsedEntries()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            var cache = new BuildCache(dir);
+            cache.Put("old", [1, 2, 3]);
+            cache.Put("new", [4, 5, 6]);
+            var oldTime = DateTime.UtcNow.AddHours(-2);
+            File.SetLastWriteTimeUtc(Path.Combine(dir, "old.o"), oldTime);
+            File.SetLastAccessTimeUtc(Path.Combine(dir, "old.o"), oldTime);
+
+            _ = new BuildCache(dir, maxBytes: 3);
+
+            Assert.IsFalse(cache.TryGet("old", out _));
+            Assert.IsTrue(cache.TryGet("new", out var bytes));
+            CollectionAssert.AreEqual(new byte[] { 4, 5, 6 }, bytes);
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public void Prune_MaxAge_RemovesExpiredEntries()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            var cache = new BuildCache(dir);
+            cache.Put("expired", [1]);
+            var oldTime = DateTime.UtcNow.AddDays(-10);
+            var path = Path.Combine(dir, "expired.o");
+            File.SetLastWriteTimeUtc(path, oldTime);
+            File.SetLastAccessTimeUtc(path, oldTime);
+
+            _ = new BuildCache(dir, maxAge: TimeSpan.FromDays(1));
+
+            Assert.IsFalse(cache.TryGet("expired", out _));
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public void Prune_DefaultLimitsDisabled_PreservesEntries()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            var cache = new BuildCache(dir);
+            cache.Put("entry", [1]);
+
+            _ = new BuildCache(dir);
+
+            Assert.IsTrue(cache.TryGet("entry", out _));
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [TestMethod]
     public void RemoteBuildAuth_AllowsOnlyLoopbackWithoutConfiguredToken()
     {
         Assert.IsTrue(RemoteBuildAuth.IsAuthorized(null, null, IPAddress.Loopback));

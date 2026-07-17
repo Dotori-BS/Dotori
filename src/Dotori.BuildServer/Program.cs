@@ -6,7 +6,16 @@ using Dotori.Grpc;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddGrpc();
-builder.Services.AddSingleton<BuildCache>();
+builder.Services.AddSingleton(_ =>
+{
+    var cacheDir = builder.Configuration["BUILD_CACHE_DIR"];
+    var maxBytes = builder.Configuration.GetValue<long>("BUILD_CACHE_MAX_BYTES", 0);
+    var maxAgeDays = builder.Configuration.GetValue<double>("BUILD_CACHE_MAX_AGE_DAYS", 0);
+    return new BuildCache(
+        cacheDir,
+        maxBytes,
+        maxAgeDays > 0 ? TimeSpan.FromDays(maxAgeDays) : null);
+});
 builder.Services.AddSingleton<WorkerPool>();
 
 var app = builder.Build();
