@@ -81,6 +81,7 @@ public sealed class FlatProjectModel
     // Build scripts (accumulated across all applicable condition blocks)
     public List<string> PreBuildCommands  { get; } = new();
     public List<string> PostBuildCommands { get; } = new();
+    public List<BuildRuleConfig> BuildRules { get; } = new();
 
     // File copy items (accumulated across all applicable condition blocks)
     public List<CopyItem> CopyItems { get; } = new();
@@ -88,6 +89,9 @@ public sealed class FlatProjectModel
     // Module export map generation (default: true when modules are present)
     public bool ModuleExportMap { get; set; } = true;
 }
+
+public sealed record BuildRuleConfig(
+    string Name, string Command, IReadOnlyList<string> Inputs, IReadOnlyList<string> Outputs);
 
 public sealed class PchConfig
 {

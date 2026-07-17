@@ -51,7 +51,7 @@ public static class ScriptRunner
             psi.Environment["DOTORI_PROJECT_DIR"] = projectDir;
             psi.Environment["DOTORI_OUTPUT_DIR"]  = outputDir;
 
-            var proc = Process.Start(psi);
+            using var proc = Process.Start(psi);
             if (proc is null)
             {
                 Console.Error.WriteLine($"Error: Failed to start script: {cmd}");
@@ -64,12 +64,25 @@ public static class ScriptRunner
             proc.BeginOutputReadLine();
             proc.BeginErrorReadLine();
 
-            await proc.WaitForExitAsync(ct);
+            try
+            {
+                await proc.WaitForExitAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                if (!proc.HasExited)
+                {
+                    try { proc.Kill(entireProcessTree: true); }
+                    catch (InvalidOperationException) { }
+                    try { await proc.WaitForExitAsync(CancellationToken.None); }
+                    catch (InvalidOperationException) { }
+                }
+                throw;
+            }
             // WaitForExit() (no-arg) ensures async stdout/stderr readers are fully drained
             // before we read ExitCode or let the caller delete the working directory.
             proc.WaitForExit();
             var exitCode = proc.ExitCode;
-            proc.Dispose();
             if (exitCode != 0)
             {
                 Console.Error.WriteLine($"Script failed (exit {exitCode}): {cmd}");

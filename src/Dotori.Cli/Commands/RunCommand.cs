@@ -83,6 +83,11 @@ internal static class RunCommandFactory
                     var linkOutDir = Path.Combine(model.ProjectDir, DotoriConstants.CacheDir,
                         DotoriConstants.BinSubDir, $"{targetId}-{config.ToLower()}");
 
+                    var ruleCode = await BuildRuleRunner.RunAsync(
+                        model.BuildRules, model.ProjectDir, targetId, config,
+                        linkOutDir, checker, ct: ct);
+                    if (ruleCode != 0) return ruleCode;
+
                     // pre-build scripts
                     if (model.PreBuildCommands.Count > 0)
                     {

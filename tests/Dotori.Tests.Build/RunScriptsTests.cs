@@ -96,6 +96,22 @@ public sealed class RunScriptsTests
     }
 
     [TestMethod]
+    public async Task RunScripts_Cancellation_StopsProcessTreePromptly()
+    {
+        var command = OperatingSystem.IsWindows()
+            ? "ping -n 31 127.0.0.1 > nul"
+            : "sleep 30";
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(150));
+        var stopwatch = Stopwatch.StartNew();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await ScriptRunner.RunAsync(
+                [command], _tempDir, "host", "debug", _tempDir, cts.Token));
+
+        Assert.IsLessThan(TimeSpan.FromSeconds(5), stopwatch.Elapsed);
+    }
+
+    [TestMethod]
     public async Task RunScripts_StopsOnFirstFailure()
     {
         var outFile = Path.Combine(_tempDir, "should_not_exist.txt");

@@ -197,6 +197,7 @@ public sealed partial class Parser
             "output"             => ParseOutputBlock(loc),
             "pre-build"          => ParseBuildScriptBlock(loc, isPost: false),
             "post-build"         => ParseBuildScriptBlock(loc, isPost: true),
+            "rule"               => ParseBuildRuleBlock(loc),
             "copy"               => ParseCopyBlock(loc),
             "option"             => ParseOptionBlock(loc),
             "assembler"          => ParseAssemblerBlock(loc),

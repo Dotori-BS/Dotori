@@ -291,6 +291,15 @@ public sealed class PostBuildBlock : ProjectItem
     public List<string> Commands { get; } = new();
 }
 
+/// <summary>A named incremental custom command with declared inputs and outputs.</summary>
+public sealed class BuildRuleBlock(string name) : ProjectItem
+{
+    public string Name { get; } = name;
+    public string? Command { get; set; }
+    public List<string> Inputs { get; } = new();
+    public List<string> Outputs { get; } = new();
+}
+
 public sealed class CopyItem(string from, string to)
 {
     public string From { get; } = from;

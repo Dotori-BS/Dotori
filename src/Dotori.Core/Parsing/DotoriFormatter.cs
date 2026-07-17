@@ -230,6 +230,9 @@ public static class DotoriFormatter
             case PostBuildBlock b:
                 FormatStringValuesBlock(sb, "post-build", b.Commands, indent);
                 break;
+            case BuildRuleBlock b:
+                FormatBuildRuleBlock(sb, b, indent);
+                break;
             case CopyBlock b:
                 FormatCopyBlock(sb, b, indent);
                 break;
@@ -362,6 +365,24 @@ public static class DotoriFormatter
                 sb.AppendLine($"{I(indent + 1)}from {fromQ}{pad}  to {toQ}");
             }
         }
+        sb.AppendLine($"{I(indent)}}}");
+    }
+
+    private static void FormatBuildRuleBlock(StringBuilder sb, BuildRuleBlock block, int indent)
+    {
+        sb.AppendLine($"{I(indent)}rule {QuoteString(block.Name)} {{");
+        sb.AppendLine($"{I(indent + 1)}command = {QuoteString(block.Command ?? string.Empty)}");
+        FormatNestedStringList(sb, "inputs", block.Inputs, indent + 1);
+        FormatNestedStringList(sb, "outputs", block.Outputs, indent + 1);
+        sb.AppendLine($"{I(indent)}}}");
+    }
+
+    private static void FormatNestedStringList(
+        StringBuilder sb, string name, IReadOnlyList<string> values, int indent)
+    {
+        sb.AppendLine($"{I(indent)}{name} {{");
+        foreach (var value in values)
+            sb.AppendLine($"{I(indent + 1)}{QuoteString(value)}");
         sb.AppendLine($"{I(indent)}}}");
     }
 

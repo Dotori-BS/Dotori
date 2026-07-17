@@ -232,6 +232,14 @@ public static class ProjectFlattener
                     model.PostBuildCommands.AddRange(b.Commands.Select(EnvExpander.Expand));
                     break;
 
+                case BuildRuleBlock b:
+                    model.BuildRules.Add(new BuildRuleConfig(
+                        b.Name,
+                        EnvExpander.Expand(b.Command!),
+                        b.Inputs.Select(EnvExpander.Expand).ToArray(),
+                        b.Outputs.Select(EnvExpander.Expand).ToArray()));
+                    break;
+
                 case CopyBlock b:
                     foreach (var ci in b.Items)
                         model.CopyItems.Add(new CopyItem(

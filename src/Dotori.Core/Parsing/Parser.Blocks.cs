@@ -455,4 +455,40 @@ public sealed partial class Parser
             return block;
         }
     }
+
+    private BuildRuleBlock ParseBuildRuleBlock(SourceLocation loc)
+    {
+        Consume(); // "rule"
+        var name = Expect(TokenKind.String).Text;
+        Expect(TokenKind.LBrace);
+        var block = new BuildRuleBlock(name) { Location = loc };
+        while (true)
+        {
+            SkipComments();
+            if (Current.Kind != TokenKind.Ident) break;
+            var key = Consume().Text;
+            switch (key)
+            {
+                case "command":
+                    Expect(TokenKind.Equals);
+                    block.Command = Expect(TokenKind.String).Text;
+                    break;
+                case "inputs":
+                    block.Inputs.AddRange(ParseStringList());
+                    break;
+                case "outputs":
+                    block.Outputs.AddRange(ParseStringList());
+                    break;
+                default:
+                    throw new ParseException($"Unknown rule property '{key}'", Current.Location);
+            }
+        }
+        SkipComments();
+        Expect(TokenKind.RBrace);
+        if (string.IsNullOrWhiteSpace(block.Command))
+            throw new ParseException($"Rule '{name}' is missing required 'command'", loc);
+        if (block.Outputs.Count == 0)
+            throw new ParseException($"Rule '{name}' must declare at least one output", loc);
+        return block;
+    }
 }

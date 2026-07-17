@@ -428,6 +428,32 @@ output {
 
 ---
 
+## rule 블록 — 증분 custom build command
+
+코드 생성, shader 변환처럼 compiler 전에 필요한 작업은 입력과 출력을 선언하는 `rule`로 작성합니다.
+
+```text
+rule "generate-schema" {
+    command = "schema-gen schemas/app.json generated/app.hpp"
+    inputs {
+        "schemas/app.json"
+        "templates/**/*.mustache"
+    }
+    outputs {
+        "generated/app.hpp"
+    }
+}
+```
+
+- 입력 내용, 입력 파일 집합, command가 변경되거나 출력이 없을 때만 실행됩니다.
+- 입력 glob이 아무 파일에도 일치하지 않거나 command가 선언한 출력을 만들지 않으면 빌드가 실패합니다.
+- 상대 경로와 glob은 프로젝트 루트를 기준으로 해석되며 출력의 상위 디렉토리는 자동 생성됩니다.
+- `build`, `run`, `test`에서 compiler와 `pre-build` hook보다 먼저 실행됩니다.
+- `build --dry-run`은 command를 출력만 하고, `build --explain`은 실행 또는 생략 사유를 표시합니다.
+- 조건 블록 안에 선언할 수 있습니다.
+
+---
+
 ## pre-build / post-build 블록 — 빌드 전/후 스크립트
 
 ```
