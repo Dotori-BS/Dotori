@@ -44,7 +44,8 @@ public static class PackageInstaller
         string tarballUrl,
         string? token,
         string? integrity = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        System.Net.Http.HttpClient? httpClient = null)
     {
         var depDir = GetLocalDepDir(depsRoot, scopedName);
         if (IsInstalled(depsRoot, scopedName))
@@ -54,7 +55,8 @@ public static class PackageInstaller
         var stagingDir = Path.Combine(stagingRoot, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(stagingDir);
 
-        using var http = new System.Net.Http.HttpClient();
+        using var ownedHttp = httpClient is null ? new System.Net.Http.HttpClient() : null;
+        var http = httpClient ?? ownedHttp!;
         http.DefaultRequestHeaders.UserAgent.ParseAdd("dotori/1.0");
         if (token is not null)
             http.DefaultRequestHeaders.Authorization = new("Bearer", token);
