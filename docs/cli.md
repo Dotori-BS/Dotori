@@ -50,6 +50,7 @@ dotori build [옵션]
 | `--frozen` | — | `--locked --offline`과 동일 |
 | `--dry-run` | — | 외부 빌드 명령과 스크립트를 실행하지 않고 예정된 컴파일·링크 명령 출력 |
 | `--explain` | — | 소스 재컴파일과 재링크가 필요한 캐시 판단 사유 출력 |
+| `--verbose` | — | 실행되는 compiler와 linker 명령을 출력 |
 
 #### `--compiler` 값 목록
 

@@ -8,6 +8,28 @@ namespace Dotori.Tests.Build;
 public sealed class LocalExecutorTests
 {
     [TestMethod]
+    public async Task VerboseExecutor_PrintsCompileAndLinkCommands()
+    {
+        var writer = new StringWriter();
+        using var executor = new VerboseExecutor(new DryRunExecutor(), writer);
+        var compile = new CompileJob
+        {
+            SourceFile = "main.cpp", OutputFile = "main.o", Args = ["-c", "main.cpp"],
+        };
+        var link = new LinkJob
+        {
+            InputFiles = ["main.o"], OutputFile = "app", Args = ["main.o", "-o", "app"],
+        };
+
+        await executor.RunCompileJobsAsync("clang++", [compile]);
+        await executor.RunLinkJobAsync("clang++", link);
+
+        var output = writer.ToString();
+        StringAssert.Contains(output, "[command] clang++ -c main.cpp");
+        StringAssert.Contains(output, "[command] clang++ main.o -o app");
+    }
+
+    [TestMethod]
     public void RemoteExecutor_RetainsRequestedTargetTriple()
     {
         using var executor = new RemoteExecutor(

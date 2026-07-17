@@ -30,6 +30,7 @@ internal static class BuildCommandFactory
         var frozenOption      = new Option<bool>("--frozen")         { Description = "Equivalent to --locked --offline" };
         var dryRunOption      = new Option<bool>("--dry-run")        { Description = "Print build commands without executing them" };
         var explainOption     = new Option<bool>("--explain")        { Description = "Explain why compile and link steps run" };
+        var verboseOption     = new Option<bool>("--verbose")        { Description = "Print compile and link commands as they execute" };
 
         command.Add(projectOption);
         command.Add(allOption);
@@ -49,6 +50,7 @@ internal static class BuildCommandFactory
         command.Add(frozenOption);
         command.Add(dryRunOption);
         command.Add(explainOption);
+        command.Add(verboseOption);
 
         // Allow unknown --flags so project-declared options can be passed as --option-name / --no-option-name
         command.TreatUnmatchedTokensAsErrors = false;
@@ -74,6 +76,7 @@ internal static class BuildCommandFactory
             var offline    = frozen || parseResult.GetValue(offlineOption);
             var dryRun     = parseResult.GetValue(dryRunOption);
             var explain    = parseResult.GetValue(explainOption);
+            var verbose    = parseResult.GetValue(verboseOption);
 
             var config   = release ? "release" : "debug";
             var targetId = BuildContext.ResolveTargetId(targetArg);
@@ -158,6 +161,8 @@ internal static class BuildCommandFactory
                 : remoteArg is not null
                 ? new RemoteExecutor(remoteArg, toolchain.TargetTriple, jobs ?? 0)
                 : new LocalExecutor(jobs ?? 0);
+            if (verbose && !dryRun)
+                executor = new VerboseExecutor(executor);
 
             if (remoteArg is not null && !dryRun)
                 Console.WriteLine($"  Using remote build server: {remoteArg}");
