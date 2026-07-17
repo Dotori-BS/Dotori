@@ -1,6 +1,7 @@
 using Dotori.BuildServer.Cache;
 using Dotori.BuildServer.Services;
 using Dotori.BuildServer.Workers;
+using Dotori.Grpc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +10,21 @@ builder.Services.AddSingleton<BuildCache>();
 builder.Services.AddSingleton<WorkerPool>();
 
 var app = builder.Build();
+
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/Dotori.Grpc.BuildCoordinator") &&
+        !RemoteBuildAuth.IsAuthorized(
+            builder.Configuration["DOTORI_SERVER_TOKEN"],
+            context.Request.Headers[RemoteBuildAuth.HeaderName],
+            context.Connection.RemoteIpAddress))
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return;
+    }
+
+    await next();
+});
 
 app.MapGrpcService<CoordinatorService>();
 app.MapGet("/", () => "dotori build server — use a gRPC client");

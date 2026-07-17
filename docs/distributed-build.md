@@ -38,8 +38,16 @@ docker compose up server worker1 worker2
 | 서비스 | 포트 |
 |--------|------|
 | BuildServer (Coordinator) | `5100` |
-| Worker 1 | `5101` (호스트) → `5100` (컨테이너) |
-| Worker 2 | `5102` (호스트) → `5100` (컨테이너) |
+| Worker 1 | Compose 내부 `5100` |
+| Worker 2 | Compose 내부 `5100` |
+
+Compose 실행 전 서로 다른 고강도 토큰을 설정합니다. Worker 포트는 호스트에 공개하지 않습니다.
+
+```bash
+export DOTORI_SERVER_TOKEN="$(openssl rand -hex 32)"
+export DOTORI_WORKER_TOKEN="$(openssl rand -hex 32)"
+docker compose up server worker1 worker2
+```
 
 빌드 시 분산 빌드 서버를 사용하려면:
 
@@ -86,6 +94,7 @@ dotori-server \
 | `DOTORI_WORKERS` | — | 워커 주소 목록 (쉼표 구분). 예: `http://w1:5100,http://w2:5100` |
 | `ASPNETCORE_URLS` | `http://+:5100` | 서버 수신 주소 |
 | `BUILD_CACHE_DIR` | `/tmp/dotori-cache` | 오브젝트 캐시 저장 경로 |
+| `DOTORI_SERVER_TOKEN` | — | CLI → Coordinator 인증 토큰. 미설정 시 loopback 요청만 허용 |
 
 ### Worker
 
@@ -93,6 +102,7 @@ dotori-server \
 |------|--------|------|
 | `WORKER_PORT` | `5100` | 수신 포트 |
 | `ASPNETCORE_URLS` | `http://+:5100` | 워커 수신 주소 |
+| `DOTORI_WORKER_TOKEN` | — | Coordinator → Worker 인증 토큰. 미설정 시 loopback 요청만 허용 |
 
 ---
 

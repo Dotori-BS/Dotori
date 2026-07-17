@@ -16,6 +16,7 @@ public sealed class WorkerPool : IDisposable
     public WorkerPool(IConfiguration config, ILogger<WorkerPool> logger)
     {
         var addresses = config["DOTORI_WORKERS"] ?? string.Empty;
+        var token = config["DOTORI_WORKER_TOKEN"];
         foreach (var addr in addresses.Split(',', StringSplitOptions.RemoveEmptyEntries))
         {
             var trimmed = addr.Trim();
@@ -23,7 +24,10 @@ public sealed class WorkerPool : IDisposable
             {
                 var channel = GrpcChannel.ForAddress(trimmed);
                 var client  = new BuildWorker.BuildWorkerClient(channel);
-                _workers.Add(new WorkerEntry(trimmed, channel, client));
+                var headers = new global::Grpc.Core.Metadata();
+                if (!string.IsNullOrWhiteSpace(token))
+                    headers.Add(RemoteBuildAuth.HeaderName, token);
+                _workers.Add(new WorkerEntry(trimmed, channel, client, headers));
                 logger.LogInformation("Registered worker: {Address}", trimmed);
             }
             catch (Exception ex)
@@ -59,4 +63,5 @@ public sealed class WorkerPool : IDisposable
 public sealed record WorkerEntry(
     string                        Address,
     GrpcChannel                   Channel,
-    BuildWorker.BuildWorkerClient Client);
+    BuildWorker.BuildWorkerClient Client,
+    global::Grpc.Core.Metadata    Headers);

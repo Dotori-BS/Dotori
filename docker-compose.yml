@@ -5,15 +5,15 @@ services:
     build:
       context: .
       dockerfile: src/Dotori.Worker/Dockerfile
-    ports:
-      - "5101:5100"
+    environment:
+      - DOTORI_WORKER_TOKEN=${DOTORI_WORKER_TOKEN:?set DOTORI_WORKER_TOKEN}
 
   worker2:
     build:
       context: .
       dockerfile: src/Dotori.Worker/Dockerfile
-    ports:
-      - "5102:5100"
+    environment:
+      - DOTORI_WORKER_TOKEN=${DOTORI_WORKER_TOKEN:?set DOTORI_WORKER_TOKEN}
 
   server:
     build:
@@ -23,6 +23,8 @@ services:
       - "5100:5100"
     environment:
       - DOTORI_WORKERS=http://worker1:5100,http://worker2:5100
+      - DOTORI_SERVER_TOKEN=${DOTORI_SERVER_TOKEN:?set DOTORI_SERVER_TOKEN}
+      - DOTORI_WORKER_TOKEN=${DOTORI_WORKER_TOKEN:?set DOTORI_WORKER_TOKEN}
     depends_on:
       - worker1
       - worker2

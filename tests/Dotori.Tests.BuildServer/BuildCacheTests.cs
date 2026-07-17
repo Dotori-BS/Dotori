@@ -1,10 +1,27 @@
 using Dotori.BuildServer.Cache;
+using Dotori.Grpc;
+using System.Net;
 
 namespace Dotori.Tests.BuildServer;
 
 [TestClass]
 public sealed class BuildCacheTests
 {
+    [TestMethod]
+    public void RemoteBuildAuth_AllowsOnlyLoopbackWithoutConfiguredToken()
+    {
+        Assert.IsTrue(RemoteBuildAuth.IsAuthorized(null, null, IPAddress.Loopback));
+        Assert.IsFalse(RemoteBuildAuth.IsAuthorized(null, null, IPAddress.Parse("10.0.0.8")));
+    }
+
+    [TestMethod]
+    public void RemoteBuildAuth_RequiresExactConfiguredToken()
+    {
+        Assert.IsTrue(RemoteBuildAuth.IsAuthorized("secret", "secret", IPAddress.Parse("10.0.0.8")));
+        Assert.IsFalse(RemoteBuildAuth.IsAuthorized("secret", "wrong", IPAddress.Loopback));
+        Assert.IsFalse(RemoteBuildAuth.IsAuthorized("secret", null, IPAddress.Loopback));
+    }
+
     [TestMethod]
     public void ComputeKey_DistinguishesArgumentBoundaries()
     {

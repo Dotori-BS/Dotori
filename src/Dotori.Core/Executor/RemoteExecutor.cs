@@ -15,12 +15,17 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
     private readonly GrpcChannel                        _channel;
     private readonly BuildCoordinator.BuildCoordinatorClient _client;
     private readonly LocalExecutor                      _fallback;
+    private readonly Metadata                           _headers;
 
     public RemoteExecutor(string serverAddress, int localJobs = 0)
     {
         _channel  = GrpcChannel.ForAddress(serverAddress);
         _client   = new BuildCoordinator.BuildCoordinatorClient(_channel);
         _fallback = new LocalExecutor(localJobs);
+        _headers  = new Metadata();
+        var token = Environment.GetEnvironmentVariable("DOTORI_SERVER_TOKEN");
+        if (!string.IsNullOrWhiteSpace(token))
+            _headers.Add(RemoteBuildAuth.HeaderName, token);
     }
 
     public async Task<IReadOnlyList<JobResult>> RunCompileJobsAsync(
@@ -79,7 +84,7 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
         var stderr = new System.Text.StringBuilder();
         CompileResult? result = null;
 
-        using var call = _client.Compile(request, cancellationToken: ct);
+        using var call = _client.Compile(request, headers: _headers, cancellationToken: ct);
         await foreach (var ev in call.ResponseStream.ReadAllAsync(ct))
         {
             if (ev.PayloadCase == CompileEvent.PayloadOneofCase.Log)
@@ -131,7 +136,7 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
             request.ObjFiles.Add(ByteString.CopyFrom(bytes));
         }
 
-        var response = await _client.LinkAsync(request, cancellationToken: ct);
+        var response = await _client.LinkAsync(request, headers: _headers, cancellationToken: ct);
 
         if (response.Success && response.OutputBytes.Length > 0)
         {

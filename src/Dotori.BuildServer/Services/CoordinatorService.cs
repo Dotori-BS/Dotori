@@ -61,7 +61,7 @@ public sealed class CoordinatorService(
         };
         workerRequest.Args.AddRange(request.Args);
 
-        using var call = worker.Client.Compile(workerRequest,
+        using var call = worker.Client.Compile(workerRequest, worker.Headers,
             cancellationToken: context.CancellationToken);
 
         WorkerCompileResult? finalResult = null;
@@ -122,7 +122,7 @@ public sealed class CoordinatorService(
         workerRequest.Args.AddRange(request.Args);
         workerRequest.ObjFiles.AddRange(request.ObjFiles);
 
-        var response = await worker.Client.LinkAsync(workerRequest,
+        var response = await worker.Client.LinkAsync(workerRequest, worker.Headers,
             cancellationToken: context.CancellationToken);
 
         return new LinkResponse
