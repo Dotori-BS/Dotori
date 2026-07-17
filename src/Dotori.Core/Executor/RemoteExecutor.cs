@@ -28,7 +28,9 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
         _client   = new BuildCoordinator.BuildCoordinatorClient(_channel);
         _fallback = new LocalExecutor(localJobs);
         _headers  = new Metadata();
-        var token = Environment.GetEnvironmentVariable("DOTORI_SERVER_TOKEN");
+        var token = RemoteBuildAuth.ResolveToken(
+            Environment.GetEnvironmentVariable("DOTORI_SERVER_TOKEN"),
+            Environment.GetEnvironmentVariable("DOTORI_SERVER_TOKEN_FILE"));
         if (!string.IsNullOrWhiteSpace(token))
             _headers.Add(RemoteBuildAuth.HeaderName, token);
     }

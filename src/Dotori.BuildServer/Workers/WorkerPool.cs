@@ -16,7 +16,8 @@ public sealed class WorkerPool : IDisposable
     public WorkerPool(IConfiguration config, ILogger<WorkerPool> logger)
     {
         var addresses = config["DOTORI_WORKERS"] ?? string.Empty;
-        var token = config["DOTORI_WORKER_TOKEN"];
+        var token = RemoteBuildAuth.ResolveToken(
+            config["DOTORI_WORKER_TOKEN"], config["DOTORI_WORKER_TOKEN_FILE"]);
         foreach (var addr in addresses.Split(',', StringSplitOptions.RemoveEmptyEntries))
         {
             var trimmed = addr.Trim();

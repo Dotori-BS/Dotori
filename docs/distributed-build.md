@@ -95,10 +95,8 @@ dotori-server \
 | `ASPNETCORE_URLS` | `http://+:5100` | 서버 수신 주소 |
 | `BUILD_CACHE_DIR` | `/tmp/dotori-cache` | 오브젝트 캐시 저장 경로 |
 | `DOTORI_SERVER_TOKEN` | — | CLI → Coordinator 인증 토큰. 미설정 시 loopback 요청만 허용 |
+| `DOTORI_SERVER_TOKEN_FILE` | — | 토큰을 읽을 secret 파일 경로 |
 | `DOTORI_REQUIRE_HTTPS` | `false` | `true`이면 HTTPS가 아닌 gRPC 요청을 거부 |
-| `DOTORI_MAX_INPUT_BYTES` | `67108864` | 요청 하나의 소스 또는 오브젝트 총 입력 크기 제한 |
-| `DOTORI_MAX_ARGUMENTS` | `4096` | 컴파일러·링커 인수 최대 개수 |
-| `DOTORI_EXECUTION_TIMEOUT_SECONDS` | `300` | worker 프로세스 최대 실행 시간 |
 
 ### Worker
 
@@ -107,8 +105,31 @@ dotori-server \
 | `WORKER_PORT` | `5100` | 수신 포트 |
 | `ASPNETCORE_URLS` | `http://+:5100` | 워커 수신 주소 |
 | `DOTORI_WORKER_TOKEN` | — | Coordinator → Worker 인증 토큰. 미설정 시 loopback 요청만 허용 |
+| `DOTORI_WORKER_TOKEN_FILE` | — | 토큰을 읽을 secret 파일 경로 |
 | `DOTORI_ALLOWED_EXECUTABLES` | 기본 C/C++ 툴체인 | 쉼표로 구분한 worker 실행 파일 allowlist |
 | `DOTORI_REQUIRE_HTTPS` | `false` | `true`이면 HTTPS가 아닌 gRPC 요청을 거부 |
+| `DOTORI_MAX_INPUT_BYTES` | `67108864` | 요청 하나의 소스 또는 오브젝트 총 입력 크기 제한 |
+| `DOTORI_MAX_ARGUMENTS` | `4096` | 컴파일러·링커 인수 최대 개수 |
+| `DOTORI_EXECUTION_TIMEOUT_SECONDS` | `300` | worker 프로세스 최대 실행 시간 |
+
+운영 환경에서는 토큰 값을 환경 변수에 직접 넣기보다 Docker/Kubernetes secret 파일을 권장합니다.
+`DOTORI_*_TOKEN`이 설정돼 있으면 파일보다 우선합니다.
+
+```yaml
+services:
+  server:
+    secrets: [server_token, worker_token]
+    environment:
+      DOTORI_SERVER_TOKEN_FILE: /run/secrets/server_token
+      DOTORI_WORKER_TOKEN_FILE: /run/secrets/worker_token
+  worker:
+    secrets: [worker_token]
+    environment:
+      DOTORI_WORKER_TOKEN_FILE: /run/secrets/worker_token
+```
+
+HTTPS는 ASP.NET Core 인증서를 구성한 뒤 양쪽 서비스에
+`DOTORI_REQUIRE_HTTPS=true`를 지정할 때만 강제됩니다. 기본값은 `false`입니다.
 
 ---
 

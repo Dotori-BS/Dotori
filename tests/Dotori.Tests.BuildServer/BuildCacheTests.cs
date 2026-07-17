@@ -52,6 +52,22 @@ public sealed class BuildCacheTests
     }
 
     [TestMethod]
+    public void RemoteBuildAuth_ResolvesTokenFromSecretFile()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(path, "secret-from-file\n");
+            Assert.AreEqual("secret-from-file", RemoteBuildAuth.ResolveToken(null, path));
+            Assert.AreEqual("direct", RemoteBuildAuth.ResolveToken("direct", path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [TestMethod]
     public void ComputeKey_DistinguishesArgumentBoundaries()
     {
         var first = BuildCache.ComputeKey("source", ["-D", "AB"], "clang", "x86_64-linux");

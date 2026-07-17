@@ -15,7 +15,9 @@ app.Use(async (context, next) =>
 {
     if (context.Request.Path.StartsWithSegments("/Dotori.Grpc.BuildCoordinator") &&
         !RemoteBuildAuth.IsAuthorized(
-            builder.Configuration["DOTORI_SERVER_TOKEN"],
+            RemoteBuildAuth.ResolveToken(
+                builder.Configuration["DOTORI_SERVER_TOKEN"],
+                builder.Configuration["DOTORI_SERVER_TOKEN_FILE"]),
             context.Request.Headers[RemoteBuildAuth.HeaderName],
             context.Connection.RemoteIpAddress,
             context.Request.IsHttps,
