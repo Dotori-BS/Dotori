@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Dotori.Core;
 using Dotori.Core.Graph;
 using Dotori.Core.Location;
@@ -210,8 +211,23 @@ internal static class BuildContext
     internal static ToolchainInfo? DetectToolchain(
         string targetId, string? cliCompiler, string? rootDotoriPath = null, string? libc = null)
     {
-        var compiler = cliCompiler ?? ReadDslToolchain(rootDotoriPath);
-        var tc = ToolchainDetector.Detect(targetId, compiler, libc);
+        var dslToolchain = ReadDslToolchain(rootDotoriPath);
+        var compiler = cliCompiler ?? dslToolchain;
+        ToolchainInfo? tc;
+        try
+        {
+            tc = compiler is not null && ToolchainProfile.IsProfilePath(compiler)
+                ? ToolchainProfile.Load(compiler,
+                    dslToolchain is not null && rootDotoriPath is not null
+                        ? Path.GetDirectoryName(Path.GetFullPath(rootDotoriPath))
+                        : Environment.CurrentDirectory)
+                : ToolchainDetector.Detect(targetId, compiler, libc);
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or InvalidDataException)
+        {
+            Console.Error.WriteLine($"Error: Invalid toolchain profile: {ex.Message}");
+            return null;
+        }
         if (tc is null)
             Console.Error.WriteLine(
                 $"Error: No toolchain found for target '{targetId}'. " +

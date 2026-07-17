@@ -68,6 +68,8 @@ dotori build [옵션]
 
 우선순위: `--compiler` 플래그 > `.dotori` 파일의 `toolchain` 속성 > `CXX`/`CC` 환경 변수 > 자동 감지
 
+`.dotori`의 `toolchain` 또는 `--compiler` 값이 `.json`으로 끝나면 compiler, linker, target triple, sysroot를 함께 지정하는 toolchain profile로 로드합니다. DSL에서 지정한 상대 profile 경로는 프로젝트 디렉토리를 기준으로 해석됩니다.
+
 ### 단일 파일 빌드 옵션
 
 | 옵션 | 설명 |

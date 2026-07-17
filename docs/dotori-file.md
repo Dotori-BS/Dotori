@@ -258,6 +258,29 @@ toolchain = "clang"           # PATH의 clang++
 | `msvc-2017` | Visual Studio 2017 (버전 15.x) |
 | 바이너리 이름 | PATH 검색 (예: `"clang++-18"`) |
 | 절대 경로 | 직접 지정 (예: `"/opt/homebrew/opt/llvm/bin/clang++"`) |
+| `*.json` | 프로젝트 디렉토리 기준 toolchain profile 파일 |
+
+compiler와 linker, target triple, sysroot를 함께 고정해야 하는 교차 빌드는 JSON profile을 사용합니다.
+
+```text
+toolchain = "toolchains/linux-arm64.json"
+```
+
+```json
+{
+  "kind": "clang",
+  "compiler": "bin/clang++",
+  "linker": "bin/clang++",
+  "targetTriple": "aarch64-unknown-linux-musl",
+  "sysroot": "sysroot",
+  "assembler": {
+    "nasm": "bin/nasm",
+    "gas": "bin/aarch64-linux-musl-as"
+  }
+}
+```
+
+profile 안의 상대 경로는 JSON 파일 위치를 기준으로 해석됩니다. `compiler`와 `linker`에 디렉토리가 없는 실행 파일 이름을 쓰면 `PATH`에서 검색됩니다. 지원 필드는 `kind` (`clang` 또는 `emscripten`), `compiler`, `linker`, `targetTriple`, 선택적 `sysroot`, `appleSdk`, `assembler` (`nasm`, `yasm`, `gas`, `masm`)입니다. MSVC는 Windows SDK 메타데이터가 필요하므로 profile 대신 `msvc-*` 자동 감지를 사용합니다.
 
 ---
 
