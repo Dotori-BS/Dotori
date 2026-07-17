@@ -1,4 +1,7 @@
 using Dotori.Core.Build;
+using Dotori.Core.Model;
+using Dotori.Core.Parsing;
+using Dotori.Core.Toolchain;
 
 namespace Dotori.Tests.Build;
 
@@ -98,5 +101,32 @@ public sealed class IncrementalCheckerTests
         using var release = new IncrementalChecker(_tempDir, "macos-arm64-release");
         Assert.IsFalse(debugAgain.IsChanged(file));
         Assert.IsTrue(release.IsChanged(file));
+    }
+
+    [TestMethod]
+    public void PlanCompileJobs_MissingObject_RebuildsUnchangedSource()
+    {
+        var source = Path.Combine(_tempDir, "main.cpp");
+        File.WriteAllText(source, "int main() { return 0; }");
+        var model = new FlatProjectModel
+        {
+            Name = "app", ProjectDir = _tempDir,
+            DotoriPath = Path.Combine(_tempDir, ".dotori"),
+        };
+        model.Sources.Add(new SourceItem(true, "main.cpp"));
+        var toolchain = new ToolchainInfo
+        {
+            Kind = CompilerKind.Clang, CompilerPath = "clang++", LinkerPath = "clang++",
+            TargetTriple = "x86_64-unknown-linux-gnu",
+        };
+        var planner = new BuildPlanner(model, toolchain, "debug", "linux-x64");
+
+        using var checker = new IncrementalChecker(_tempDir, "linux-x64-debug");
+        checker.Record(source);
+        var missingOutputJobs = planner.PlanCompileJobs(checker);
+        Assert.HasCount(1, missingOutputJobs);
+
+        File.WriteAllText(missingOutputJobs[0].OutputFile, "object");
+        Assert.HasCount(0, planner.PlanCompileJobs(checker));
     }
 }

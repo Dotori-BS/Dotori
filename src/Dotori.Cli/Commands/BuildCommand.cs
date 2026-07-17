@@ -315,7 +315,13 @@ internal static class BuildCommandFactory
             planner.WriteModuleMap(moduleJobs);
         }
 
-        var compileJobs = planner.PlanCompileJobs(checker, pchPlan: pchPlan, bmiPaths: bmiPaths);
+        // Keep the complete object set separate from the subset that needs compiling.
+        // The linker must always receive every project object, not just changed sources.
+        var allCompileJobs = planner.PlanCompileJobs(
+            checker: null, pchPlan: pchPlan, bmiPaths: bmiPaths);
+        var compileJobs = pchPlan?.BuildJob is not null
+            ? allCompileJobs
+            : planner.PlanCompileJobs(checker, pchPlan: pchPlan, bmiPaths: bmiPaths);
         // RC resource compilation (Windows MSVC only, runs before link)
         var rcJobs = planner.PlanRcJobs();
         if (rcJobs.Count > 0)
@@ -334,12 +340,6 @@ internal static class BuildCommandFactory
             var asmResults = await executor.RunCompileJobsAsync(asmPath, asmJobs, ct);
             int asmCode = PrintResults(asmResults);
             if (asmCode != 0) return asmCode;
-        }
-
-        if (compileJobs.Count == 0 && moduleJobs.Count == 0 && rcJobs.Count == 0 && asmJobs.Count == 0)
-        {
-            Console.WriteLine($"  {model.Name}: up to date");
-            return 0;
         }
 
         if (compileJobs.Count > 0)
@@ -362,7 +362,7 @@ internal static class BuildCommandFactory
         var modulePcmFiles = (bmiPaths is not null && toolchain.Kind != Dotori.Core.Toolchain.CompilerKind.Msvc)
             ? bmiPaths.Values.ToList()
             : Enumerable.Empty<string>();
-        var objFiles = compileJobs.Select(j => j.OutputFile)
+        var objFiles = allCompileJobs.Select(j => j.OutputFile)
             .Concat(modulePcmFiles)
             .Concat(rcJobs.Select(j => j.OutputFile))   // .res files → linker
             .Concat(asmJobs.Select(j => j.OutputFile))  // assembler .o/.obj → linker
@@ -370,6 +370,28 @@ internal static class BuildCommandFactory
             .ToList();
         var linkJob  = planner.PlanLinkJob(objFiles);
         if (linkJob is null) return 0;
+
+        var linkOutputExists = File.Exists(linkJob.OutputFile);
+        var outputTimestamp = linkOutputExists
+            ? File.GetLastWriteTimeUtc(linkJob.OutputFile)
+            : DateTime.MinValue;
+        var inputIsNewer = linkJob.InputFiles.Any(path =>
+            File.Exists(path) && File.GetLastWriteTimeUtc(path) > outputTimestamp);
+        var needsLink = !linkOutputExists || compileJobs.Count > 0 ||
+                        moduleJobs.Count > 0 || rcJobs.Count > 0 || asmJobs.Count > 0 ||
+                        inputIsNewer;
+
+        if (!needsLink)
+        {
+            builtLibraries[node.DotoriPath] = linkJob.OutputFile;
+            Console.WriteLine($"  {model.Name}: up to date");
+            return 0;
+        }
+
+        // Updating an existing archive leaves members for sources that were removed.
+        // Recreate local static libraries so the archive exactly matches the input set.
+        if (isStaticLib && executor is LocalExecutor && File.Exists(linkJob.OutputFile))
+            File.Delete(linkJob.OutputFile);
 
         var linkResult = await executor.RunLinkJobAsync(planner.GetLinkerPath(), linkJob, ct);
         if (!string.IsNullOrWhiteSpace(linkResult.Stdout)) Console.Write(linkResult.Stdout);

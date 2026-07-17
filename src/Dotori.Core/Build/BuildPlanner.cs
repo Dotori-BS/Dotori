@@ -165,9 +165,12 @@ public sealed partial class BuildPlanner
             if (pchPlan is not null) baseFlags = PchPlanner.AddUseFlags(baseFlags, pchPlan).ToList();
             foreach (var src in files)
             {
-                if (checker is not null && !checker.IsChanged(src)) continue;
-                var flags = AddModuleImportFlags(src, baseFlags, bmiPaths, _toolchain.Kind);
-                jobs.Add(MsvcDriver.MakeCompileJob(src, _cacheDir, flags, _model.ForceCxx));
+                var job = MsvcDriver.MakeCompileJob(src, _cacheDir,
+                    AddModuleImportFlags(src, baseFlags, bmiPaths, _toolchain.Kind),
+                    _model.ForceCxx);
+                if (checker is not null && File.Exists(job.OutputFile) && !checker.IsChanged(src))
+                    continue;
+                jobs.Add(job);
             }
         }
         else if (_toolchain.Kind == CompilerKind.Emscripten)
@@ -175,8 +178,10 @@ public sealed partial class BuildPlanner
             var baseFlags = EmscriptenDriver.CompileFlags(_model, _cacheDir);
             foreach (var src in files)
             {
-                if (checker is not null && !checker.IsChanged(src)) continue;
-                jobs.Add(EmscriptenDriver.MakeCompileJob(src, _cacheDir, baseFlags, _model.ForceCxx));
+                var job = EmscriptenDriver.MakeCompileJob(src, _cacheDir, baseFlags, _model.ForceCxx);
+                if (checker is not null && File.Exists(job.OutputFile) && !checker.IsChanged(src))
+                    continue;
+                jobs.Add(job);
             }
         }
         else  // Clang
@@ -185,13 +190,15 @@ public sealed partial class BuildPlanner
             if (pchPlan is not null) baseFlags = PchPlanner.AddUseFlags(baseFlags, pchPlan).ToList();
             foreach (var src in files)
             {
-                if (checker is not null && !checker.IsChanged(src)) continue;
                 var flags = AddModuleImportFlags(src, baseFlags, bmiPaths, _toolchain.Kind);
                 if (IsObjcSourceFile(src)) _model.HasObjcSources = true;
-                jobs.Add(ClangDriver.MakeCompileJob(src, _cacheDir, flags,
+                var job = ClangDriver.MakeCompileJob(src, _cacheDir, flags,
                     cAsCpp: _model.ForceCxx,
                     objcArc: _model.ObjcArc,
-                    forceObjcpp: _model.ForceObjcpp));
+                    forceObjcpp: _model.ForceObjcpp);
+                if (checker is not null && File.Exists(job.OutputFile) && !checker.IsChanged(src))
+                    continue;
+                jobs.Add(job);
             }
         }
 
