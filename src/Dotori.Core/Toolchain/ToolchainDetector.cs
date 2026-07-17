@@ -28,7 +28,8 @@ public static partial class ToolchainDetector
     /// Takes precedence over the CXX / CC environment variables.
     /// </param>
     /// <returns>Detected toolchain info, or null if not found.</returns>
-    public static ToolchainInfo? Detect(string targetId, string? preferredCompiler = null)
+    public static ToolchainInfo? Detect(
+        string targetId, string? preferredCompiler = null, string? libc = null)
     {
         // Resolve an explicit compiler path from --compiler <path/name> or CXX/CC env vars.
         // CLI flag takes precedence; env vars are the fallback.
@@ -53,8 +54,8 @@ public static partial class ToolchainDetector
             "windows-arm64"     => DetectWindows("arm64", kindPreference),
             "uwp-x64"           => DetectUwp("x64"),
             "uwp-arm64"         => DetectUwp("arm64"),
-            "linux-x64"         => DetectLinux("x86_64"),
-            "linux-arm64"       => DetectLinux("aarch64"),
+            "linux-x64"         => DetectLinux("x86_64", libc),
+            "linux-arm64"       => DetectLinux("aarch64", libc),
             "android-arm64"     => DetectAndroid("aarch64-linux-android21"),
             "android-x64"       => DetectAndroid("x86_64-linux-android21"),
             "android-arm"       => DetectAndroid("armv7a-linux-androideabi16"),

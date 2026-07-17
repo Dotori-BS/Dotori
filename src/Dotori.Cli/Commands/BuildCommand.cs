@@ -78,7 +78,8 @@ internal static class BuildCommandFactory
             var buildOrder = ProjectDagBuilder.BuildLevels(dag);
 
             // Detect toolchain (CLI --compiler > DSL toolchain > CXX env > auto-detect)
-            var toolchain = BuildContext.DetectToolchain(targetId, compiler, paths.FirstOrDefault());
+            var toolchain = BuildContext.DetectToolchain(
+                targetId, compiler, paths.FirstOrDefault(), libc);
             if (toolchain is null) return 1;
 
             // Scan declared options across all project files in the DAG

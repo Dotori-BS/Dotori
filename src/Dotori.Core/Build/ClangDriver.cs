@@ -39,7 +39,8 @@ public static class ClangDriver
         var flags = new List<string>();
 
         // Target triple (respects android-api-level override)
-        flags.Add($"--target={ResolveTriple(toolchain, model)}");
+        if (!toolchain.IsGccDriver)
+            flags.Add($"--target={ResolveTriple(toolchain, model)}");
 
         // Sysroot
         if (toolchain.SysRoot is not null)
@@ -53,7 +54,7 @@ public static class ClangDriver
         flags.Add(ClangFamilyDriver.CxxStdFlag(model.Std));
 
         // C++ stdlib
-        if (model.Stdlib.HasValue)
+        if (model.Stdlib.HasValue && !toolchain.IsGccDriver)
         {
             flags.Add(model.Stdlib.Value switch
             {

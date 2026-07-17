@@ -109,6 +109,25 @@ public sealed class LldLinkerTests
     }
 
     [TestMethod]
+    public void LinkFlags_GccCrossCompiler_OmitsClangDriverFlags()
+    {
+        var model = MakeModel(runtimeLink: RuntimeLink.Static);
+        var toolchain = new ToolchainInfo
+        {
+            Kind         = CompilerKind.Clang,
+            CompilerPath = "/opt/musl/bin/x86_64-linux-musl-g++",
+            LinkerPath   = "/opt/musl/bin/x86_64-linux-musl-g++",
+            TargetTriple = "x86_64-linux-musl",
+        };
+
+        var flags = LldLinker.LinkFlags(model, toolchain, "/out/app");
+
+        Assert.IsFalse(flags.Any(f => f.StartsWith("--target=")));
+        Assert.IsFalse(flags.Contains("-fuse-ld=lld"));
+        Assert.IsTrue(flags.Contains("-static"));
+    }
+
+    [TestMethod]
     public void LinkFlags_WasmBare_ContainsExportFlags()
     {
         var model    = MakeModel();

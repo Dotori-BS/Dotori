@@ -189,10 +189,11 @@ internal static class BuildContext
     /// Detect toolchain for the given target. Prints error and returns null on failure.
     /// Priority: <paramref name="cliCompiler"/> &gt; DSL <c>toolchain</c> prop in root project &gt; CXX/CC env &gt; auto-detect.
     /// </summary>
-    internal static ToolchainInfo? DetectToolchain(string targetId, string? cliCompiler, string? rootDotoriPath = null)
+    internal static ToolchainInfo? DetectToolchain(
+        string targetId, string? cliCompiler, string? rootDotoriPath = null, string? libc = null)
     {
         var compiler = cliCompiler ?? ReadDslToolchain(rootDotoriPath);
-        var tc = ToolchainDetector.Detect(targetId, compiler);
+        var tc = ToolchainDetector.Detect(targetId, compiler, libc);
         if (tc is null)
             Console.Error.WriteLine(
                 $"Error: No toolchain found for target '{targetId}'. " +

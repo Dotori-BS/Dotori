@@ -59,7 +59,8 @@ internal static class GenerateCompileCommandsCommandFactory
             if (dag is null) return 1;
 
             // Detect toolchain (CLI --compiler > DSL toolchain > CXX env > auto-detect)
-            var toolchain = BuildContext.DetectToolchain(targetId, compiler, paths.FirstOrDefault());
+            var toolchain = BuildContext.DetectToolchain(
+                targetId, compiler, paths.FirstOrDefault(), libc);
             if (toolchain is null) return 1;
 
             var ctx        = BuildContext.MakeTargetContext(targetId, config, runtimeLink, libc, stdlib);

@@ -6,21 +6,45 @@ public static partial class ToolchainDetector
 {
     // ─── Linux ───────────────────────────────────────────────────────────────
 
-    private static ToolchainInfo? DetectLinux(string archPrefix)
+    private static ToolchainInfo? DetectLinux(string archPrefix, string? libc)
     {
+        var arch = archPrefix == "x86_64" ? "x86_64" : "aarch64";
+
+        // musl requires a compiler driver with a matching sysroot on every host.
+        // A native clang installation generally only has the glibc sysroot.
+        if (libc?.Equals("musl", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            var muslCompiler = FindInPath($"{arch}-linux-musl-g++");
+            if (muslCompiler is null) return null;
+
+            var sysrootCandidate = Path.Combine(
+                Path.GetDirectoryName(muslCompiler)!, "..", $"{arch}-linux-musl");
+            return new ToolchainInfo
+            {
+                Kind         = CompilerKind.Clang,
+                CompilerPath = muslCompiler,
+                LinkerPath   = muslCompiler,
+                TargetTriple = $"{arch}-linux-musl",
+                SysRoot      = Directory.Exists(sysrootCandidate)
+                    ? Path.GetFullPath(sysrootCandidate)
+                    : null,
+                Assembler    = DetectAssemblers(),
+            };
+        }
+
         // On Linux, use the native clang.
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
             var clang = FindInPath("clang++") ?? FindBrewLlvm("clang++");
             if (clang is null) return null;
 
-            var lld = FindInPath("ld.lld");
-
             return new ToolchainInfo
             {
                 Kind         = CompilerKind.Clang,
                 CompilerPath = clang,
-                LinkerPath   = lld ?? clang,
+                // LldLinker produces compiler-driver flags, so invoke clang++
+                // and let -fuse-ld=lld select the linker implementation.
+                LinkerPath   = clang,
                 TargetTriple = archPrefix == "x86_64"
                     ? "x86_64-unknown-linux-gnu"
                     : "aarch64-unknown-linux-gnu",

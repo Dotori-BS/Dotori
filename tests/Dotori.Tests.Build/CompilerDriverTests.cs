@@ -61,6 +61,23 @@ public sealed class CompilerDriverTests
             "Expected no '-x c++' when ForceCxx=false");
     }
 
+    [TestMethod]
+    public void ClangDriver_GccCrossCompiler_OmitsClangTargetFlag()
+    {
+        var toolchain = new ToolchainInfo
+        {
+            Kind         = CompilerKind.Clang,
+            CompilerPath = "/opt/musl/bin/x86_64-linux-musl-g++",
+            LinkerPath   = "/opt/musl/bin/x86_64-linux-musl-g++",
+            TargetTriple = "x86_64-linux-musl",
+        };
+
+        var flags = ClangDriver.CompileFlags(MakeModel(), toolchain, "debug", "/tmp/obj");
+
+        Assert.IsFalse(flags.Any(f => f.StartsWith("--target=")));
+        Assert.IsTrue(toolchain.IsGccDriver);
+    }
+
     // ─── MsvcDriver ────────────────────────────────────────────────────────
 
     [TestMethod]

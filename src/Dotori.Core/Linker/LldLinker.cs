@@ -28,7 +28,8 @@ public static class LldLinker
             while (i >= 0 && char.IsDigit(triple[i])) i--;
             triple = triple[..(i + 1)] + model.AndroidApiLevel.Value;
         }
-        flags.Add($"--target={triple}");
+        if (!toolchain.IsGccDriver)
+            flags.Add($"--target={triple}");
 
         if (toolchain.SysRoot is not null)
             flags.Add($"--sysroot=\"{toolchain.SysRoot}\"");
@@ -36,7 +37,8 @@ public static class LldLinker
         flags.Add($"-o \"{outputFile}\"");
 
         // Use LLD explicitly
-        flags.Add("-fuse-ld=lld");
+        if (!toolchain.IsGccDriver)
+            flags.Add("-fuse-ld=lld");
 
         if (model.Lto) flags.Add("-flto");
 
@@ -67,7 +69,7 @@ public static class LldLinker
         }
 
         // stdlib linkage
-        if (!isWasmBare && model.Stdlib.HasValue)
+        if (!isWasmBare && model.Stdlib.HasValue && !toolchain.IsGccDriver)
         {
             flags.Add(model.Stdlib.Value switch
             {

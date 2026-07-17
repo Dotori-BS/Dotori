@@ -41,6 +41,20 @@ public sealed class ToolchainInfo
     public bool IsMinGW =>
         Kind == CompilerKind.Clang &&
         TargetTriple.Contains("mingw", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>True when the selected Clang-family path is a GCC driver.</summary>
+    public bool IsGccDriver
+    {
+        get
+        {
+            var name = Path.GetFileNameWithoutExtension(CompilerPath);
+            return !name.Contains("clang", StringComparison.OrdinalIgnoreCase) &&
+                   (name.Equals("g++", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("gcc", StringComparison.OrdinalIgnoreCase) ||
+                    name.EndsWith("-g++", StringComparison.OrdinalIgnoreCase) ||
+                    name.EndsWith("-gcc", StringComparison.OrdinalIgnoreCase));
+        }
+    }
 }
 
 /// <summary>Detected external assembler executable paths.</summary>

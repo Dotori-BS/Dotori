@@ -23,8 +23,8 @@ C# (.NET 10, NativeAOT). 설계 문서: `docs/` 참조
 
 ### Phase 1-I: 플랫폼 검증
 
-- [ ] `linux-x64` (musl + static)
-- [ ] `wasm32-emscripten`
+- [x] `linux-x64` (musl + static)
+- [x] `wasm32-emscripten`
 
 ---
 
