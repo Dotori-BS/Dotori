@@ -56,14 +56,32 @@ public sealed class BuildCache
     {
         var path = CachePath(key);
         if (!File.Exists(path)) { objBytes = []; return false; }
-        objBytes = File.ReadAllBytes(path);
-        return true;
+        try
+        {
+            objBytes = File.ReadAllBytes(path);
+            return objBytes.Length > 0;
+        }
+        catch (IOException)
+        {
+            objBytes = [];
+            return false;
+        }
     }
 
     /// <summary>Store compiled object bytes under the given key.</summary>
     public void Put(string key, byte[] objBytes)
     {
-        File.WriteAllBytes(CachePath(key), objBytes);
+        var path = CachePath(key);
+        var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            File.WriteAllBytes(temp, objBytes);
+            File.Move(temp, path, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temp)) File.Delete(temp);
+        }
     }
 
     private string CachePath(string key) => Path.Combine(_cacheDir, key + ".o");

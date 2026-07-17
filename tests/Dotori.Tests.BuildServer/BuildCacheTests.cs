@@ -8,6 +8,24 @@ namespace Dotori.Tests.BuildServer;
 public sealed class BuildCacheTests
 {
     [TestMethod]
+    public void Put_WritesAndReadsObjectBytes()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            var cache = new BuildCache(dir);
+            cache.Put("key", [1, 2, 3]);
+
+            Assert.IsTrue(cache.TryGet("key", out var bytes));
+            CollectionAssert.AreEqual(new byte[] { 1, 2, 3 }, bytes);
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [TestMethod]
     public void RemoteBuildAuth_AllowsOnlyLoopbackWithoutConfiguredToken()
     {
         Assert.IsTrue(RemoteBuildAuth.IsAuthorized(null, null, IPAddress.Loopback));
