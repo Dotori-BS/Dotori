@@ -48,6 +48,7 @@ dotori build [옵션]
 | `--locked` | — | 의존성 선언과 lock 파일이 다르면 실패하고 lock 파일을 변경하지 않음 |
 | `--offline` | — | 네트워크 접근 없이 설치된 패키지와 lock 파일만 사용 |
 | `--frozen` | — | `--locked --offline`과 동일 |
+| `--dry-run` | — | 외부 빌드 명령과 스크립트를 실행하지 않고 예정된 컴파일·링크 명령 출력 |
 
 #### `--compiler` 값 목록
 

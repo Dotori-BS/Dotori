@@ -28,6 +28,7 @@ internal static class BuildCommandFactory
         var lockedOption      = new Option<bool>("--locked")         { Description = "Require dotori-lock.json to remain unchanged" };
         var offlineOption     = new Option<bool>("--offline")        { Description = "Disable dependency network access" };
         var frozenOption      = new Option<bool>("--frozen")         { Description = "Equivalent to --locked --offline" };
+        var dryRunOption      = new Option<bool>("--dry-run")        { Description = "Print build commands without executing them" };
 
         command.Add(projectOption);
         command.Add(allOption);
@@ -45,6 +46,7 @@ internal static class BuildCommandFactory
         command.Add(lockedOption);
         command.Add(offlineOption);
         command.Add(frozenOption);
+        command.Add(dryRunOption);
 
         // Allow unknown --flags so project-declared options can be passed as --option-name / --no-option-name
         command.TreatUnmatchedTokensAsErrors = false;
@@ -68,6 +70,7 @@ internal static class BuildCommandFactory
             var frozen     = parseResult.GetValue(frozenOption);
             var locked     = frozen || parseResult.GetValue(lockedOption);
             var offline    = frozen || parseResult.GetValue(offlineOption);
+            var dryRun     = parseResult.GetValue(dryRunOption);
 
             var config   = release ? "release" : "debug";
             var targetId = BuildContext.ResolveTargetId(targetArg);
@@ -147,11 +150,13 @@ internal static class BuildCommandFactory
                 enabledOptions, declaredOptions);
 
             // Select executor: remote (with local fallback) or local
-            IExecutor executor = remoteArg is not null
+            IExecutor executor = dryRun
+                ? new DryRunExecutor()
+                : remoteArg is not null
                 ? new RemoteExecutor(remoteArg, jobs ?? 0)
                 : new LocalExecutor(jobs ?? 0);
 
-            if (remoteArg is not null)
+            if (remoteArg is not null && !dryRun)
                 Console.WriteLine($"  Using remote build server: {remoteArg}");
 
             int exitCode = 0;
@@ -168,7 +173,7 @@ internal static class BuildCommandFactory
                     // Compile all projects in this level in parallel
                     var levelTasks = level.Select(node => BuildProjectAsync(
                         node, ctx, toolchain, executor, targetId, config,
-                        fileArg, noLink, noUnity, builtLibraries, fileFound, ct));
+                        fileArg, noLink, noUnity, dryRun, builtLibraries, fileFound, ct));
 
                     var levelResults = await Task.WhenAll(levelTasks);
                     if (levelResults.Any(r => r != 0)) { exitCode = 1; break; }
@@ -203,6 +208,7 @@ internal static class BuildCommandFactory
         string? fileArg,
         bool noLink,
         bool noUnity,
+        bool dryRun,
         System.Collections.Concurrent.ConcurrentDictionary<string, string> builtLibraries,
         int[] fileFound,
         CancellationToken ct)
@@ -223,7 +229,7 @@ internal static class BuildCommandFactory
             DotoriConstants.BinSubDir, $"{targetId}-{config.ToLower()}");
 
         // pre-build scripts
-        if (model.PreBuildCommands.Count > 0)
+        if (model.PreBuildCommands.Count > 0 && !dryRun)
         {
             var preCode = await BuildContext.RunScriptsAsync(
                 model.PreBuildCommands, model.ProjectDir,
@@ -250,11 +256,14 @@ internal static class BuildCommandFactory
                     new[] { pchPlan.BuildJob }, ct);
                 var pchCode = PrintResults(pchResults);
                 if (pchCode != 0) return pchCode;
-                checker.Record(pchPlan.BuildJob.SourceFile);
-                foreach (var dependency in pchPlan.BuildJob.DependencyFiles)
-                    checker.Record(dependency);
-                checker.RecordFingerprint(
-                    pchPlan.BuildJob.OutputFile, pchPlan.BuildJob.Fingerprint);
+                if (!dryRun)
+                {
+                    checker.Record(pchPlan.BuildJob.SourceFile);
+                    foreach (var dependency in pchPlan.BuildJob.DependencyFiles)
+                        checker.Record(dependency);
+                    checker.RecordFingerprint(
+                        pchPlan.BuildJob.OutputFile, pchPlan.BuildJob.Fingerprint);
+                }
             }
 
             var singleJob = planner.PlanSingleFileJob(absFile, noUnity);
@@ -317,11 +326,14 @@ internal static class BuildCommandFactory
                 toolchain.CompilerPath, new[] { pchPlan.BuildJob }, ct);
             int pchCode = PrintResults(pchResults);
             if (pchCode != 0) return pchCode;
-            checker.Record(pchPlan.BuildJob.SourceFile);
-            foreach (var dependency in pchPlan.BuildJob.DependencyFiles)
-                checker.Record(dependency);
-            checker.RecordFingerprint(
-                pchPlan.BuildJob.OutputFile, pchPlan.BuildJob.Fingerprint);
+            if (!dryRun)
+            {
+                checker.Record(pchPlan.BuildJob.SourceFile);
+                foreach (var dependency in pchPlan.BuildJob.DependencyFiles)
+                    checker.Record(dependency);
+                checker.RecordFingerprint(
+                    pchPlan.BuildJob.OutputFile, pchPlan.BuildJob.Fingerprint);
+            }
         }
 
         // Modules next (order-sensitive BMI generation)
@@ -339,7 +351,7 @@ internal static class BuildCommandFactory
             }
             bmiPaths = BuildPlanner.ExtractBmiPaths(moduleJobs);
             // Write module-map.json after all BMIs are compiled
-            planner.WriteModuleMap(moduleJobs);
+            if (!dryRun) planner.WriteModuleMap(moduleJobs);
         }
 
         // Keep the complete object set separate from the subset that needs compiling.
@@ -377,7 +389,7 @@ internal static class BuildCommandFactory
             int code = PrintResults(compileResults);
             if (code != 0) return code;
 
-            foreach (var job in compileJobs)
+            if (!dryRun) foreach (var job in compileJobs)
             {
                 checker.Record(job.SourceFile);
                 foreach (var dependency in job.DependencyFiles)
@@ -437,20 +449,20 @@ internal static class BuildCommandFactory
 
         Console.WriteLine($"  Linked: {linkJob.OutputFile}");
         builtLibraries[node.DotoriPath] = linkJob.OutputFile;
-        checker.RecordFingerprint(linkJob.OutputFile, linkJob.Fingerprint);
+        if (!dryRun) checker.RecordFingerprint(linkJob.OutputFile, linkJob.Fingerprint);
 
         // Manifest embedding (Windows MSVC only, runs after link)
-        if (!await planner.EmbedManifestAsync(linkJob.OutputFile, ct))
+        if (!dryRun && !await planner.EmbedManifestAsync(linkJob.OutputFile, ct))
             return 1;
 
         // Copy artifacts to user-specified output directories
-        planner.CopyArtifacts(linkJob.OutputFile);
+        if (!dryRun) planner.CopyArtifacts(linkJob.OutputFile);
 
         // Copy files declared in copy { } blocks (incremental)
-        planner.CopyCopyItems(checker);
+        if (!dryRun) planner.CopyCopyItems(checker);
 
         // post-build scripts
-        if (model.PostBuildCommands.Count > 0)
+        if (model.PostBuildCommands.Count > 0 && !dryRun)
         {
             var postCode = await BuildContext.RunScriptsAsync(
                 model.PostBuildCommands, model.ProjectDir,

@@ -8,6 +8,24 @@ namespace Dotori.Tests.Build;
 public sealed class LocalExecutorTests
 {
     [TestMethod]
+    public async Task DryRunExecutor_ReportsCommandWithoutCreatingOutput()
+    {
+        var output = Path.Combine(Path.GetTempPath(), $"dotori-dry-{Guid.NewGuid():N}.o");
+        var job = new CompileJob
+        {
+            SourceFile = "main.cpp",
+            OutputFile = output,
+            Args = ["-c", "main.cpp", "-o", output],
+        };
+
+        var results = await new DryRunExecutor().RunCompileJobsAsync("clang++", [job]);
+
+        Assert.IsTrue(results[0].Success);
+        StringAssert.Contains(results[0].Stdout, "[dry-run] clang++ -c main.cpp");
+        Assert.IsFalse(File.Exists(output));
+    }
+
+    [TestMethod]
     public void ResponseFileArguments_ShortCommand_RemainsInline()
     {
         using var invocation = ResponseFileArguments.Create(["-c", "main.cpp"], threshold: 100);
