@@ -83,7 +83,21 @@ public sealed class LocalExecutor : IExecutor
         var stdoutTask = proc.StandardOutput.ReadToEndAsync(ct);
         var stderrTask = proc.StandardError.ReadToEndAsync(ct);
 
-        await proc.WaitForExitAsync(ct);
+        try
+        {
+            await proc.WaitForExitAsync(ct);
+        }
+        catch (OperationCanceledException)
+        {
+            if (!proc.HasExited)
+            {
+                try { proc.Kill(entireProcessTree: true); }
+                catch (InvalidOperationException) { }
+                try { await proc.WaitForExitAsync(CancellationToken.None); }
+                catch (InvalidOperationException) { }
+            }
+            throw;
+        }
 
         var stdout = await stdoutTask;
         var stderr = await stderrTask;
