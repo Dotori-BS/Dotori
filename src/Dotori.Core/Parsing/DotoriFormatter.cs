@@ -544,6 +544,7 @@ public static class DotoriFormatter
     private static string FormatProjectType(ProjectType v) => v switch
     {
         ProjectType.Executable    => "executable",
+        ProjectType.Test          => "test",
         ProjectType.StaticLibrary => "static-library",
         ProjectType.SharedLibrary => "shared-library",
         ProjectType.HeaderOnly    => "header-only",

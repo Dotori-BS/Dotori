@@ -2,6 +2,7 @@ using System.CommandLine;
 using System.Diagnostics;
 using Dotori.Core.Build;
 using Dotori.Core.Debugger;
+using Dotori.Core.Parsing;
 
 namespace Dotori.Cli.Commands;
 
@@ -49,10 +50,12 @@ internal static class RunCommandFactory
             if (paths.Count == 0)
                 return 1;
 
-            var build = await ProjectBuildEngine.BuildExecutableAsync(paths, targetId, config, ct);
+            var build = await ProjectBuildEngine.BuildRunnablesAsync(
+                paths, targetId, config, ProjectType.Executable, ct: ct);
             if (build.ExitCode != 0)
                 return build.ExitCode;
-            if (build.ExecutablePath is null)
+            var executablePath = build.ExecutablePaths.LastOrDefault();
+            if (executablePath is null)
             {
                 Console.Error.WriteLine("Error: No executable project found to run.");
                 return 1;
@@ -61,9 +64,9 @@ internal static class RunCommandFactory
             Console.WriteLine();
             if (debuggerArg is not null)
                 return await LaunchDebuggerAsync(
-                    targetId, debuggerArg, build.ExecutablePath, runArgs, debuggerArgs, ct);
+                    targetId, debuggerArg, executablePath, runArgs, debuggerArgs, ct);
 
-            var startInfo = new ProcessStartInfo(build.ExecutablePath)
+            var startInfo = new ProcessStartInfo(executablePath)
             {
                 UseShellExecute = false,
             };
@@ -75,7 +78,7 @@ internal static class RunCommandFactory
                 var process = Process.Start(startInfo);
                 if (process is null)
                 {
-                    Console.Error.WriteLine($"Failed to start '{build.ExecutablePath}'");
+                    Console.Error.WriteLine($"Failed to start '{executablePath}'");
                     return 1;
                 }
 
@@ -84,7 +87,7 @@ internal static class RunCommandFactory
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"Error running '{build.ExecutablePath}': {ex.Message}");
+                Console.Error.WriteLine($"Error running '{executablePath}': {ex.Message}");
                 return 1;
             }
         });

@@ -94,6 +94,7 @@ public sealed class MesonGenerator : IBuildSystemGenerator
         var funcName = model.Type switch
         {
             ProjectType.Executable    => "executable",
+            ProjectType.Test          => "executable",
             ProjectType.StaticLibrary => "static_library",
             ProjectType.SharedLibrary => "shared_library",
             _                         => "executable",
@@ -179,6 +180,12 @@ public sealed class MesonGenerator : IBuildSystemGenerator
 
         sb.AppendLine(")");
         sb.AppendLine();
+
+        if (model.Type == ProjectType.Test)
+        {
+            sb.AppendLine($"test({name}, {EscapeName(model.Name)})");
+            sb.AppendLine();
+        }
     }
 
     private static void WriteSubprojects(StringBuilder sb, FlatProjectModel model)

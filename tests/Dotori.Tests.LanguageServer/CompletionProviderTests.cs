@@ -63,6 +63,7 @@ public class CompletionProviderTests
 
         var labels = list.Items.Select(i => i.Label).ToList();
         CollectionAssert.Contains(labels, "executable");
+        CollectionAssert.Contains(labels, "test");
         CollectionAssert.Contains(labels, "static-library");
         CollectionAssert.Contains(labels, "shared-library");
         CollectionAssert.Contains(labels, "header-only");

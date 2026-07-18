@@ -33,10 +33,15 @@ project <이름> {
 
 ```
 type = executable       # 실행 파일
+type = test             # dotori test가 발견하고 실행하는 테스트 프로그램
 type = static-library   # 정적 라이브러리
 type = shared-library   # 공유 라이브러리 (.dll/.so/.dylib)
 type = header-only      # 헤더 전용 라이브러리
 ```
+
+`test` 프로젝트는 실행 파일처럼 컴파일·링크되지만 `dotori install`의 배포
+대상에서는 제외됩니다. 프로젝트 DAG에 여러 test 프로젝트가 있으면
+`dotori test`가 빌드 순서대로 모두 실행합니다.
 
 ### std — C++ 표준
 

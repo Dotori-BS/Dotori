@@ -44,7 +44,7 @@ public static class CompletionProvider
     // Enum values per property
     private static readonly Dictionary<string, string[]> EnumValues = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["type"]         = ["executable", "static-library", "shared-library", "header-only"],
+        ["type"]         = ["executable", "test", "static-library", "shared-library", "header-only"],
         ["std"]          = ["c++17", "c++20", "c++23"],
         ["optimize"]     = ["none", "size", "speed", "full"],
         ["debug-info"]   = ["none", "minimal", "full"],

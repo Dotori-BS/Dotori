@@ -100,6 +100,15 @@ public sealed class InstallManagerTests
         Assert.AreEqual(Path.Combine(stage, "usr", "local"), effective);
     }
 
+    [TestMethod]
+    public void Install_RejectsTestProjects()
+    {
+        var model = MakeModel(ProjectType.Test);
+
+        Assert.Throws<InvalidOperationException>(() => InstallManager.Install(
+            model, null, Path.Combine(_tempDir, "prefix"), null, "host", "debug"));
+    }
+
     private FlatProjectModel MakeModel(ProjectType type) => new()
     {
         Name = "sample",

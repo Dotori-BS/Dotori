@@ -100,6 +100,31 @@ public sealed class ProjectLocatorTests
         }
     }
 
+    [TestMethod]
+    public void FindAllDotoriFiles_IncludesRootAndNestedProjects()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        var nested = Path.Combine(tempRoot, "nested");
+        Directory.CreateDirectory(nested);
+        File.WriteAllText(Path.Combine(tempRoot, ".dotori"), "project Root { type = test }");
+        File.WriteAllText(Path.Combine(nested, ".dotori"), "project Nested { type = test }");
+        try
+        {
+            var found = ProjectLocator.FindAllDotoriFiles(tempRoot);
+
+            Assert.HasCount(2, found);
+            CollectionAssert.AreEqual(new[]
+            {
+                Path.Combine(tempRoot, ".dotori"),
+                Path.Combine(nested, ".dotori"),
+            }, found.ToArray());
+        }
+        finally
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
     // ─── LoadProject ─────────────────────────────────────────────────────────
 
     [TestMethod]

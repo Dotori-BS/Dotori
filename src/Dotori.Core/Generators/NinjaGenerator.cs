@@ -212,6 +212,7 @@ public sealed class NinjaGenerator : IBuildSystemGenerator
         return model.Type switch
         {
             ProjectType.Executable    => isWindows ? $"{binDir}/{name}.exe" : $"{binDir}/{name}",
+            ProjectType.Test          => isWindows ? $"{binDir}/{name}.exe" : $"{binDir}/{name}",
             ProjectType.StaticLibrary => $"{binDir}/lib{name}.a",
             ProjectType.SharedLibrary => isWindows ? $"{binDir}/{name}.dll"
                                        : targetId.Contains("macos") ? $"{binDir}/lib{name}.dylib"

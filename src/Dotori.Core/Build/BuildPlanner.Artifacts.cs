@@ -25,6 +25,7 @@ public sealed partial class BuildPlanner
         switch (_model.Type)
         {
             case ProjectType.Executable:
+            case ProjectType.Test:
                 CopyTo(linkedFile, _model.Output.Binaries);
                 // Windows PDB alongside exe
                 if (isWindows) CopySymbols(linkedFile, ".pdb");

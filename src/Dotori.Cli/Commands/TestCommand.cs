@@ -1,6 +1,7 @@
 using System.CommandLine;
 using System.Diagnostics;
 using Dotori.Core.Build;
+using Dotori.Core.Parsing;
 
 namespace Dotori.Cli.Commands;
 
@@ -15,6 +16,7 @@ internal static class TestCommandFactory
         var command = new Command("test", "Build and run tests");
 
         var projectOption = new Option<string?>("--project") { Description = "Path to .dotori file or directory" };
+        var allOption = new Option<bool>("--all") { Description = "Discover and run all test projects without prompting" };
         var releaseOption = new Option<bool>("--release") { Description = "Test in Release configuration" };
         var targetOption = new Option<string?>("--target") { Description = "Build target" };
         var filterOption = new Option<string?>("--filter") { Description = "Test name filter pattern" };
@@ -34,6 +36,7 @@ internal static class TestCommandFactory
         };
 
         command.Add(projectOption);
+        command.Add(allOption);
         command.Add(releaseOption);
         command.Add(targetOption);
         command.Add(filterOption);
@@ -44,6 +47,7 @@ internal static class TestCommandFactory
         command.SetAction(async (parseResult, ct) =>
         {
             var projectArg = parseResult.GetValue(projectOption);
+            var testAll = parseResult.GetValue(allOption);
             var config = parseResult.GetValue(releaseOption) ? "release" : "debug";
             var targetId = BuildContext.ResolveTargetId(parseResult.GetValue(targetOption));
             var debuggerArg = parseResult.GetValue(debuggerOption);
@@ -53,48 +57,62 @@ internal static class TestCommandFactory
             if (filter is not null)
                 runArgs.Add($"--filter={filter}");
 
-            var paths = BuildContext.ResolveProjectPaths(projectArg, buildAll: false);
+            var paths = BuildContext.ResolveProjectPaths(projectArg, buildAll: testAll);
             if (paths.Count == 0)
                 return 1;
 
-            var build = await ProjectBuildEngine.BuildExecutableAsync(paths, targetId, config, ct);
+            var build = await ProjectBuildEngine.BuildRunnablesAsync(
+                paths, targetId, config, ProjectType.Test,
+                fallbackToExecutable: true, ct: ct);
             if (build.ExitCode != 0)
                 return build.ExitCode;
-            if (build.ExecutablePath is null)
+            if (build.ExecutablePaths.Count == 0)
             {
-                Console.Error.WriteLine("Error: No executable project found to test.");
+                Console.Error.WriteLine("Error: No test or executable project found to test.");
                 return 1;
             }
 
-            Console.WriteLine();
-            if (debuggerArg is not null)
-                return await RunCommandFactory.LaunchDebuggerAsync(
-                    targetId, debuggerArg, build.ExecutablePath, runArgs, debuggerArgs, ct);
-
-            var startInfo = new ProcessStartInfo(build.ExecutablePath)
+            foreach (var executablePath in build.ExecutablePaths)
             {
-                UseShellExecute = false,
-            };
-            foreach (var argument in runArgs)
-                startInfo.ArgumentList.Add(argument);
-
-            try
-            {
-                var process = Process.Start(startInfo);
-                if (process is null)
+                Console.WriteLine();
+                Console.WriteLine($"  Testing {Path.GetFileName(executablePath)}...");
+                if (debuggerArg is not null)
                 {
-                    Console.Error.WriteLine($"Failed to start '{build.ExecutablePath}'");
-                    return 1;
+                    var debuggerExitCode = await RunCommandFactory.LaunchDebuggerAsync(
+                        targetId, debuggerArg, executablePath, runArgs, debuggerArgs, ct);
+                    if (debuggerExitCode != 0)
+                        return debuggerExitCode;
+                    continue;
                 }
 
-                await process.WaitForExitAsync(ct);
-                return process.ExitCode;
+                var startInfo = new ProcessStartInfo(executablePath)
+                {
+                    UseShellExecute = false,
+                };
+                foreach (var argument in runArgs)
+                    startInfo.ArgumentList.Add(argument);
+
+                try
+                {
+                    var process = Process.Start(startInfo);
+                    if (process is null)
+                    {
+                        Console.Error.WriteLine($"Failed to start '{executablePath}'");
+                        return 1;
+                    }
+
+                    await process.WaitForExitAsync(ct);
+                    if (process.ExitCode != 0)
+                        return process.ExitCode;
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Error running tests '{executablePath}': {ex.Message}");
+                    return 1;
+                }
             }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine($"Error running tests '{build.ExecutablePath}': {ex.Message}");
-                return 1;
-            }
+
+            return 0;
         });
 
         return command;

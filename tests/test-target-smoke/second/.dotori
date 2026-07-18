@@ -1,0 +1,8 @@
+project SecondTestTargetSmoke {
+    type = test
+    std = c++17
+
+    sources {
+        include "second.cpp"
+    }
+}

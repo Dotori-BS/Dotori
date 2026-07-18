@@ -45,7 +45,8 @@ internal static class InstallCommandFactory
                             values.TargetId, values.Config);
                 }
                 catch (Exception ex) when (
-                    ex is IOException or UnauthorizedAccessException or ArgumentException or JsonException)
+                    ex is IOException or UnauthorizedAccessException or ArgumentException or
+                        InvalidOperationException or JsonException)
                 {
                     Console.Error.WriteLine($"Install failed for '{model.Name}': {ex.Message}");
                     return 1;

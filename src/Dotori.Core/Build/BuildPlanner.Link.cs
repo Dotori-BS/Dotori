@@ -118,6 +118,9 @@ public sealed partial class BuildPlanner
             ProjectType.Executable     => isWindows ? $"{_model.Name}.exe"
                                         : isWasm    ? $"{_model.Name}.wasm"
                                         : _model.Name,
+            ProjectType.Test           => isWindows ? $"{_model.Name}.exe"
+                                        : isWasm    ? $"{_model.Name}.wasm"
+                                        : _model.Name,
             ProjectType.StaticLibrary  => isMsvcWindows ? $"{_model.Name}.lib"
                                         : $"lib{_model.Name}.a",
             ProjectType.SharedLibrary  => isWindows ? $"{_model.Name}.dll"

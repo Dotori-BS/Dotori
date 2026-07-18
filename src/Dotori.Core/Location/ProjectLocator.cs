@@ -74,6 +74,19 @@ public static class ProjectLocator
     }
 
     /// <summary>
+    /// Recursively finds every project below a directory, including a project at
+    /// the directory root. Unlike normal discovery, finding a project does not
+    /// stop traversal into nested workspace projects.
+    /// </summary>
+    public static IReadOnlyList<string> FindAllDotoriFiles(string rootDir)
+    {
+        var results = new List<string>();
+        CollectDotoriFiles(Path.GetFullPath(rootDir), results, depth: 0, maxDepth: 8,
+            stopAtProjectRoot: false);
+        return results;
+    }
+
+    /// <summary>
     /// Walk up parent directories until a .dotori is found or the git root is passed.
     /// Returns the path if found, null otherwise.
     /// </summary>
@@ -106,11 +119,17 @@ public static class ProjectLocator
     private static IReadOnlyList<string> FindInDescendants(string rootDir)
     {
         var results = new List<string>();
-        CollectDotoriFiles(rootDir, results, depth: 0, maxDepth: 8);
+        CollectDotoriFiles(rootDir, results, depth: 0, maxDepth: 8,
+            stopAtProjectRoot: true);
         return results;
     }
 
-    private static void CollectDotoriFiles(string dir, List<string> results, int depth, int maxDepth)
+    private static void CollectDotoriFiles(
+        string dir,
+        List<string> results,
+        int depth,
+        int maxDepth,
+        bool stopAtProjectRoot)
     {
         if (depth > maxDepth) return;
 
@@ -118,17 +137,17 @@ public static class ProjectLocator
         if (File.Exists(candidate))
         {
             results.Add(candidate);
-            // Don't recurse further once a .dotori is found in this dir
-            return;
+            if (stopAtProjectRoot) return;
         }
 
         try
         {
-            foreach (var subDir in Directory.GetDirectories(dir))
+            foreach (var subDir in Directory.GetDirectories(dir)
+                         .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
             {
                 var name = Path.GetFileName(subDir);
                 if (ShouldSkipDirectory(name)) continue;
-                CollectDotoriFiles(subDir, results, depth + 1, maxDepth);
+                CollectDotoriFiles(subDir, results, depth + 1, maxDepth, stopAtProjectRoot);
             }
         }
         catch (UnauthorizedAccessException) { }

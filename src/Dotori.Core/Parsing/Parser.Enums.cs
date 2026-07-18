@@ -43,6 +43,7 @@ public sealed partial class Parser
         return t.Text switch
         {
             "executable"     => ProjectType.Executable,
+            "test"           => ProjectType.Test,
             "static-library" => ProjectType.StaticLibrary,
             "shared-library" => ProjectType.SharedLibrary,
             "header-only"    => ProjectType.HeaderOnly,

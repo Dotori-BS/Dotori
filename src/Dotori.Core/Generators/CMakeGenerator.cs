@@ -151,6 +151,7 @@ public sealed class CMakeGenerator : IBuildSystemGenerator
         var typeKeyword = model.Type switch
         {
             ProjectType.Executable    => $"add_executable({targetName}",
+            ProjectType.Test          => $"add_executable({targetName}",
             ProjectType.StaticLibrary => $"add_library({targetName} STATIC",
             ProjectType.SharedLibrary => $"add_library({targetName} SHARED",
             _                         => $"add_executable({targetName}",
@@ -168,6 +169,13 @@ public sealed class CMakeGenerator : IBuildSystemGenerator
             sb.AppendLine(")");
         }
         sb.AppendLine();
+
+        if (model.Type == ProjectType.Test)
+        {
+            sb.AppendLine("enable_testing()");
+            sb.AppendLine($"add_test(NAME {targetName} COMMAND {targetName})");
+            sb.AppendLine();
+        }
     }
 
     private static void WriteIncludeDirectories(StringBuilder sb, FlatProjectModel model)

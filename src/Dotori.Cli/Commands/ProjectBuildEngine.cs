@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Dotori.Core.Executor;
 using Dotori.Core.Graph;
 using Dotori.Core.Model;
+using Dotori.Core.Parsing;
 using Dotori.Core.Toolchain;
 
 namespace Dotori.Cli.Commands;
@@ -10,7 +11,7 @@ internal sealed record ProjectBuildResult(
     int ExitCode,
     IReadOnlyDictionary<string, string> Outputs);
 
-internal sealed record ExecutableBuildResult(int ExitCode, string? ExecutablePath);
+internal sealed record RunnableBuildResult(int ExitCode, IReadOnlyList<string> ExecutablePaths);
 
 /// <summary>
 /// Executes a project DAG through the single build pipeline used by build, run, and test.
@@ -18,10 +19,12 @@ internal sealed record ExecutableBuildResult(int ExitCode, string? ExecutablePat
 /// </summary>
 internal static partial class ProjectBuildEngine
 {
-    public static async Task<ExecutableBuildResult> BuildExecutableAsync(
+    public static async Task<RunnableBuildResult> BuildRunnablesAsync(
         IReadOnlyList<string> projectPaths,
         string targetId,
         string config,
+        ProjectType projectType,
+        bool fallbackToExecutable = false,
         CancellationToken ct = default)
     {
         IReadOnlyDictionary<string, string> gitPackageMap;
@@ -33,18 +36,18 @@ internal static partial class ProjectBuildEngine
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Error: dependency resolution failed: {ex.Message}");
-            return new ExecutableBuildResult(1, null);
+            return new RunnableBuildResult(1, []);
         }
 
         var dag = BuildContext.BuildDag(projectPaths, gitPackageMap);
         if (dag is null)
-            return new ExecutableBuildResult(1, null);
+            return new RunnableBuildResult(1, []);
 
         var buildOrder = ProjectDagBuilder.BuildLevels(dag);
         var toolchain = BuildContext.DetectToolchain(
             targetId, cliCompiler: null, projectPaths.FirstOrDefault());
         if (toolchain is null)
-            return new ExecutableBuildResult(1, null);
+            return new RunnableBuildResult(1, []);
 
         var declaredOptions = BuildContext.ScanOptions(dag.Values.Select(node => node.DotoriPath));
         var enabledOptions = BuildContext.ResolveEnabledOptions(
@@ -59,10 +62,12 @@ internal static partial class ProjectBuildEngine
         var result = await BuildAsync(
             buildOrder, context, toolchain, executor, targetId, config, ct: ct);
         if (result.ExitCode != 0)
-            return new ExecutableBuildResult(result.ExitCode, null);
+            return new RunnableBuildResult(result.ExitCode, []);
 
-        return new ExecutableBuildResult(
-            0, FindLastExecutable(buildOrder, result.Outputs, context));
+        var paths = FindOutputs(buildOrder, result.Outputs, context, projectType);
+        if (paths.Count == 0 && fallbackToExecutable && projectType != ProjectType.Executable)
+            paths = FindOutputs(buildOrder, result.Outputs, context, ProjectType.Executable);
+        return new RunnableBuildResult(0, paths);
     }
 
     public static async Task<ProjectBuildResult> BuildAsync(
@@ -98,20 +103,21 @@ internal static partial class ProjectBuildEngine
         return new ProjectBuildResult(0, outputs);
     }
 
-    public static string? FindLastExecutable(
+    public static IReadOnlyList<string> FindOutputs(
         IReadOnlyList<IReadOnlyList<ProjectNode>> buildOrder,
         IReadOnlyDictionary<string, string> outputs,
-        TargetContext context)
+        TargetContext context,
+        ProjectType projectType)
     {
-        string? executable = null;
+        var matches = new List<string>();
         foreach (var node in buildOrder.SelectMany(level => level))
         {
             var model = BuildContext.FlattenProject(node.DotoriPath, context, node);
-            if (model?.Type == Dotori.Core.Parsing.ProjectType.Executable &&
+            if (model?.Type == projectType &&
                 outputs.TryGetValue(node.DotoriPath, out var output))
-                executable = output;
+                matches.Add(output);
         }
 
-        return executable;
+        return matches;
     }
 }

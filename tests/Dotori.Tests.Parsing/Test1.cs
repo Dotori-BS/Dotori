@@ -135,6 +135,16 @@ public sealed class ParserTests
     }
 
     [TestMethod]
+    public void Parser_TestProjectType()
+    {
+        var file = DotoriParser.ParseSource(
+            "project UnitTests { type = test }", "<test>");
+        var typeProp = file.Project!.Items.OfType<ProjectTypeProp>().Single();
+
+        Assert.AreEqual(ProjectType.Test, typeProp.Value);
+    }
+
+    [TestMethod]
     public void Parser_SimpleApp_CxxStd()
     {
         var file = DotoriParser.ParseFile(FixturePath("simple-app.dotori"));

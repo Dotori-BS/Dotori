@@ -216,6 +216,7 @@ public sealed class MakefileGenerator : IBuildSystemGenerator
         return model.Type switch
         {
             ProjectType.Executable    => isWindows ? $"{name}.exe" : name,
+            ProjectType.Test          => isWindows ? $"{name}.exe" : name,
             ProjectType.StaticLibrary => $"lib{name}.a",
             ProjectType.SharedLibrary => isWindows ? $"{name}.dll"
                                        : targetId.Contains("macos") ? $"lib{name}.dylib"

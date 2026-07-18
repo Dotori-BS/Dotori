@@ -10,7 +10,7 @@ public static class HoverProvider
     private static readonly Dictionary<string, string> Descriptions =
         new(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"]           = "프로젝트 빌드 타입 (executable, static-library, shared-library, header-only)",
+            ["type"]           = "프로젝트 빌드 타입 (executable, test, static-library, shared-library, header-only)",
             ["std"]            = "C++ 표준 버전 (c++17, c++20, c++23)",
             ["description"]    = "프로젝트 설명 문자열",
             ["runtime-link"]   = "런타임 링크 방식 (static: /MT, dynamic: /MD)",

@@ -23,7 +23,16 @@ internal static class BuildContext
         bool    buildAll)
     {
         if (projectArg is not null)
+        {
+            if (buildAll && Directory.Exists(projectArg))
+            {
+                var all = ProjectLocator.FindAllDotoriFiles(projectArg);
+                if (all.Count > 0) return all;
+                Console.Error.WriteLine($"Error: No .dotori file found in '{Path.GetFullPath(projectArg)}'.");
+                return [];
+            }
             return [ProjectLocator.ResolveExplicitPath(projectArg)];
+        }
 
         var found = ProjectLocator.FindDotoriFiles(Directory.GetCurrentDirectory());
         if (found.Count == 0)

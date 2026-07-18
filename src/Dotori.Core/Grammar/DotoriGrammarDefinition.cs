@@ -92,6 +92,7 @@ public static class DotoriGrammarDefinition
     public static readonly string[] TypeValues =
     [
         "executable",
+        "test",
         "static-library",
         "shared-library",
         "header-only",

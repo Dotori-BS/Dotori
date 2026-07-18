@@ -384,7 +384,7 @@ public sealed class PackageDecl
 
 // ─── Enums ─────────────────────────────────────────────────────────────────
 
-public enum ProjectType { Executable, StaticLibrary, SharedLibrary, HeaderOnly }
+public enum ProjectType { Executable, Test, StaticLibrary, SharedLibrary, HeaderOnly }
 public enum CxxStd { Cxx17, Cxx20, Cxx23 }
 public enum OptimizeLevel { None, Size, Speed, Full }
 public enum DebugInfoLevel { None, Minimal, Full }

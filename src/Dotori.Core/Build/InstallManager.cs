@@ -124,6 +124,10 @@ public static class InstallManager
     private static IReadOnlyList<(string Source, string Destination)> CollectFiles(
         FlatProjectModel model, string? artifactPath, string prefix)
     {
+        if (model.Type == ProjectType.Test)
+            throw new InvalidOperationException(
+                $"Test project '{model.Name}' is not installable.");
+
         var result = new Dictionary<string, string>(PathComparer());
         if (model.Type != ProjectType.HeaderOnly)
         {

@@ -81,6 +81,7 @@ public sealed class VcxprojGenerator : IBuildSystemGenerator
         var configType = model.Type switch
         {
             ProjectType.Executable    => "Application",
+            ProjectType.Test          => "Application",
             ProjectType.StaticLibrary => "StaticLibrary",
             ProjectType.SharedLibrary => "DynamicLibrary",
             ProjectType.HeaderOnly    => "StaticLibrary",

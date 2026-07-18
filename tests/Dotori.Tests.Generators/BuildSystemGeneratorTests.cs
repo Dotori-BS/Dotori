@@ -46,6 +46,16 @@ public sealed class BuildSystemGeneratorTests
     }
 
     [TestMethod]
+    public void CMake_Test_RegistersCtestTarget()
+    {
+        var result = new CMakeGenerator().Generate(
+            MakeModel(type: ProjectType.Test), "both", "linux-x64");
+
+        StringAssert.Contains(result[0].Content, "add_executable(MyApp");
+        StringAssert.Contains(result[0].Content, "add_test(NAME MyApp COMMAND MyApp)");
+    }
+
+    [TestMethod]
     public void CMake_StaticLibrary_ContainsAddLibraryStatic()
     {
         var gen    = new CMakeGenerator();
@@ -225,6 +235,16 @@ public sealed class BuildSystemGeneratorTests
         Assert.HasCount(1, result);
         Assert.AreEqual("meson.build", result[0].RelativePath);
         StringAssert.Contains(result[0].Content, "executable('MyApp'");
+    }
+
+    [TestMethod]
+    public void Meson_Test_RegistersTestTarget()
+    {
+        var result = new MesonGenerator().Generate(
+            MakeModel(type: ProjectType.Test), "both", "linux-x64");
+
+        StringAssert.Contains(result[0].Content, "executable('MyApp'");
+        StringAssert.Contains(result[0].Content, "test('MyApp', MyApp)");
     }
 
     [TestMethod]

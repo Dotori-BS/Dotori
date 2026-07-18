@@ -55,6 +55,7 @@ public sealed class PbxprojGenerator : IBuildSystemGenerator
         var productType = model.Type switch
         {
             ProjectType.Executable    => "com.apple.product-type.tool",
+            ProjectType.Test          => "com.apple.product-type.tool",
             ProjectType.StaticLibrary => "com.apple.product-type.library.static",
             ProjectType.SharedLibrary => "com.apple.product-type.library.dynamic",
             ProjectType.HeaderOnly    => "com.apple.product-type.library.static",
