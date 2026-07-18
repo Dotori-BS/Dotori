@@ -194,22 +194,55 @@ public static class PackageInstaller
         IEnumerable<string> filePaths,
         CancellationToken ct = default)
     {
-        await using var fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write,
-            FileShare.None, bufferSize: 81920, useAsync: true);
-        await using var gz = new GZipStream(fs, CompressionLevel.Optimal);
-        await using var tar = new TarWriter(gz, TarEntryFormat.Gnu);
+        var projectRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectDir));
+        var entries = filePaths
+            .Select(Path.GetFullPath)
+            .Select(path => (Path: path,
+                Relative: Path.GetRelativePath(projectRoot, path).Replace('\\', '/')))
+            .Where(entry => entry.Relative != ".." &&
+                            !entry.Relative.StartsWith("../", StringComparison.Ordinal))
+            .Where(entry => File.Exists(entry.Path))
+            .GroupBy(entry => entry.Relative, StringComparer.Ordinal)
+            .Select(group => group.First())
+            .OrderBy(entry => entry.Relative, StringComparer.Ordinal)
+            .ToArray();
 
-        foreach (var filePath in filePaths)
+        var fullOutputPath = Path.GetFullPath(outputPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(fullOutputPath)!);
+        var temporaryPath = $"{fullOutputPath}.tmp.{Environment.ProcessId}.{Guid.NewGuid():N}";
+        try
         {
-            var relative = Path.GetRelativePath(projectDir, filePath).Replace('\\', '/');
-            if (relative.StartsWith("..")) continue;
-
-            // npm standard: all files under "package/" prefix
-            var entry = new GnuTarEntry(TarEntryType.RegularFile, $"package/{relative}");
-            await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read,
-                FileShare.Read, bufferSize: 81920, useAsync: true);
-            entry.DataStream = fileStream;
-            await tar.WriteEntryAsync(entry, ct);
+            await using (var fs = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write,
+                             FileShare.None, bufferSize: 81920, useAsync: true))
+            await using (var gz = new GZipStream(fs, CompressionLevel.Optimal))
+            await using (var tar = new TarWriter(gz, TarEntryFormat.Gnu))
+            {
+                foreach (var (filePath, relative) in entries)
+                {
+                    // Fixed metadata and lexical ordering make archives byte-for-byte reproducible.
+                    var entry = new GnuTarEntry(
+                        TarEntryType.RegularFile, $"package/{relative}")
+                    {
+                        ModificationTime = DateTimeOffset.UnixEpoch,
+                        Uid = 0,
+                        Gid = 0,
+                        UserName = string.Empty,
+                        GroupName = string.Empty,
+                        Mode = UnixFileMode.UserRead | UnixFileMode.UserWrite |
+                               UnixFileMode.GroupRead | UnixFileMode.OtherRead,
+                    };
+                    await using var fileStream = new FileStream(
+                        filePath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                        bufferSize: 81920, useAsync: true);
+                    entry.DataStream = fileStream;
+                    await tar.WriteEntryAsync(entry, ct);
+                }
+            }
+            File.Move(temporaryPath, fullOutputPath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
         }
 
         return outputPath;

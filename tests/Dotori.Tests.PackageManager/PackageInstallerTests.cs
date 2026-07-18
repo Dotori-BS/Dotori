@@ -174,6 +174,37 @@ public sealed class PackageInstallerTests
     }
 
     [TestMethod]
+    public async Task PackAsync_IsByteReproducibleAcrossOrderAndTimestamps()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"dotori-pack-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(root, "include"));
+        var first = Path.Combine(root, "include", "a.hpp");
+        var second = Path.Combine(root, "z.cpp");
+        await File.WriteAllTextAsync(first, "#pragma once\n");
+        await File.WriteAllTextAsync(second, "int z = 1;\n");
+        var archiveA = Path.Combine(root, "first.tgz");
+        var archiveB = Path.Combine(root, "second.tgz");
+        try
+        {
+            await PackageInstaller.PackAsync(root, archiveA, [second, first]);
+            File.SetLastWriteTimeUtc(first, DateTime.UtcNow.AddYears(-10));
+            File.SetLastWriteTimeUtc(second, DateTime.UtcNow.AddYears(10));
+            await PackageInstaller.PackAsync(root, archiveB, [first, second]);
+
+            CollectionAssert.AreEqual(
+                await File.ReadAllBytesAsync(archiveA),
+                await File.ReadAllBytesAsync(archiveB));
+            Assert.AreEqual(
+                await PackageInstaller.ComputeHashAsync(archiveA),
+                await PackageInstaller.ComputeHashAsync(archiveB));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [TestMethod]
     public void GetLocalDepDir_ReturnsCorrectPath()
     {
         var depsRoot = "/proj/deps";

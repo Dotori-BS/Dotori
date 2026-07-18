@@ -646,6 +646,9 @@ dotori logout --registry https://npm.pkg.github.com
 ### publish — 패키지 배포
 
 `package.json`이 있어야 합니다. 패키지 이름은 `@scope/name` 형식이어야 합니다.
+파일은 경로 이름순으로 정렬되고 tar 소유자·권한·수정 시각이 정규화되므로,
+동일한 파일 내용은 운영체제와 원본 timestamp에 관계없이 동일한 `.tgz` 바이트와
+SHA-256 해시를 생성합니다. archive는 임시 파일에 완성한 뒤 원자적으로 교체됩니다.
 
 ```bash
 dotori publish
