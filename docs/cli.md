@@ -220,6 +220,33 @@ dotori clean --dry-run    # 실제 삭제 없이 대상 확인
 
 ---
 
+## install / uninstall — 빌드 산출물 설치 및 제거
+
+`install`은 이미 빌드된 실행 파일·라이브러리와 `headers { public ... }` 헤더를 prefix에 설치합니다. 빌드 산출물이 없으면 실패하므로 먼저 같은 target/config로 `dotori build`를 실행합니다.
+
+```bash
+dotori install --release --prefix /usr/local
+dotori install --prefix /usr --destdir ./package-root
+DESTDIR=./package-root dotori install --prefix /usr
+dotori uninstall --release --prefix /usr/local
+```
+
+| 옵션 | 기본값 | 설명 |
+|------|--------|------|
+| `--project <경로>` | 자동 탐색 | 프로젝트 지정 |
+| `--all` | — | 발견한 모든 프로젝트 처리 |
+| `--release` | Debug | Release 산출물 선택 |
+| `--target <타겟>` | 호스트 | 설치할 빌드 target 선택 |
+| `--prefix <경로>` | Unix `/usr/local`, Windows `%ProgramFiles%/Dotori` | 논리 설치 prefix |
+| `--destdir <경로>` | `DESTDIR` 환경 변수 | 패키지 제작용 staging root |
+| `--dry-run` | — | 복사·삭제 없이 대상만 출력 |
+
+실행 파일은 `bin/`, static/shared library는 `lib/`, 공개 헤더는 `include/`에 설치됩니다. 설치 파일 목록은 `<prefix>/share/dotori/install-manifests/`에 target/config별로 기록됩니다. `uninstall`은 이 manifest의 모든 경로가 prefix 내부인지 먼저 검증한 뒤 기록된 파일만 제거합니다.
+
+`DOTORI_INSTALL_PREFIX`로 기본 prefix를 변경할 수 있습니다. 시스템 prefix에 설치할 때 필요한 권한은 운영체제 정책에 따라 사용자가 직접 부여해야 합니다.
+
+---
+
 ## 패키지 관리 명령어
 
 ### add — 의존성 추가

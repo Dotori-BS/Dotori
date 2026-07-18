@@ -8,6 +8,8 @@ rootCommand.Add(BuildCommandFactory.Create());
 rootCommand.Add(RunCommandFactory.Create());
 rootCommand.Add(TestCommandFactory.Create());
 rootCommand.Add(CleanCommandFactory.Create());
+rootCommand.Add(InstallCommandFactory.CreateInstall());
+rootCommand.Add(InstallCommandFactory.CreateUninstall());
 
 // Package management commands (also available under `dotori package`)
 rootCommand.Add(PackageCommandFactory.CreateAddCommand());
