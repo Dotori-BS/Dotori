@@ -1,7 +1,12 @@
 using Dotori.Worker.Services;
 using Dotori.Grpc;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Worker deployments commonly use h2c inside a trusted network or container mesh.
+builder.WebHost.ConfigureKestrel(options =>
+    options.ConfigureEndpointDefaults(endpoint => endpoint.Protocols = HttpProtocols.Http2));
 
 builder.Services.AddGrpc();
 

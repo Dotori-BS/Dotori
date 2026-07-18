@@ -2,8 +2,14 @@ using Dotori.BuildServer.Cache;
 using Dotori.BuildServer.Services;
 using Dotori.BuildServer.Workers;
 using Dotori.Grpc;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Plain-text gRPC requires HTTP/2 prior knowledge. Without this explicit default,
+// Kestrel selects HTTP/1.1 for http:// endpoints and rejects every gRPC request.
+builder.WebHost.ConfigureKestrel(options =>
+    options.ConfigureEndpointDefaults(endpoint => endpoint.Protocols = HttpProtocols.Http2));
 
 builder.Services.AddGrpc();
 builder.Services.AddSingleton(_ =>

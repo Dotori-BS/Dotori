@@ -84,7 +84,7 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
 
         var request = new CompileRequest
         {
-            Compiler     = compiler,
+            Compiler     = NormalizeRemoteExecutable(compiler),
             TargetTriple = _targetTriple,
             SourceHash   = sourceHash,
             SourceBytes  = ByteString.CopyFrom(sourceBytes),
@@ -139,7 +139,7 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
     {
         var request = new LinkRequest
         {
-            Linker     = linker,
+            Linker     = NormalizeRemoteExecutable(linker),
             TargetTriple = _targetTriple,
             OutputName = Path.GetFileName(job.OutputFile),
         };
@@ -201,6 +201,12 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
         return null;
     }
 
+    internal static string NormalizeRemoteExecutable(string executable)
+    {
+        var fileName = Path.GetFileName(executable);
+        return string.IsNullOrWhiteSpace(fileName) ? executable : fileName;
+    }
+
     private static string ComputeDependencyHash(string sourceFile, IReadOnlyList<string> args)
     {
         var searchPaths = args
@@ -241,8 +247,12 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
             ExitCode = -1,
         };
 
-    private static bool IsTransportError(RpcException ex) =>
-        ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded;
+    internal static bool IsTransportError(RpcException ex) =>
+        ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded ||
+        ex.StatusCode == StatusCode.Internal &&
+        (ex.Status.Detail.Contains("Error starting gRPC call", StringComparison.OrdinalIgnoreCase) ||
+         ex.Status.Detail.Contains("HttpRequestException", StringComparison.OrdinalIgnoreCase) ||
+         ex.Status.Detail.Contains("HttpProtocolException", StringComparison.OrdinalIgnoreCase));
 
     public void Dispose() => _channel.Dispose();
 }

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
 using Dotori.Core.Toolchain;
@@ -19,7 +20,11 @@ public sealed class WorkerService(
     : BuildWorker.BuildWorkerBase
 {
     private static readonly string[] DefaultExecutables =
-        ["clang", "clang++", "gcc", "g++", "cl", "link", "lld", "ld", "emcc", "em++"];
+    [
+        "clang", "clang++", "clang-cl", "gcc", "g++", "cc", "c++", "cl",
+        "link", "lld", "ld", "ld.lld", "wasm-ld", "ar", "llvm-ar", "lib",
+        "emcc", "em++", "nasm", "yasm", "as", "ml", "ml64", "rc", "llvm-rc",
+    ];
 
     private readonly HashSet<string> _allowedExecutables = ParseAllowedExecutables(
         configuration?["DOTORI_ALLOWED_EXECUTABLES"]);
@@ -81,7 +86,27 @@ public sealed class WorkerService(
                 psi.ArgumentList.Add(argument);
 
             using var proc = new Process { StartInfo = psi };
-            proc.Start();
+            try
+            {
+                proc.Start();
+            }
+            catch (Exception ex) when (ex is Win32Exception or FileNotFoundException)
+            {
+                logger.LogWarning(ex, "Unable to start compiler {Compiler}", request.Compiler);
+                await responseStream.WriteAsync(new WorkerCompileEvent
+                {
+                    Log = new LogLine
+                    {
+                        Stream = LogLine.Types.Stream.Stderr,
+                        Text = $"Unable to start compiler '{request.Compiler}': {ex.Message}",
+                    },
+                }, context.CancellationToken);
+                await responseStream.WriteAsync(new WorkerCompileEvent
+                {
+                    Result = new WorkerCompileResult { Success = false, ExitCode = 127 },
+                }, context.CancellationToken);
+                return;
+            }
 
             // Stream stderr line by line
             var stderrTask = StreamStderrAsync(proc, responseStream, context.CancellationToken);
@@ -191,7 +216,20 @@ public sealed class WorkerService(
                 psi.ArgumentList.Add(argument);
 
             using var proc = new Process { StartInfo = psi };
-            proc.Start();
+            try
+            {
+                proc.Start();
+            }
+            catch (Exception ex) when (ex is Win32Exception or FileNotFoundException)
+            {
+                logger.LogWarning(ex, "Unable to start linker {Linker}", request.Linker);
+                return new WorkerLinkResponse
+                {
+                    Success = false,
+                    ExitCode = 127,
+                    Stderr = $"Unable to start linker '{request.Linker}': {ex.Message}",
+                };
+            }
 
             var stdoutTask = proc.StandardOutput.ReadToEndAsync(context.CancellationToken);
             var stderrTask = proc.StandardError.ReadToEndAsync(context.CancellationToken);
@@ -263,7 +301,7 @@ public sealed class WorkerService(
         !value.Contains("..", StringComparison.Ordinal);
 
     private bool IsAllowedExecutable(string executable) =>
-        _allowedExecutables.Contains(Path.GetFileName(executable));
+        _allowedExecutables.Contains(CanonicalExecutableName(executable));
 
     private bool AreArgumentsValid(IEnumerable<string> args)
     {
@@ -306,9 +344,17 @@ public sealed class WorkerService(
 
     private static HashSet<string> ParseAllowedExecutables(string? configured) =>
         (string.IsNullOrWhiteSpace(configured) ? DefaultExecutables : configured.Split(','))
-            .Select(value => Path.GetFileName(value.Trim()))
+            .Select(value => CanonicalExecutableName(value.Trim()))
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    internal static string CanonicalExecutableName(string executable)
+    {
+        var fileName = Path.GetFileName(executable);
+        return fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            ? fileName[..^4]
+            : fileName;
+    }
 
     private static IReadOnlyList<string> ResolveSupportedTargets(string? configured)
     {

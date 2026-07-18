@@ -110,7 +110,7 @@ dotori-server \
 | `ASPNETCORE_URLS` | `http://+:5100` | 워커 수신 주소 |
 | `DOTORI_WORKER_TOKEN` | — | Coordinator → Worker 인증 토큰. 미설정 시 loopback 요청만 허용 |
 | `DOTORI_WORKER_TOKEN_FILE` | — | 토큰을 읽을 secret 파일 경로 |
-| `DOTORI_ALLOWED_EXECUTABLES` | 기본 C/C++ 툴체인 | 쉼표로 구분한 worker 실행 파일 allowlist |
+| `DOTORI_ALLOWED_EXECUTABLES` | 기본 C/C++ 컴파일러·링커·아카이버·어셈블러 | 쉼표로 구분한 worker 실행 파일 allowlist. Windows `.exe` 접미사는 생략 가능 |
 | `DOTORI_REQUIRE_HTTPS` | `false` | `true`이면 HTTPS가 아닌 gRPC 요청을 거부 |
 | `DOTORI_MAX_INPUT_BYTES` | `67108864` | 요청 하나의 소스 또는 오브젝트 총 입력 크기 제한 |
 | `DOTORI_MAX_ARGUMENTS` | `4096` | 컴파일러·링커 인수 최대 개수 |
@@ -119,6 +119,9 @@ dotori-server \
 
 운영 환경에서는 토큰 값을 환경 변수에 직접 넣기보다 Docker/Kubernetes secret 파일을 권장합니다.
 `DOTORI_*_TOKEN`이 설정돼 있으면 파일보다 우선합니다.
+Coordinator와 Worker는 평문 `http://` 주소에서도 gRPC가 동작하도록 해당
+엔드포인트를 HTTP/2(h2c) 전용으로 구성합니다. 앞단 프록시를 사용할 때도
+upstream 연결에서 HTTP/2를 유지해야 합니다.
 
 ```yaml
 services:

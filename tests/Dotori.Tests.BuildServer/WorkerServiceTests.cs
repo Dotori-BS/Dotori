@@ -37,6 +37,13 @@ public sealed class WorkerServiceTests
     }
 
     [TestMethod]
+    public void ExecutableAllowlist_CanonicalizesWindowsSuffixAndPaths()
+    {
+        Assert.AreEqual("cl", WorkerService.CanonicalExecutableName("cl.exe"));
+        Assert.AreEqual("clang++", WorkerService.CanonicalExecutableName("/usr/bin/clang++"));
+    }
+
+    [TestMethod]
     public async Task Link_RejectsInputOverConfiguredLimit()
     {
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>

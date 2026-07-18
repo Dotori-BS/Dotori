@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Dotori.Core.Build;
 using Dotori.Core.Executor;
+using Grpc.Core;
 
 namespace Dotori.Tests.Build;
 
@@ -36,6 +37,33 @@ public sealed class LocalExecutorTests
             "http://127.0.0.1:1", "aarch64-unknown-linux-musl");
 
         Assert.AreEqual("aarch64-unknown-linux-musl", executor.TargetTriple);
+    }
+
+    [TestMethod]
+    public void RemoteExecutor_ClassifiesWrappedHttpFailuresAsTransportErrors()
+    {
+        var wrappedHttpFailure = new RpcException(new Status(
+            StatusCode.Internal,
+            "Error starting gRPC call. HttpRequestException: HTTP/2 connection closed."));
+        var applicationFailure = new RpcException(new Status(
+            StatusCode.Internal,
+            "Worker rejected the compiler request."));
+
+        Assert.IsTrue(RemoteExecutor.IsTransportError(wrappedHttpFailure));
+        Assert.IsFalse(RemoteExecutor.IsTransportError(applicationFailure));
+    }
+
+    [TestMethod]
+    public void RemoteExecutor_SendsOnlyExecutableNameToWorker()
+    {
+        var compiler = OperatingSystem.IsWindows()
+            ? @"C:\LLVM\bin\clang++.exe"
+            : "/opt/toolchains/llvm/bin/clang++";
+
+        Assert.AreEqual(
+            OperatingSystem.IsWindows() ? "clang++.exe" : "clang++",
+            RemoteExecutor.NormalizeRemoteExecutable(compiler));
+        Assert.AreEqual("g++", RemoteExecutor.NormalizeRemoteExecutable("g++"));
     }
 
     [TestMethod]

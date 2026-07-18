@@ -17,4 +17,10 @@
     <ProjectReference Include="../Dotori.Grpc/Dotori.Grpc.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>Dotori.Tests.BuildServer</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>
