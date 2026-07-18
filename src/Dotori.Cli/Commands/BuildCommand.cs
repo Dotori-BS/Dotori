@@ -31,6 +31,8 @@ internal static class BuildCommandFactory
         var dryRunOption      = new Option<bool>("--dry-run")        { Description = "Print build commands without executing them" };
         var explainOption     = new Option<bool>("--explain")        { Description = "Explain why compile and link steps run" };
         var verboseOption     = new Option<bool>("--verbose")        { Description = "Print compile and link commands as they execute" };
+        var traceOption       = new Option<string?>("--trace")       { Description = "Write a structured JSON build trace" };
+        var timingsOption     = new Option<bool>("--timings")        { Description = "Print build timing and incremental reuse statistics" };
 
         command.Add(projectOption);
         command.Add(allOption);
@@ -51,6 +53,8 @@ internal static class BuildCommandFactory
         command.Add(dryRunOption);
         command.Add(explainOption);
         command.Add(verboseOption);
+        command.Add(traceOption);
+        command.Add(timingsOption);
 
         // Allow unknown --flags so project-declared options can be passed as --option-name / --no-option-name
         command.TreatUnmatchedTokensAsErrors = false;
@@ -77,6 +81,8 @@ internal static class BuildCommandFactory
             var dryRun     = parseResult.GetValue(dryRunOption);
             var explain    = parseResult.GetValue(explainOption);
             var verbose    = parseResult.GetValue(verboseOption);
+            var tracePath  = parseResult.GetValue(traceOption);
+            var timings    = parseResult.GetValue(timingsOption);
 
             var config   = release ? "release" : "debug";
             var targetId = BuildContext.ResolveTargetId(targetArg);
@@ -171,11 +177,14 @@ internal static class BuildCommandFactory
             int[] fileFound = [0]; // 0 = not found, 1 = found
 
             ProjectBuildResult result;
+            var trace = tracePath is not null || timings
+                ? new BuildTraceSession(targetId, config)
+                : null;
             try
             {
                 result = await ProjectBuildEngine.BuildAsync(
                     buildOrder, ctx, toolchain, executor, targetId, config,
-                    fileArg, noLink, noUnity, dryRun, explain, fileFound, ct);
+                    fileArg, noLink, noUnity, dryRun, explain, fileFound, trace, ct);
             }
             finally
             {
@@ -183,6 +192,32 @@ internal static class BuildCommandFactory
                     disposable.Dispose();
             }
 
+            if (trace is not null)
+            {
+                var document = trace.Finish();
+                if (tracePath is not null)
+                {
+                    try
+                    {
+                        BuildTraceSession.WriteJson(document, tracePath);
+                        Console.WriteLine($"  Trace: {Path.GetFullPath(tracePath)}");
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        Console.Error.WriteLine($"Error: unable to write build trace: {ex.Message}");
+                        return 1;
+                    }
+                }
+                if (timings)
+                {
+                    var summary = document.Summary;
+                    Console.WriteLine(
+                        $"  Timing: {document.DurationMs:F1} ms, " +
+                        $"projects {summary.SucceededProjects}/{summary.ProjectCount}, " +
+                        $"compiled {summary.CompiledInputs}/{summary.CompileInputs}, " +
+                        $"reuse {summary.ReusePercent:F2}%");
+                }
+            }
             // If --file was specified but not found in any project, report error
             if (fileArg is not null && result.ExitCode == 0 && fileFound[0] == 0)
             {
@@ -213,6 +248,7 @@ internal static partial class ProjectBuildEngine
         bool explain,
         System.Collections.Concurrent.ConcurrentDictionary<string, string> builtLibraries,
         int[] fileFound,
+        BuildTraceProject? traceProject,
         CancellationToken ct)
     {
         var model = BuildContext.FlattenProject(node.DotoriPath, ctx, node);
@@ -286,6 +322,7 @@ internal static partial class ProjectBuildEngine
 
             // Mark file as found in this project
             System.Threading.Interlocked.Exchange(ref fileFound[0], 1);
+            traceProject?.RecordCompiles(1, 1);
 
             var fileResults = await executor.RunCompileJobsAsync(
                 toolchain.CompilerPath, new[] { singleJob }, ct);
@@ -369,6 +406,7 @@ internal static partial class ProjectBuildEngine
             ? allCompileJobs
             : planner.PlanCompileJobs(checker, pchPlan: pchPlan, bmiPaths: bmiPaths,
                 explain: explain ? PrintCompileExplanation : null);
+        traceProject?.RecordCompiles(allCompileJobs.Count, compileJobs.Count);
         // RC resource compilation (Windows MSVC only, runs before link)
         var rcJobs = planner.PlanRcJobs();
         if (rcJobs.Count > 0)
@@ -448,6 +486,7 @@ internal static partial class ProjectBuildEngine
 
         if (!needsLink)
         {
+            traceProject?.RecordLink(executed: false);
             builtLibraries[node.DotoriPath] = linkJob.OutputFile;
             Console.WriteLine($"  {model.Name}: up to date");
             return 0;
@@ -459,6 +498,7 @@ internal static partial class ProjectBuildEngine
             File.Delete(linkJob.OutputFile);
 
         var linkResult = await executor.RunLinkJobAsync(planner.GetLinkerPath(), linkJob, ct);
+        traceProject?.RecordLink(executed: true);
         if (!string.IsNullOrWhiteSpace(linkResult.Stdout)) Console.Write(linkResult.Stdout);
         if (!linkResult.Success)
         {

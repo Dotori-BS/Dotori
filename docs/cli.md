@@ -51,6 +51,17 @@ dotori build [옵션]
 | `--dry-run` | — | 외부 빌드 명령과 스크립트를 실행하지 않고 예정된 컴파일·링크 명령 출력 |
 | `--explain` | — | 소스 재컴파일과 재링크가 필요한 캐시 판단 사유 출력 |
 | `--verbose` | — | 실행되는 compiler와 linker 명령을 출력 |
+| `--timings` | — | 총 빌드 시간, 프로젝트 성공 수, 컴파일 수와 증분 재사용률 출력 |
+| `--trace <경로>` | — | 버전이 명시된 JSON 빌드 보고서 저장 |
+
+`--trace` 보고서는 target/configuration과 시작·종료 시각, 프로젝트별 소요 시간,
+성공 여부, 전체·실행·재사용 컴파일 수, 링크 실행/재사용 상태를 포함합니다.
+CI에서 빌드 성능 회귀와 캐시 효율을 수집할 때 사용할 수 있습니다.
+
+```bash
+dotori build --timings
+dotori build --trace artifacts/dotori-build.json --timings
+```
 
 #### `--compiler` 값 목록
 

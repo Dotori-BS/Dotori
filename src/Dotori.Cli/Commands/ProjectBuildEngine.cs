@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Dotori.Core.Build;
 using Dotori.Core.Executor;
 using Dotori.Core.Graph;
 using Dotori.Core.Model;
@@ -83,6 +84,7 @@ internal static partial class ProjectBuildEngine
         bool dryRun = false,
         bool explain = false,
         int[]? fileFound = null,
+        BuildTraceSession? trace = null,
         CancellationToken ct = default)
     {
         var outputs = new ConcurrentDictionary<string, string>(
@@ -91,9 +93,7 @@ internal static partial class ProjectBuildEngine
 
         foreach (var level in buildOrder)
         {
-            var tasks = level.Select(node => BuildProjectAsync(
-                node, context, toolchain, executor, targetId, config,
-                fileArg, noLink, noUnity, dryRun, explain, outputs, fileFound, ct));
+            var tasks = level.Select(BuildNodeAsync);
 
             var results = await Task.WhenAll(tasks);
             if (results.Any(code => code != 0))
@@ -101,6 +101,17 @@ internal static partial class ProjectBuildEngine
         }
 
         return new ProjectBuildResult(0, outputs);
+
+        async Task<int> BuildNodeAsync(ProjectNode node)
+        {
+            var projectTrace = trace?.BeginProject(node.ProjectName, node.DotoriPath);
+            var code = await BuildProjectAsync(
+                node, context, toolchain, executor, targetId, config,
+                fileArg, noLink, noUnity, dryRun, explain, outputs, fileFound,
+                projectTrace, ct);
+            projectTrace?.Complete(code == 0);
+            return code;
+        }
     }
 
     public static IReadOnlyList<string> FindOutputs(
