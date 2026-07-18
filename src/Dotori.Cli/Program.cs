@@ -7,6 +7,7 @@ var rootCommand = new RootCommand("dotori — C++ build system and package manag
 rootCommand.Add(BuildCommandFactory.Create());
 rootCommand.Add(RunCommandFactory.Create());
 rootCommand.Add(TestCommandFactory.Create());
+rootCommand.Add(WatchCommandFactory.Create());
 rootCommand.Add(CleanCommandFactory.Create());
 rootCommand.Add(InstallCommandFactory.CreateInstall());
 rootCommand.Add(InstallCommandFactory.CreateUninstall());

@@ -203,6 +203,36 @@ dotori test --filter "MyTest*"
 
 ---
 
+## watch — 변경 감지 빌드
+
+프로젝트 디렉터리를 재귀 감시하고 관련 파일이 바뀌면 증분 빌드를 다시 실행합니다.
+여러 파일 이벤트는 debounce 구간 동안 하나로 합쳐지며 `.git`, `.dotori-cache`,
+일반적인 빌드 출력 디렉터리와 오브젝트 파일 변경은 무시합니다.
+
+```bash
+dotori watch [watch 옵션] [build 옵션]
+```
+
+| 옵션 | 설명 |
+|------|------|
+| `--project <경로>` | 감시할 프로젝트 파일 또는 디렉터리 |
+| `--all` | 명시한 디렉터리 아래의 모든 프로젝트 감시 |
+| `--debounce <ms>` | 연관 이벤트를 합칠 대기 시간 (기본값: `250`) |
+| `--no-initial-build` | 시작 시 빌드하지 않고 첫 변경까지 대기 |
+
+watch가 직접 처리하지 않는 옵션은 `build`에 그대로 전달합니다. 따라서 release,
+target, compiler, remote, locked/offline, 프로젝트 선언 옵션 등을 함께 사용할 수 있습니다.
+
+```bash
+dotori watch --release --jobs 8
+dotori watch --project workspace --all --target linux-x64
+dotori watch --remote http://build-server:5100 --locked
+```
+
+Ctrl+C를 누르면 진행 중인 자식 빌드 프로세스까지 종료하고 감시를 끝냅니다.
+
+---
+
 ## clean — 빌드 캐시 정리
 
 ```bash

@@ -1,0 +1,30 @@
+namespace Dotori.Core.Build;
+
+public static class BuildWatchFilter
+{
+    private static readonly HashSet<string> IgnoredDirectories = new(
+        [".git", DotoriConstants.CacheDir, "bin", "obj", "build", "out", "node_modules"],
+        StringComparer.OrdinalIgnoreCase);
+
+    private static readonly HashSet<string> IgnoredExtensions = new(
+        [".o", ".obj", ".a", ".lib", ".so", ".dylib", ".dll", ".exe", ".pdb", ".d", ".pcm"],
+        StringComparer.OrdinalIgnoreCase);
+
+    public static bool ShouldTrigger(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        var fullPath = Path.GetFullPath(path);
+        if (fullPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            .Any(segment => IgnoredDirectories.Contains(segment)))
+            return false;
+
+        var fileName = Path.GetFileName(fullPath);
+        if (fileName.StartsWith(".", StringComparison.Ordinal) && fileName != ".dotori")
+            return false;
+        if (fileName.EndsWith("~", StringComparison.Ordinal) ||
+            fileName.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith(".swp", StringComparison.OrdinalIgnoreCase))
+            return false;
+        return !IgnoredExtensions.Contains(Path.GetExtension(fileName));
+    }
+}
