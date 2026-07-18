@@ -155,6 +155,9 @@ dotori build --remote http://build-server:5100 --jobs 32
 ## run — 실행
 
 프로젝트를 빌드하고 실행합니다. `type = executable` 프로젝트에서만 동작합니다.
+`build` 명령과 동일한 증분 빌드 파이프라인을 사용하므로 custom build rule,
+PCH, C++ modules, resource/assembler 입력, copy 블록과 pre/post-build 명령도
+동일하게 적용됩니다. Git 패키지 의존성과 프로젝트 옵션 기본값도 실행 전에 해석합니다.
 
 ```bash
 dotori run [옵션] [-- <실행 인수>]
@@ -177,6 +180,8 @@ dotori run -- --config prod.json --verbose
 ## test — 테스트
 
 테스트 대상 프로젝트를 빌드하고 실행합니다.
+빌드 단계는 `build` 및 `run`과 동일한 공통 파이프라인을 사용합니다.
+현재는 마지막 `type = executable` 프로젝트를 테스트 실행 파일로 선택합니다.
 
 ```bash
 dotori test [옵션]

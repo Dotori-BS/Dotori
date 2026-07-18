@@ -167,25 +167,15 @@ internal static class BuildCommandFactory
             if (remoteArg is not null && !dryRun)
                 Console.WriteLine($"  Using remote build server: {remoteArg}");
 
-            int exitCode = 0;
-            // Track dotoriPath → built library output (for transitive linking)
-            var builtLibraries = new System.Collections.Concurrent.ConcurrentDictionary<string, string>(
-                StringComparer.OrdinalIgnoreCase);
             // Track whether --file was found in any project (array trick for async/Interlocked)
             int[] fileFound = [0]; // 0 = not found, 1 = found
 
+            ProjectBuildResult result;
             try
             {
-                foreach (var level in buildOrder)
-                {
-                    // Compile all projects in this level in parallel
-                    var levelTasks = level.Select(node => BuildProjectAsync(
-                        node, ctx, toolchain, executor, targetId, config,
-                        fileArg, noLink, noUnity, dryRun, explain, builtLibraries, fileFound, ct));
-
-                    var levelResults = await Task.WhenAll(levelTasks);
-                    if (levelResults.Any(r => r != 0)) { exitCode = 1; break; }
-                }
+                result = await ProjectBuildEngine.BuildAsync(
+                    buildOrder, ctx, toolchain, executor, targetId, config,
+                    fileArg, noLink, noUnity, dryRun, explain, fileFound, ct);
             }
             finally
             {
@@ -194,19 +184,22 @@ internal static class BuildCommandFactory
             }
 
             // If --file was specified but not found in any project, report error
-            if (fileArg is not null && exitCode == 0 && fileFound[0] == 0)
+            if (fileArg is not null && result.ExitCode == 0 && fileFound[0] == 0)
             {
                 Console.Error.WriteLine($"Error: '{fileArg}' is not in any project sources.");
                 return 1;
             }
 
-            return exitCode;
+            return result.ExitCode;
         });
 
         return command;
     }
+}
 
-    private static async Task<int> BuildProjectAsync(
+internal static partial class ProjectBuildEngine
+{
+    internal static async Task<int> BuildProjectAsync(
         ProjectNode node,
         Dotori.Core.Model.TargetContext ctx,
         Dotori.Core.Toolchain.ToolchainInfo toolchain,
