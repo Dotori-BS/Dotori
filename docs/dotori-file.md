@@ -69,9 +69,25 @@ sources {
     include "src/**/*.cc"
     include "src/**/*.m"               # Objective-C (Apple 플랫폼)
     include "src/**/*.mm"              # Objective-C++ (Apple 플랫폼)
+    include "src/**/*.swift"           # Swift
     exclude "src/platform/**/*.cpp"    # 특정 경로 제외
 }
 ```
+
+### Swift 소스
+
+`.swift` 파일은 프로젝트별 단일 Swift 모듈과 오브젝트로 컴파일됩니다. 모듈 이름은
+프로젝트 이름에서 Swift 식별자로 자동 정규화하며 결과 `.swiftmodule`은 해당 타겟의
+오브젝트 캐시 디렉터리에 생성됩니다. 경로 의존 프로젝트의 모듈 디렉터리는 `-I`로
+전달됩니다.
+
+C++ 소스와 함께 선언하면 Swift C++ 상호운용 모드를 활성화하고 최종 링크를 `swiftc`가
+담당합니다. `@_cdecl`로 내보낸 C ABI 함수도 C++에서 직접 호출할 수 있습니다. Apple
+플랫폼에서는 `swiftc -print-target-info`가 보고한 런타임 라이브러리 경로와 rpath를
+자동으로 추가합니다. `SWIFTC` 환경 변수로 사용할 컴파일러를 지정할 수 있습니다.
+
+원격 빌드 프로토콜은 아직 다중 입력 Swift 작업을 표현하지 않으므로 Swift 컴파일과
+Swift 최종 링크는 로컬에서 실행되며, 같은 프로젝트의 C++ 작업은 계속 원격 실행됩니다.
 
 ---
 

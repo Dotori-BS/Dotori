@@ -1,7 +1,7 @@
 namespace Dotori.Core.Toolchain;
 
 /// <summary>The type of compiler driver.</summary>
-public enum CompilerKind { Msvc, Clang, Emscripten }
+public enum CompilerKind { Msvc, Clang, Emscripten, Swift }
 
 /// <summary>Information about a detected toolchain for a specific target.</summary>
 public sealed class ToolchainInfo

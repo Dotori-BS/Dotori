@@ -1,0 +1,9 @@
+project SwiftSmoke {
+    type = executable
+    std  = c++17
+
+    sources {
+        include "main.cpp"
+        include "Math.swift"
+    }
+}

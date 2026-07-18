@@ -41,6 +41,18 @@ public sealed partial class BuildPlanner
             return archiveJob;
         }
 
+        if (_model.HasSwiftSources)
+        {
+            var compiler = GetSwiftCompilerPath();
+            var hasCxxSources = ExpandSources().Any(path =>
+                !Path.GetExtension(path).Equals(".swift", StringComparison.OrdinalIgnoreCase));
+            var flags = SwiftDriver.LinkFlags(
+                _model, _toolchain, outFile, compiler, hasCxxSources);
+            var job = LinkJobFactory.Create(objFiles, outFile, flags);
+            job.Fingerprint = BuildActionFingerprint.Compute(compiler, job.Args);
+            return job;
+        }
+
         if (_toolchain.Kind == CompilerKind.Msvc)
         {
             var flags = MsvcLinker.LinkFlags(_model, _toolchain, _config, outFile);
@@ -78,6 +90,7 @@ public sealed partial class BuildPlanner
     {
         if (_model.Type == ProjectType.StaticLibrary && _toolchain.Kind != CompilerKind.Msvc)
             return FindAr();
+        if (_model.HasSwiftSources) return GetSwiftCompilerPath();
         return _toolchain.LinkerPath;
     }
 

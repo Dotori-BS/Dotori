@@ -125,7 +125,9 @@ public sealed partial class BuildPlanner
         IReadOnlyDictionary<string, string>? bmiPaths = null,
         Action<CompileJob, IReadOnlyList<string>>? explain = null)
     {
-        var allSources    = ExpandSources();
+        var allSources    = ExpandSources()
+            .Where(path => !Path.GetExtension(path).Equals(".swift", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
         var moduleSources = ExpandModules();
 
         List<string> filesToCompile;

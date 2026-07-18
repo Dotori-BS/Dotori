@@ -30,11 +30,11 @@ C# (.NET 10, NativeAOT). 설계 문서: `docs/` 참조
 
 ### Phase 5: Swift 지원
 
-- [ ] `swiftc` 컴파일러 드라이버 추가 (`CompilerKind.Swift`)
-- [ ] `.swift` 소스 파일 인식 및 빌드 파이프라인 연동
-- [ ] Swift 모듈(`.swiftmodule`) 생성 및 의존성 처리
-- [ ] Apple 플랫폼 링크 시 Swift 런타임 자동 연결 (`-L$(swiftc --print-target-info)`)
-- [ ] C++/Swift 혼합 빌드 지원 (bridging header 또는 Swift 5.9 C++ interop)
+- [x] `swiftc` 컴파일러 드라이버 추가 (`CompilerKind.Swift`)
+- [x] `.swift` 소스 파일 인식 및 빌드 파이프라인 연동
+- [x] Swift 모듈(`.swiftmodule`) 생성 및 의존성 처리
+- [x] Apple 플랫폼 링크 시 Swift 런타임 자동 연결 (`-L$(swiftc --print-target-info)`)
+- [x] C++/Swift 혼합 빌드 지원 (Swift C++ interop 및 C ABI)
 
 ---
 

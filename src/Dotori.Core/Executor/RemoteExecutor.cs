@@ -43,6 +43,13 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
         IReadOnlyList<CompileJob> jobs,
         CancellationToken         ct = default)
     {
+        // Swift whole-module jobs contain multiple source files, while the remote
+        // protocol currently transports one primary source. Keep them local until
+        // the protocol can describe multi-input compile actions losslessly.
+        if (Path.GetFileNameWithoutExtension(compiler)
+            .Equals("swiftc", StringComparison.OrdinalIgnoreCase))
+            return await _fallback.RunCompileJobsAsync(compiler, jobs, ct);
+
         // Try remote; fall back to local on any transport error.
         try
         {
@@ -62,6 +69,10 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
         LinkJob           job,
         CancellationToken ct = default)
     {
+        if (Path.GetFileNameWithoutExtension(linker)
+            .Equals("swiftc", StringComparison.OrdinalIgnoreCase))
+            return await _fallback.RunLinkJobAsync(linker, job, ct);
+
         try
         {
             return await LinkRemoteAsync(linker, job, ct);

@@ -17,14 +17,38 @@ public sealed class CompilerDriverTests
             TargetTriple = triple,
         };
 
-    private static FlatProjectModel MakeModel(bool forceCxx = false) =>
+    private static FlatProjectModel MakeModel(bool forceCxx = false, string name = "MyApp") =>
         new()
         {
-            Name       = "MyApp",
+            Name       = name,
             ProjectDir = "/tmp/project",
             DotoriPath = "/tmp/project/.dotori",
             ForceCxx   = forceCxx,
         };
+
+    [TestMethod]
+    public void SwiftDriver_SanitizesModuleNames()
+    {
+        Assert.AreEqual("My_App", SwiftDriver.SanitizeModuleName("My-App"));
+        Assert.AreEqual("_42_tools", SwiftDriver.SanitizeModuleName("42 tools"));
+    }
+
+    [TestMethod]
+    public void SwiftDriver_PlansModuleObjectAndCxxInterop()
+    {
+        var model = MakeModel(name: "Mixed-App");
+        var job = SwiftDriver.MakeCompileJob(
+            model, MakeClangToolchain("arm64-apple-macosx"), "debug", "/tmp/obj",
+            ["/tmp/project/a.swift", "/tmp/project/b.swift"], "/usr/bin/swiftc",
+            hasCxxSources: true, dependencyModuleDirectories: ["/tmp/dependency"]);
+
+        Assert.AreEqual("/tmp/obj/Mixed_App.swift.o", job.OutputFile);
+        Assert.IsTrue(job.Args.Contains("-emit-module"));
+        Assert.IsTrue(job.Args.Contains("-cxx-interoperability-mode=default"));
+        Assert.IsTrue(job.Args.Contains("\"/tmp/obj/Mixed_App.swiftmodule\""));
+        Assert.IsTrue(job.Args.Contains("\"/tmp/dependency\""));
+        CollectionAssert.Contains(job.DependencyFiles.ToArray(), "/tmp/project/b.swift");
+    }
 
     // ─── ClangDriver ───────────────────────────────────────────────────────
 

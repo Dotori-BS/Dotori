@@ -398,6 +398,30 @@ internal static partial class ProjectBuildEngine
             if (!dryRun) planner.WriteModuleMap(moduleJobs);
         }
 
+        var dependencyModuleDirectories = node.Dependencies
+            .Select(dependency => Path.Combine(
+                Path.GetDirectoryName(dependency.DotoriPath)!, DotoriConstants.CacheDir,
+                DotoriConstants.ObjSubDir, $"{targetId}-{config.ToLowerInvariant()}"))
+            .ToArray();
+        var allSwiftJob = planner.PlanSwiftCompileJob(
+            checker: null, dependencyModuleDirectories: dependencyModuleDirectories);
+        var swiftJob = planner.PlanSwiftCompileJob(
+            checker, dependencyModuleDirectories,
+            explain ? PrintCompileExplanation : null);
+        if (swiftJob is not null)
+        {
+            var swiftResults = await executor.RunCompileJobsAsync(
+                planner.GetSwiftCompilerPath(), [swiftJob], ct);
+            var swiftCode = PrintResults(swiftResults);
+            if (swiftCode != 0) return swiftCode;
+            if (!dryRun)
+            {
+                checker.Record(swiftJob.SourceFile);
+                foreach (var dependency in swiftJob.DependencyFiles) checker.Record(dependency);
+                checker.RecordFingerprint(swiftJob.OutputFile, swiftJob.Fingerprint);
+            }
+        }
+
         // Keep the complete object set separate from the subset that needs compiling.
         // The linker must always receive every project object, not just changed sources.
         var allCompileJobs = planner.PlanCompileJobs(
@@ -406,7 +430,9 @@ internal static partial class ProjectBuildEngine
             ? allCompileJobs
             : planner.PlanCompileJobs(checker, pchPlan: pchPlan, bmiPaths: bmiPaths,
                 explain: explain ? PrintCompileExplanation : null);
-        traceProject?.RecordCompiles(allCompileJobs.Count, compileJobs.Count);
+        traceProject?.RecordCompiles(
+            allCompileJobs.Count + (allSwiftJob is null ? 0 : 1),
+            compileJobs.Count + (swiftJob is null ? 0 : 1));
         // RC resource compilation (Windows MSVC only, runs before link)
         var rcJobs = planner.PlanRcJobs();
         if (rcJobs.Count > 0)
@@ -453,6 +479,7 @@ internal static partial class ProjectBuildEngine
             ? bmiPaths.Values.ToList()
             : Enumerable.Empty<string>();
         var objFiles = allCompileJobs.Select(j => j.OutputFile)
+            .Concat(allSwiftJob is null ? [] : new[] { allSwiftJob.OutputFile })
             .Concat(modulePcmFiles)
             .Concat(rcJobs.Select(j => j.OutputFile))   // .res files → linker
             .Concat(asmJobs.Select(j => j.OutputFile))  // assembler .o/.obj → linker
@@ -470,6 +497,7 @@ internal static partial class ProjectBuildEngine
         var linkReasons = new List<string>();
         if (!linkOutputExists) linkReasons.Add("output is missing");
         if (compileJobs.Count > 0) linkReasons.Add($"{compileJobs.Count} source file(s) require compilation");
+        if (swiftJob is not null) linkReasons.Add("Swift sources require compilation");
         if (moduleJobs.Count > 0) linkReasons.Add($"{moduleJobs.Count} module(s) were built");
         if (rcJobs.Count > 0) linkReasons.Add($"{rcJobs.Count} resource file(s) were built");
         if (asmJobs.Count > 0) linkReasons.Add($"{asmJobs.Count} assembler file(s) were built");

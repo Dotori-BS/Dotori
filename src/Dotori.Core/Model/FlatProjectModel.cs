@@ -39,6 +39,8 @@ public sealed class FlatProjectModel
     /// Used by AppleLinker to automatically link -lobjc.
     /// </summary>
     public bool          HasObjcSources { get; set; } = false;
+    /// <summary>Set by BuildPlanner when the project contains .swift sources.</summary>
+    public bool          HasSwiftSources { get; set; } = false;
     public List<string>  EmscriptenFlags { get; } = new();
 
     // Accumulated lists (merged across all applicable condition blocks)
