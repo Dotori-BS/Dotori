@@ -40,4 +40,4 @@ C# (.NET 10, NativeAOT). 설계 문서: `docs/` 참조
 
 ### Phase 4: 레지스트리 서버
 
-- [ ] Docker / Kubernetes 배포 구성
+- [x] Docker / Kubernetes 배포 구성 (npm 호환 Verdaccio)

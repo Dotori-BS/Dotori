@@ -157,9 +157,13 @@ build_worker() {
 # 4. Registry
 # ──────────────────────────────────────────────────────────────────────────────
 build_registry() {
-    dotnet_publish "registry" \
-        "$REPO_ROOT/src/Dotori.Registry/Dotori.Registry.csproj" \
-        "$BUILD_DIR/registry"
+    info "[registry] 배포 번들 준비 중... → $BUILD_DIR/registry"
+    if [[ -d "$BUILD_DIR/registry" ]]; then
+        find "$BUILD_DIR/registry" -mindepth 1 -delete
+    fi
+    mkdir -p "$BUILD_DIR/registry"
+    cp -R "$REPO_ROOT/deploy/registry/." "$BUILD_DIR/registry/"
+    success "[registry] 완료"
 }
 
 # ──────────────────────────────────────────────────────────────────────────────

@@ -1,0 +1,33 @@
+storage: /verdaccio/storage/data
+
+auth:
+  htpasswd:
+    file: /verdaccio/auth/htpasswd
+    max_users: -1
+    algorithm: bcrypt
+    rounds: 12
+
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+
+packages:
+  '@*/*':
+    access: $all
+    publish: $authenticated
+    unpublish: $authenticated
+    proxy: npmjs
+  '**':
+    access: $all
+    publish: $authenticated
+    unpublish: $authenticated
+    proxy: npmjs
+
+middlewares:
+  audit:
+    enabled: true
+
+log:
+  type: stdout
+  format: json
+  level: http

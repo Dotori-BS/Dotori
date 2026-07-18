@@ -14,12 +14,12 @@ dotori 자체(CLI, 서버, 워커 등)를 소스에서 빌드하는 방법을 �
 | `cli` | dotori CLI (NativeAOT 단일 실행 파일, Language Server 포함) | `build/cli/` |
 | `build_server` | 분산 빌드 코디네이터 | `build/build_server/` |
 | `worker` | 분산 빌드 워커 | `build/worker/` |
+| `registry` | npm 호환 레지스트리 배포 번들 (Compose/Kubernetes) | `build/registry/` |
 
 CI는 Windows x64/ARM64, macOS ARM64, Linux x64/ARM64에서 전체 .NET 테스트와
 NativeAOT publish를 수행합니다. 별도 C++ 스모크 매트릭스는 Linux Clang/GCC,
 Apple Clang, MSVC로 실제 `.dotori` 프로젝트를 빌드하고 `type = test` 타깃을
 실행해 toolchain별 회귀를 검증합니다.
-| `registry` | 패키지 레지스트리 서버 | `build/registry/` |
 
 ---
 
@@ -78,6 +78,9 @@ Apple Clang, MSVC로 실제 `.dotori` 프로젝트를 빌드하고 `type = test`
 
 # registry를 제외하고 빌드
 ./build.sh --skip registry
+
+# 레지스트리 배포 파일만 build/registry에 준비
+./build.sh --only registry
 
 # CLI 빌드 후 시스템에 바로 설치
 ./build.sh --only cli --install
@@ -217,13 +220,12 @@ Dotori.slnx
 │   ├── Dotori.PackageManager/   ← 패키지 매니저
 │   ├── Dotori.BuildServer/      ← 분산 빌드 코디네이터
 │   ├── Dotori.Worker/           ← 분산 빌드 워커
-│   ├── Dotori.LanguageServer/   ← LSP 서버
-│   └── Dotori.Registry/         ← 패키지 레지스트리
+│   └── Dotori.LanguageServer/   ← LSP 서버
+├── deploy/registry/             ← npm 호환 레지스트리 배포 구성
 └── tests/
     ├── Dotori.Tests.Build/
     ├── Dotori.Tests.Graph/
     ├── Dotori.Tests.Parsing/
     ├── Dotori.Tests.PackageManager/
     ├── Dotori.Tests.LanguageServer/
-    └── Dotori.Tests.Registry/
 ```

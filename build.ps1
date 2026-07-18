@@ -126,7 +126,7 @@ $AllTargets = [ordered]@{
     cli          = "src\Dotori.Cli\Dotori.Cli.csproj"
     build_server = "src\Dotori.BuildServer\Dotori.BuildServer.csproj"
     worker       = "src\Dotori.Worker\Dotori.Worker.csproj"
-    registry     = "src\Dotori.Registry\Dotori.Registry.csproj"
+    registry     = $null
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -264,7 +264,17 @@ foreach ($target in $AllTargets.Keys) {
     if (Should-Build $target) {
         $outDir = Join-Path $BuildDir $target
         try {
-            Invoke-DotnetPublish $target $AllTargets[$target] $outDir
+            if ($target -eq "registry") {
+                Write-Info "[registry] 배포 번들 준비 중... → $outDir"
+                if (Test-Path $outDir) {
+                    Get-ChildItem $outDir -Force | Remove-Item -Recurse -Force
+                }
+                New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+                Copy-Item (Join-Path $ScriptDir "deploy\registry\*") $outDir -Recurse -Force
+                Write-Ok "[registry] 완료"
+            } else {
+                Invoke-DotnetPublish $target $AllTargets[$target] $outDir
+            }
         } catch {
             Write-Err $_.Exception.Message
             $failed.Add($target)

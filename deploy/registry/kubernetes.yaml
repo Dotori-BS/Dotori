@@ -1,0 +1,135 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dotori
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dotori-registry-config
+  namespace: dotori
+data:
+  config.yaml: |
+    storage: /verdaccio/storage/data
+    auth:
+      htpasswd:
+        file: /verdaccio/auth/htpasswd
+        max_users: -1
+        algorithm: bcrypt
+        rounds: 12
+    uplinks:
+      npmjs:
+        url: https://registry.npmjs.org/
+    packages:
+      '@*/*':
+        access: $all
+        publish: $authenticated
+        unpublish: $authenticated
+        proxy: npmjs
+      '**':
+        access: $all
+        publish: $authenticated
+        unpublish: $authenticated
+        proxy: npmjs
+    middlewares:
+      audit:
+        enabled: true
+    log:
+      type: stdout
+      format: json
+      level: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dotori-registry
+  namespace: dotori
+spec:
+  selector:
+    app.kubernetes.io/name: dotori-registry
+  ports:
+    - name: http
+      port: 4873
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dotori-registry
+  namespace: dotori
+spec:
+  serviceName: dotori-registry
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dotori-registry
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dotori-registry
+    spec:
+      securityContext:
+        fsGroup: 65533
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: registry
+          image: verdaccio/verdaccio:6.2.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 4873
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+          readinessProbe:
+            httpGet:
+              path: /-/ping
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /-/ping
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - name: config
+              mountPath: /verdaccio/conf/config.yaml
+              subPath: config.yaml
+              readOnly: true
+            - name: auth
+              mountPath: /verdaccio/auth
+              readOnly: true
+            - name: storage
+              mountPath: /verdaccio/storage
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: dotori-registry-config
+        - name: auth
+          secret:
+            secretName: dotori-registry-auth
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi
