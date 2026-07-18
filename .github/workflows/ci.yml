@@ -74,3 +74,52 @@ jobs:
           for f in build/worker/dotori-worker build/worker/dotori-worker.exe; do
             if [ -f "$f" ]; then cp "$f" dist/worker/; fi
           done
+
+  cpp-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            compiler: clang
+          - os: ubuntu-latest
+            compiler: g++
+          - os: macos-latest
+            compiler: apple-clang
+          - os: windows-latest
+            compiler: msvc
+
+    runs-on: ${{ matrix.os }}
+    name: C++ smoke (${{ matrix.os }}, ${{ matrix.compiler }})
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Install C++ toolchains (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install -y clang gcc g++ lld
+
+      - name: Restore and build Dotori CLI
+        run: dotnet build src/Dotori.Cli/Dotori.Cli.csproj -c Release
+
+      - name: Build C++ platform smoke
+        run: >-
+          dotnet run --project src/Dotori.Cli/Dotori.Cli.csproj
+          --no-build -c Release -- build
+          --project tests/platform-smoke
+          --compiler ${{ matrix.compiler }}
+          --timings
+
+      - name: Run first-class test targets
+        run: >-
+          dotnet run --project src/Dotori.Cli/Dotori.Cli.csproj
+          --no-build -c Release -- test
+          --project tests/test-target-smoke
+          --all
