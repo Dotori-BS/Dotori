@@ -1,0 +1,100 @@
+# IDE 통합
+
+Dotori 프로젝트는 `setup ide` 한 번으로 IDE가 읽을 빌드 모델과 C/C++ 코드 모델을
+만들 수 있습니다. 프로젝트 루트에서 다음 명령으로 시작합니다.
+
+```bash
+dotori setup ide --ide <ide>
+dotori watch --ide             # .dotori 변경 시 다시 생성
+```
+
+`dotori` 실행 파일은 IDE가 상속하는 `PATH`에 있어야 합니다. 생성 파일은 원본이
+아니므로 필요할 때 다시 만들고, 팀 정책에 따라 버전 관리 여부를 정합니다.
+
+## IDE별 사용법
+
+| IDE | 준비 명령 | 여는 파일/폴더 | Dotori 언어 지원 |
+|-----|-----------|----------------|------------------|
+| CLion | `dotori setup ide --ide clion` | 프로젝트 폴더의 `CMakeLists.txt` | `editors/jetbrains` 플러그인 |
+| Rider | `dotori setup ide --ide rider` | 프로젝트 폴더의 `CMakeLists.txt` | `editors/jetbrains` 플러그인 |
+| Visual Studio | `dotori setup ide --ide visual-studio --target windows-x64` | 생성된 `<Project>.sln` | `editors/visualstudio` VSIX |
+| VS Code | `dotori setup ide --ide vscode` | 프로젝트 폴더 | `editors/vscode` 확장 |
+| Zed | `dotori setup ide --ide zed` | 프로젝트 폴더 | `editors/zed` 확장 |
+
+`--ide auto`는 CMake, compilation database, VS Code와 Zed 작업 파일을 만듭니다.
+Windows에서 `--ide all`을 쓰면 CMake 파일과 Visual Studio solution도 함께 만듭니다.
+
+## 공통으로 생성되는 파일
+
+- `compile_commands.json`: clangd 기반 코드 탐색, 진단, 자동 완성
+- `.clangd`: 선택한 컴파일러 정보를 clangd에 전달
+- `CMakeLists.txt`, `CMakePresets.json`: CLion, Rider, VS Code CMake Tools용
+- `.sln`, `.vcxproj`, `.vcxproj.filters`: Visual Studio용
+- `.vscode/*`, `.zed/tasks.json`: 빌드·테스트·실행·새로 고침 작업
+
+CMake preset은 `<target>-debug`와 `<target>-release` 이름을 사용합니다.
+
+```bash
+cmake --preset windows-x64-debug
+cmake --build --preset windows-x64-debug
+ctest --preset windows-x64-debug
+```
+
+## 확장 빌드
+
+### VS Code
+
+Node.js와 npm이 필요합니다.
+
+```bash
+cd editors/vscode
+npm install
+npm run package
+```
+
+생성된 VSIX를 VS Code의 **Extensions: Install from VSIX...**로 설치합니다.
+
+### Zed
+
+Rust가 필요합니다. 로컬 검증은 다음과 같이 실행합니다.
+
+```bash
+cd editors/zed
+cargo check
+```
+
+마켓플레이스 배포 전 `editors/zed/extension.toml`의 Tree-sitter 저장소와 revision을
+실제 공개 저장소 및 고정 commit SHA로 바꿔야 합니다.
+
+### CLion / Rider
+
+JDK 21 이상이 필요합니다.
+
+```bash
+cd editors/jetbrains
+./gradlew buildPlugin
+```
+
+`build/distributions`의 ZIP을 IDE의 **Install Plugin from Disk...**로 설치합니다.
+플러그인은 JetBrains 2026.2 플랫폼의 LSP API를 사용합니다.
+
+### Visual Studio
+
+.NET SDK와 Visual Studio SDK 빌드 도구가 필요하며 NuGet 패키지로 복원됩니다.
+
+```powershell
+dotnet build editors\visualstudio\Dotori.VisualStudio.csproj -c Release
+```
+
+`editors/visualstudio/bin/Release/net472/Dotori.VisualStudio.vsix`를 실행해 설치합니다.
+VSIX는 `.dotori` TextMate 문법과 `dotori lsp` 언어 클라이언트를 제공합니다.
+
+## 문제 해결
+
+- 코드 탐색이 오래된 경우 `dotori setup ide --ide <ide>`를 다시 실행합니다.
+- clangd가 시스템 헤더를 못 찾으면 `--compiler clang`, `--compiler brew-llvm`처럼
+  실제 빌드에 쓰는 컴파일러를 지정합니다.
+- 언어 서버가 시작되지 않으면 IDE 내장 터미널에서 `dotori lsp`가 실행되는지 먼저
+  확인합니다.
+- Visual Studio solution은 Windows 타겟으로 생성해야 하며, 해당 C++ workload와
+  SDK가 설치되어 있어야 합니다.

@@ -10,6 +10,10 @@ public static class BuildWatchFilter
         [".o", ".obj", ".a", ".lib", ".so", ".dylib", ".dll", ".exe", ".pdb", ".d", ".pcm"],
         StringComparer.OrdinalIgnoreCase);
 
+    private static readonly HashSet<string> IgnoredGeneratedFiles = new(
+        ["compile_commands.json", "CMakeLists.txt", "CMakePresets.json"],
+        StringComparer.OrdinalIgnoreCase);
+
     public static bool ShouldTrigger(string path)
     {
         if (string.IsNullOrWhiteSpace(path)) return false;
@@ -19,6 +23,7 @@ public static class BuildWatchFilter
             return false;
 
         var fileName = Path.GetFileName(fullPath);
+        if (IgnoredGeneratedFiles.Contains(fileName)) return false;
         if (fileName.StartsWith(".", StringComparison.Ordinal) && fileName != ".dotori")
             return false;
         if (fileName.EndsWith("~", StringComparison.Ordinal) ||

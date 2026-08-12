@@ -31,6 +31,7 @@ public sealed class CMakeGenerator : IBuildSystemGenerator
 
         sb.AppendLine("cmake_minimum_required(VERSION 3.21)");
         sb.AppendLine($"project({EscapeName(model.Name)})");
+        sb.AppendLine("set(CMAKE_EXPORT_COMPILE_COMMANDS ON)");
         sb.AppendLine();
 
         // Git dependencies via FetchContent

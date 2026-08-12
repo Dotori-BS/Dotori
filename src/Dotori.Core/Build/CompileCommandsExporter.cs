@@ -85,6 +85,10 @@ public static class CompileCommandsExporter
         IReadOnlyList<CompileCommandEntry> entries,
         CancellationToken ct = default)
     {
+        outputPath = Path.GetFullPath(outputPath);
+        var outputDirectory = Path.GetDirectoryName(outputPath)!;
+        Directory.CreateDirectory(outputDirectory);
+
         // Use source-generated JsonTypeInfo for NativeAOT compatibility.
         // Apply UnsafeRelaxedJsonEscaping so paths with +, /, etc. are not escaped.
         var typeInfo = (JsonTypeInfo<List<CompileCommandEntry>>)
@@ -98,8 +102,43 @@ public static class CompileCommandsExporter
         var resolvedTypeInfo = (JsonTypeInfo<List<CompileCommandEntry>>)
             options.GetTypeInfo(typeof(List<CompileCommandEntry>));
 
-        var list = entries is List<CompileCommandEntry> l ? l : new List<CompileCommandEntry>(entries);
+        var list = entries
+            .GroupBy(
+                entry => (entry.Directory, entry.File, entry.Command),
+                StringTupleComparer.Instance)
+            .Select(group => group.First())
+            .OrderBy(entry => entry.File, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(entry => entry.Directory, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(entry => entry.Command, StringComparer.Ordinal)
+            .ToList();
         var json = JsonSerializer.Serialize(list, resolvedTypeInfo);
-        await File.WriteAllTextAsync(outputPath, json, ct);
+        var tempPath = Path.Combine(outputDirectory, $".{Path.GetFileName(outputPath)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            await File.WriteAllTextAsync(tempPath, json, ct);
+            File.Move(tempPath, outputPath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(tempPath)) File.Delete(tempPath);
+        }
+    }
+
+    private sealed class StringTupleComparer : IEqualityComparer<(string Directory, string File, string Command)>
+    {
+        public static StringTupleComparer Instance { get; } = new();
+
+        public bool Equals(
+            (string Directory, string File, string Command) x,
+            (string Directory, string File, string Command) y) =>
+            StringComparer.OrdinalIgnoreCase.Equals(x.Directory, y.Directory) &&
+            StringComparer.OrdinalIgnoreCase.Equals(x.File, y.File) &&
+            StringComparer.Ordinal.Equals(x.Command, y.Command);
+
+        public int GetHashCode((string Directory, string File, string Command) value) =>
+            HashCode.Combine(
+                StringComparer.OrdinalIgnoreCase.GetHashCode(value.Directory),
+                StringComparer.OrdinalIgnoreCase.GetHashCode(value.File),
+                StringComparer.Ordinal.GetHashCode(value.Command));
     }
 }

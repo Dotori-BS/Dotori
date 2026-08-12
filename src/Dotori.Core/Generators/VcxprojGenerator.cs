@@ -1,5 +1,7 @@
 using System.Text;
+using System.Security.Cryptography;
 using System.Xml.Linq;
+using Dotori.Core.Location;
 using Dotori.Core.Model;
 using Dotori.Core.Parsing;
 
@@ -7,7 +9,7 @@ namespace Dotori.Core.Generators;
 
 /// <summary>
 /// Generates .vcxproj and .vcxproj.filters from a flattened project model.
-/// Targets Visual Studio 2022 (v143 toolset) by default.
+/// Uses the active Visual Studio installation's default platform toolset.
 /// </summary>
 public sealed class VcxprojGenerator : IBuildSystemGenerator
 {
@@ -28,7 +30,7 @@ public sealed class VcxprojGenerator : IBuildSystemGenerator
 
         var vcxprojContent  = GenerateVcxproj(model, configs, platforms);
         var filtersContent  = GenerateFilters(model);
-        var projectFileName = $"{SanitizeName(model.Name)}.vcxproj";
+        var projectFileName = ProjectFileName(model);
 
         return
         [
@@ -50,7 +52,7 @@ public sealed class VcxprojGenerator : IBuildSystemGenerator
             new XAttribute("xmlns", Ns.NamespaceName));
 
         // Project GUID
-        var guid = Guid.NewGuid().ToString("B").ToUpper();
+        var guid = FormatGuid(ProjectGuid(model));
 
         // ItemGroup: ProjectConfigurations
         var projConfs = new XElement(Ns + "ItemGroup",
@@ -62,6 +64,18 @@ public sealed class VcxprojGenerator : IBuildSystemGenerator
                 new XAttribute("Include", $"{cfg}|{plat}"),
                 new XElement(Ns + "Configuration", cfg),
                 new XElement(Ns + "Platform", plat)));
+        }
+
+        foreach (var cfg in configs)
+        foreach (var plat in platforms)
+        {
+            var properties = new XElement(Ns + "PropertyGroup",
+                new XAttribute("Condition", $"'$(Configuration)|$(Platform)'=='{cfg}|{plat}'"));
+            if (model.Output?.Binaries is not null)
+                properties.Add(new XElement(Ns + "OutDir", model.Output.Binaries + "\\"));
+            if (model.Output?.Libraries is not null)
+                properties.Add(new XElement(Ns + "IntDir", model.Output.Libraries + "\\"));
+            if (properties.HasElements) root.Add(properties);
         }
         root.Add(projConfs);
 
@@ -96,7 +110,7 @@ public sealed class VcxprojGenerator : IBuildSystemGenerator
                 new XAttribute("Label", "Configuration"),
                 new XElement(Ns + "ConfigurationType", configType),
                 new XElement(Ns + "UseDebugLibraries", cfg == "Debug" ? "true" : "false"),
-                new XElement(Ns + "PlatformToolset", "v143"),
+                new XElement(Ns + "PlatformToolset", "$(DefaultPlatformToolset)"),
                 new XElement(Ns + "CharacterSet", "Unicode")));
         }
 
@@ -116,6 +130,10 @@ public sealed class VcxprojGenerator : IBuildSystemGenerator
 
         if (model.Resources.Count > 0)
             root.Add(BuildResourceItemGroup(model));
+
+        var projectReferences = BuildProjectReferenceItemGroup(model);
+        if (projectReferences.HasElements)
+            root.Add(projectReferences);
 
         // Import targets
         root.Add(MsBuildImport("$(VCTargetsPath)\\Microsoft.Cpp.targets"));
@@ -242,11 +260,6 @@ public sealed class VcxprojGenerator : IBuildSystemGenerator
             link.Add(new XElement(Ns + "GenerateDebugInformation", "true"));
 
         // Output directories
-        if (model.Output?.Binaries is not null)
-        {
-            group.Add(new XElement(Ns + "PropertyGroup",
-                new XElement(Ns + "OutDir", model.Output.Binaries + "\\")));
-        }
         if (model.Output?.Symbols is not null)
             link.Add(new XElement(Ns + "ProgramDatabaseFile",
                 $"{model.Output.Symbols}\\$(TargetName).pdb"));
@@ -306,6 +319,33 @@ public sealed class VcxprojGenerator : IBuildSystemGenerator
         return group;
     }
 
+    private static XElement BuildProjectReferenceItemGroup(FlatProjectModel model)
+    {
+        var group = new XElement(Ns + "ItemGroup");
+        foreach (var dependency in model.Dependencies)
+        {
+            if (dependency.Value is not ComplexDependency { Path: not null } pathDependency)
+                continue;
+
+            try
+            {
+                var dependencyDir = Path.GetFullPath(Path.Combine(model.ProjectDir, pathDependency.Path));
+                var dotoriPath = ProjectLocator.ResolveExplicitPath(dependencyDir);
+                var dependencyProjectName = DotoriParser.ParseFile(dotoriPath).Project?.Name ?? dependency.Name;
+                var projectPath = Path.Combine(pathDependency.Path, $"{SanitizeName(dependencyProjectName)}.vcxproj")
+                    .Replace('/', '\\');
+                group.Add(new XElement(Ns + "ProjectReference",
+                    new XAttribute("Include", projectPath),
+                    new XElement(Ns + "Project", FormatGuid(StableGuid(dotoriPath)))));
+            }
+            catch (Exception ex) when (ex is IOException or ArgumentException or InvalidOperationException)
+            {
+                // Keep generation usable when an optional dependency is unavailable.
+            }
+        }
+        return group;
+    }
+
     // ─── .vcxproj.filters ──────────────────────────────────────────────────────
 
     private static string GenerateFilters(FlatProjectModel model)
@@ -330,7 +370,8 @@ public sealed class VcxprojGenerator : IBuildSystemGenerator
             {
                 filterGroup.Add(new XElement(Ns + "Filter",
                     new XAttribute("Include", "Source Files\\" + dir.Replace('/', '\\')),
-                    new XElement(Ns + "UniqueIdentifier", $"{{{Guid.NewGuid().ToString().ToUpper()}}}")));
+                    new XElement(Ns + "UniqueIdentifier",
+                        FormatGuid(StableGuid($"{model.DotoriPath}|filter|{dir}")))));
             }
             root.Add(filterGroup);
         }
@@ -390,7 +431,7 @@ public sealed class VcxprojGenerator : IBuildSystemGenerator
         return result;
     }
 
-    private static string[] ResolvePlatforms(string targetId)
+    internal static string[] ResolvePlatforms(string targetId)
     {
         if (targetId.Contains("x86") && !targetId.Contains("x64")) return ["Win32"];
         if (targetId.Contains("arm64")) return ["ARM64"];
@@ -404,7 +445,21 @@ public sealed class VcxprojGenerator : IBuildSystemGenerator
         return lib + ".lib";
     }
 
-    private static string SanitizeName(string name) => name.Replace(' ', '_');
+    internal static string SanitizeName(string name) => name.Replace(' ', '_');
+
+    public static string ProjectFileName(FlatProjectModel model) =>
+        $"{SanitizeName(model.Name)}.vcxproj";
+
+    public static Guid ProjectGuid(FlatProjectModel model) => StableGuid(model.DotoriPath);
+
+    internal static Guid StableGuid(string value)
+    {
+        var normalized = value.Replace('\\', '/').ToUpperInvariant();
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(normalized));
+        return new Guid(hash.AsSpan(0, 16));
+    }
+
+    internal static string FormatGuid(Guid guid) => guid.ToString("B").ToUpperInvariant();
 
     private static XElement MsBuildImport(string project) =>
         new XElement(Ns + "Import", new XAttribute("Project", project));

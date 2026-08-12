@@ -19,11 +19,14 @@ internal static class WatchCommandFactory
         };
         var noInitialOption = new Option<bool>("--no-initial-build")
             { Description = "Wait for a file change before the first build" };
+        var ideOption = new Option<bool>("--ide")
+            { Description = "Regenerate IDE integration files instead of building" };
 
         command.Add(projectOption);
         command.Add(allOption);
         command.Add(debounceOption);
         command.Add(noInitialOption);
+        command.Add(ideOption);
         command.TreatUnmatchedTokensAsErrors = false;
 
         command.SetAction(async (parseResult, ct) =>
@@ -31,6 +34,7 @@ internal static class WatchCommandFactory
             var projectArg = parseResult.GetValue(projectOption);
             var watchAll = parseResult.GetValue(allOption);
             var debounceMs = parseResult.GetValue(debounceOption);
+            var watchIde = parseResult.GetValue(ideOption);
             if (debounceMs < 0)
             {
                 Console.Error.WriteLine("Error: --debounce must be zero or greater.");
@@ -39,13 +43,13 @@ internal static class WatchCommandFactory
 
             var paths = BuildContext.ResolveProjectPaths(projectArg, watchAll);
             if (paths.Count == 0) return 1;
-            var buildArgs = CreateBuildArguments(projectArg, watchAll, parseResult.UnmatchedTokens);
+            var actionArgs = CreateActionArguments(projectArg, watchAll, watchIde, parseResult.UnmatchedTokens);
 
             if (!parseResult.GetValue(noInitialOption))
             {
-                var initialCode = await RunBuildAsync(buildArgs, ct);
+                var initialCode = await RunActionAsync(actionArgs, ct);
                 if (initialCode != 0)
-                    Console.Error.WriteLine($"  Initial build failed (exit {initialCode}); continuing to watch.");
+                    Console.Error.WriteLine($"  Initial {(watchIde ? "IDE refresh" : "build")} failed (exit {initialCode}); continuing to watch.");
             }
 
             var changes = Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
@@ -66,11 +70,11 @@ internal static class WatchCommandFactory
                         await Task.Delay(debounceMs, ct);
                     while (changes.Reader.TryRead(out var pendingSignal)) { }
 
-                    Console.WriteLine($"\n  Change detected at {DateTime.Now:T}; rebuilding...");
-                    var exitCode = await RunBuildAsync(buildArgs, ct);
+                    Console.WriteLine($"\n  Change detected at {DateTime.Now:T}; {(watchIde ? "refreshing IDE files" : "rebuilding")}...");
+                    var exitCode = await RunActionAsync(actionArgs, ct);
                     Console.WriteLine(exitCode == 0
-                        ? "  Build completed."
-                        : $"  Build failed (exit {exitCode}); waiting for changes.");
+                        ? $"  {(watchIde ? "IDE refresh" : "Build")} completed."
+                        : $"  {(watchIde ? "IDE refresh" : "Build")} failed (exit {exitCode}); waiting for changes.");
                 }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -82,12 +86,15 @@ internal static class WatchCommandFactory
         return command;
     }
 
-    private static IReadOnlyList<string> CreateBuildArguments(
+    private static IReadOnlyList<string> CreateActionArguments(
         string? projectArg,
         bool all,
+        bool ide,
         IReadOnlyList<string> forwarded)
     {
-        var args = new List<string> { "build" };
+        var args = ide
+            ? new List<string> { "setup", "ide", "--ide", "all" }
+            : new List<string> { "build" };
         if (projectArg is not null)
         {
             args.Add("--project");
@@ -98,7 +105,7 @@ internal static class WatchCommandFactory
         return args;
     }
 
-    private static async Task<int> RunBuildAsync(
+    private static async Task<int> RunActionAsync(
         IReadOnlyList<string> arguments,
         CancellationToken ct)
     {

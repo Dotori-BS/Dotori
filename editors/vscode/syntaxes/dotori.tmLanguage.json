@@ -1,0 +1,96 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Dotori",
+  "scopeName": "source.dotori",
+  "fileTypes": ["dotori"],
+  "patterns": [
+    { "include": "#comments-line"  },
+    { "include": "#comments-block" },
+    { "include": "#top-keywords"   },
+    { "include": "#block-keywords" },
+    { "include": "#property-keywords" },
+    { "include": "#value-keywords" },
+    { "include": "#condition-blocks" },
+    { "include": "#strings"        },
+    { "include": "#numbers"        },
+    { "include": "#operators"      },
+    { "include": "#identifiers"    }
+  ],
+  "repository": {
+    "comments-line": {
+      "patterns": [
+        { "name": "comment.line.number-sign.dotori",   "match": "#.*$"  },
+        { "name": "comment.line.double-slash.dotori",  "match": "//.*$" }
+      ]
+    },
+    "comments-block": {
+      "name": "comment.block.dotori",
+      "begin": "\\(\\*",
+      "end":   "\\*\\)",
+      "captures": { "0": { "name": "punctuation.definition.comment.dotori" } }
+    },
+    "top-keywords": {
+      "name":  "keyword.declaration.dotori",
+      "match": "\\b(project|package)\\b"
+    },
+    "block-keywords": {
+      "name":  "keyword.other.block.dotori",
+      "match": "\\b(sources|modules|headers|defines|links|frameworks|framework-paths|compile-flags|link-flags|resources|dependencies|pch|unity-build|output|pre-build|post-build|copy|option|authors|exports|emscripten-flags|assembler)\\b"
+    },
+    "property-keywords": {
+      "name":  "support.type.property-name.dotori",
+      "match": "\\b(type|std|description|optimize|debug-info|runtime-link|libc|stdlib|lto|warnings|warnings-as-errors|android-api-level|macos-min|ios-min|tvos-min|watchos-min|c-as-cpp|objc-arc|objc-as-objcpp|manifest|header|source|enabled|batch-size|export-map|name|version|license|homepage|include|exclude|public|private|git|tag|commit|path|from|to|binaries|libraries|symbols|default|tool|format|flags)\\b"
+    },
+    "value-keywords": {
+      "patterns": [
+        {
+          "name":  "support.constant.type.dotori",
+          "match": "\\b(executable|test|static-library|shared-library|header-only)\\b"
+        },
+        {
+          "name":  "constant.language.std.dotori",
+          "match": "\\b(c\\+\\+17|c\\+\\+20|c\\+\\+23)\\b"
+        },
+        {
+          "name":  "constant.language.dotori",
+          "match": "\\b(none|size|speed|full|minimal|static|dynamic|glibc|musl|libc\\+\\+|libstdc\\+\\+|default|all|extra|true|false|nasm|yasm|gas|as|masm|auto|elf64|elf32|win64|win32|macho64|macho32)\\b"
+        }
+      ]
+    },
+    "condition-blocks": {
+      "name":  "meta.condition.dotori",
+      "begin": "\\[",
+      "end":   "\\]",
+      "beginCaptures": { "0": { "name": "punctuation.section.condition.begin.dotori" } },
+      "endCaptures":   { "0": { "name": "punctuation.section.condition.end.dotori"   } },
+      "patterns": [
+        { "name": "keyword.control.platform.dotori",  "match": "\\b(windows|uwp|linux|android|macos|ios|tvos|watchos|wasm)\\b" },
+        { "name": "keyword.control.config.dotori",    "match": "\\b(debug|release)\\b"   },
+        { "name": "keyword.control.compiler.dotori",  "match": "\\b(msvc|clang)\\b" },
+        { "name": "keyword.control.runtime.dotori",   "match": "\\b(static|dynamic|glibc|musl|libcxx|libstdcxx|emscripten|bare)\\b"  },
+        { "name": "punctuation.separator.condition.dotori", "match": "\\." }
+      ]
+    },
+    "strings": {
+      "name":  "string.quoted.double.dotori",
+      "begin": "\"",
+      "end":   "\"",
+      "patterns": [
+        { "name": "variable.other.env.dotori",         "match": "\\$\\{[^}]*\\}" },
+        { "name": "constant.character.escape.dotori",  "match": "\\\\."          }
+      ]
+    },
+    "numbers": {
+      "name":  "constant.numeric.integer.dotori",
+      "match": "\\b\\d+\\b"
+    },
+    "operators": {
+      "name":  "keyword.operator.assignment.dotori",
+      "match": "="
+    },
+    "identifiers": {
+      "name":  "variable.other.dotori",
+      "match": "[a-zA-Z_][a-zA-Z0-9_\\-]*"
+    }
+  }
+}

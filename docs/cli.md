@@ -465,6 +465,34 @@ dotori lsp --log-file /tmp/dotori.log   # 디버그 로그 출력
 
 ---
 
+## setup ide — IDE 개발 환경 구성
+
+CMake 프로젝트와 preset, `compile_commands.json`, `.clangd`, 에디터 작업 파일을
+한 번에 생성합니다.
+
+```bash
+dotori setup ide                         # VS Code + Zed 설정과 공통 파일 생성
+dotori setup ide --ide vscode
+dotori setup ide --ide zed
+dotori setup ide --ide clion
+dotori setup ide --ide rider
+dotori setup ide --ide visual-studio
+dotori setup ide --ide all
+dotori setup ide --target linux-x64 --compiler clang
+```
+
+`auto`는 CMake와 VS Code/Zed 작업 파일을 생성합니다. CLion과 Rider는
+`CMakeLists.txt`와 `CMakePresets.json`을 사용합니다. `visual-studio`는 `.sln`과
+`.vcxproj`를 생성하며, Windows에서 `all`은 CMake와 Visual Studio 파일을 모두 생성합니다.
+
+프로젝트 파일이 바뀔 때 IDE 산출물을 자동 갱신할 수도 있습니다.
+
+```bash
+dotori watch --ide --project . --target linux-x64 --compiler clang
+```
+
+---
+
 ## export grammar — 에디터 문법 파일 내보내기
 
 다양한 에디터용 Dotori DSL 구문 강조 파일을 생성합니다.
@@ -514,7 +542,7 @@ IDE 통합을 위해 `.dotori` 파일에서 외부 빌드 시스템 파일을 �
 dotori export build-system                                  # CMakeLists.txt (기본)
 dotori export build-system --format cmake                   # CMakeLists.txt
 dotori export build-system --format meson                   # meson.build
-dotori export build-system --format vcxproj                 # .vcxproj + .vcxproj.filters (Visual Studio)
+dotori export build-system --format vcxproj                 # .sln + .vcxproj + .vcxproj.filters (Visual Studio)
 dotori export build-system --format pbxproj                 # *.xcodeproj/project.pbxproj (Xcode)
 dotori export build-system --format ninja                   # build.ninja
 dotori export build-system --format makefile                # Makefile
@@ -530,9 +558,9 @@ dotori export build-system --target windows-x64             # 특정 타겟 플�
 
 | `--format` | 생성 파일 | 용도 |
 |------------|----------|------|
-| `cmake` (기본) | `CMakeLists.txt` | CLion, VS Code (CMake Tools), CMake 직접 사용 |
+| `cmake` (기본) | `CMakeLists.txt`, `CMakePresets.json` | CLion, Visual Studio, VS Code (CMake Tools), CMake 직접 사용 |
 | `meson` | `meson.build` | GNOME Builder, CLion (Meson), Meson 직접 사용 |
-| `vcxproj` | `<name>.vcxproj`, `<name>.vcxproj.filters` | Visual Studio 2022 |
+| `vcxproj` | `<name>.sln`, `<name>.vcxproj`, `<name>.vcxproj.filters` | Visual Studio |
 | `pbxproj` | `<name>.xcodeproj/project.pbxproj` | Xcode (macOS/iOS) |
 | `ninja` | `build.ninja` (또는 `build.debug.ninja` / `build.release.ninja`) | Ninja 직접 사용 |
 | `makefile` | `Makefile` | GNU Make 직접 사용 |
@@ -557,6 +585,20 @@ dotori export build-system --format vcxproj --target windows-x64
 # Xcode
 dotori export build-system --format pbxproj --target macos-arm64
 ```
+
+CMake 형식은 선택한 타겟과 구성에 맞는 configure/build/test preset도 함께 생성합니다.
+예를 들어 `--target linux-x64 --config both`는 `linux-x64-debug`와
+`linux-x64-release` preset을 만듭니다. 생성된 프로젝트는 다음과 같이 IDE 밖에서도
+동일하게 실행할 수 있습니다.
+
+```bash
+cmake --preset linux-x64-debug
+cmake --build --preset linux-x64-debug
+ctest --preset linux-x64-debug
+```
+
+멀티 프로젝트를 `--output`으로 한 디렉터리에 내보낼 때는 프로젝트 사이의 상대
+디렉터리 구조가 유지되므로, 각 프로젝트의 `CMakeLists.txt`가 서로 덮어쓰이지 않습니다.
 
 ---
 

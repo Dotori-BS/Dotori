@@ -23,6 +23,9 @@ public sealed class BuildWatchFilterTests
     [DataRow("build/app")]
     [DataRow("src/main.cpp.swp")]
     [DataRow("src/main.o")]
+    [DataRow("compile_commands.json")]
+    [DataRow("CMakeLists.txt")]
+    [DataRow("CMakePresets.json")]
     public void ShouldTrigger_IgnoresMetadataAndBuildOutputs(string relativePath)
     {
         Assert.IsFalse(BuildWatchFilter.ShouldTrigger(

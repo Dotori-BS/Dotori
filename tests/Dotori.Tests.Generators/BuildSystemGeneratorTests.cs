@@ -224,6 +224,50 @@ public sealed class BuildSystemGeneratorTests
         StringAssert.Contains(result[0].Content, "13.0");
     }
 
+    [TestMethod]
+    public void CMake_EnablesCompilationDatabase()
+    {
+        var result = new CMakeGenerator().Generate(MakeModel(), "both", "linux-x64");
+
+        StringAssert.Contains(result[0].Content, "set(CMAKE_EXPORT_COMPILE_COMMANDS ON)");
+    }
+
+    [TestMethod]
+    public void CMakePresets_Both_ContainsConfigureBuildAndTestPresets()
+    {
+        var content = CMakePresetsGenerator.Generate("both", "linux-x64");
+
+        StringAssert.Contains(content, "\"linux-x64-debug\"");
+        StringAssert.Contains(content, "\"linux-x64-release\"");
+        StringAssert.Contains(content, "\"configurePresets\"");
+        StringAssert.Contains(content, "\"buildPresets\"");
+        StringAssert.Contains(content, "\"testPresets\"");
+        StringAssert.Contains(content, "\"CMAKE_EXPORT_COMPILE_COMMANDS\": true");
+    }
+
+    [TestMethod]
+    public void CMakePresets_SingleConfig_DoesNotContainOtherConfiguration()
+    {
+        var content = CMakePresetsGenerator.Generate("debug", "windows-x64");
+
+        StringAssert.Contains(content, "\"windows-x64-debug\"");
+        StringAssert.Contains(content, "\"value\": \"x64\"");
+        Assert.DoesNotContain("windows-x64-release", content);
+    }
+
+    [TestMethod]
+    public void IdeIntegration_All_ProducesVscodeAndZedFiles()
+    {
+        var files = IdeIntegrationGenerator.Generate("all");
+
+        Assert.IsTrue(files.Any(file => file.RelativePath == ".vscode/tasks.json"));
+        Assert.IsTrue(files.Any(file => file.RelativePath == ".vscode/settings.json"));
+        Assert.IsTrue(files.Any(file => file.RelativePath == ".zed/tasks.json"));
+        StringAssert.Contains(
+            files.Single(file => file.RelativePath == ".vscode/tasks.json").Content,
+            "dotori: refresh IDE files");
+    }
+
     // ─── MesonGenerator ────────────────────────────────────────────────────
 
     [TestMethod]
@@ -353,6 +397,39 @@ public sealed class BuildSystemGeneratorTests
         var result = gen.Generate(model, "both", "windows-x64");
 
         StringAssert.Contains(result[0].Content, "MY_DEFINE");
+    }
+
+    [TestMethod]
+    public void Vcxproj_RepeatedGeneration_IsDeterministic()
+    {
+        var model = MakeModel();
+        var first = new VcxprojGenerator().Generate(model, "both", "windows-x64");
+        var second = new VcxprojGenerator().Generate(model, "both", "windows-x64");
+
+        CollectionAssert.AreEqual(first.Select(file => file.Content).ToList(), second.Select(file => file.Content).ToList());
+    }
+
+    [TestMethod]
+    public void VisualStudioSolution_ContainsProjectsAndConfigurations()
+    {
+        var app = MakeModel("App");
+        var library = new FlatProjectModel
+        {
+            Name = "Library",
+            ProjectDir = "/tmp/project/library",
+            DotoriPath = "/tmp/project/library/.dotori",
+            Type = ProjectType.StaticLibrary,
+        };
+        app.Dependencies.Add(new DependencyItem("Library", new ComplexDependency { Path = "library" }));
+
+        var (_, content) = VisualStudioSolutionGenerator.Generate(
+            [app, library], app, "/tmp/project", "both", "windows-x64");
+
+        StringAssert.Contains(content, "App.vcxproj");
+        StringAssert.Contains(content, "library\\Library.vcxproj");
+        StringAssert.Contains(content, "Debug|x64");
+        StringAssert.Contains(content, "Release|x64");
+        StringAssert.Contains(content, "ProjectDependencies");
     }
 
     // ─── PbxprojGenerator ──────────────────────────────────────────────────

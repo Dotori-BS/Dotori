@@ -1,0 +1,24 @@
+<idea-plugin>
+    <id>dev.dotori.jetbrains</id>
+    <name>Dotori</name>
+    <vendor url="https://github.com/Dotori-BS/Dotori">Dotori Contributors</vendor>
+    <description><![CDATA[
+        Language Server integration for the Dotori C++ build system.
+        The <code>dotori</code> executable must be available on PATH.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+    <depends>com.intellij.modules.ultimate</depends>
+    <depends>com.intellij.modules.lsp</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <fileType
+                name="Dotori"
+                implementationClass="dev.dotori.jetbrains.DotoriFileType"
+                fieldName="INSTANCE"
+                extensions="dotori"/>
+        <platform.lsp.integrationProvider
+                implementation="dev.dotori.jetbrains.DotoriLspIntegrationProvider"/>
+    </extensions>
+</idea-plugin>

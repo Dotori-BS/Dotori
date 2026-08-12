@@ -1,0 +1,16 @@
+{
+  "grammars": [
+    {
+      "name": "dotori",
+      "camelcase": "Dotori",
+      "scope": "source.dotori",
+      "path": ".",
+      "file-types": ["dotori"]
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "UNLICENSED",
+    "description": "Tree-sitter grammar for the Dotori build language"
+  }
+}

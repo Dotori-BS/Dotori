@@ -118,6 +118,15 @@ clangd 통합을 위한
 IDE 통합을 위한 빌드 시스템 파일을 생성합니다.
 .B \-\-format
 옵션으로 출력 형식을 선택합니다 (cmake, meson, vcxproj, pbxproj, ninja, makefile).
+CMake 형식은 선택한 타겟과 구성에 대한
+.I CMakePresets.json
+configure/build/test preset도 함께 생성합니다.
+.TP
+.B "setup ide"
+CMake preset 또는 Visual Studio solution, compilation database, clangd 설정과 VS Code/Zed 작업 파일을 생성합니다.
+.TP
+.B "watch --ide"
+프로젝트 입력이 변경될 때 IDE 통합 파일을 자동으로 다시 생성합니다.
 .
 .SH FORMAT OPTIONS
 .TP

@@ -1,0 +1,103 @@
+{
+  "name": "dotori",
+  "displayName": "Dotori",
+  "description": "Language and project integration for the Dotori C++ build system",
+  "version": "0.1.0",
+  "publisher": "dotori",
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "dotori",
+    "c++",
+    "build-system",
+    "language-server"
+  ],
+  "activationEvents": [
+    "onLanguage:dotori",
+    "onCommand:dotori.setupIde"
+  ],
+  "main": "./dist/extension.js",
+  "scripts": {
+    "check": "node --check extension.js",
+    "bundle": "esbuild extension.js --bundle --platform=node --external:vscode --outfile=dist/extension.js",
+    "vscode:prepublish": "npm run bundle",
+    "package": "npm run bundle && vsce package"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.6.2",
+    "esbuild": "^0.25.0"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "dotori",
+        "aliases": [
+          "Dotori",
+          "dotori"
+        ],
+        "filenamePatterns": [
+          "**/.dotori",
+          "*.dotori"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "dotori",
+        "scopeName": "source.dotori",
+        "path": "./syntaxes/dotori.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "dotori.build",
+        "title": "Dotori: Build"
+      },
+      {
+        "command": "dotori.test",
+        "title": "Dotori: Test"
+      },
+      {
+        "command": "dotori.run",
+        "title": "Dotori: Run"
+      },
+      {
+        "command": "dotori.setupIde",
+        "title": "Dotori: Refresh IDE Files"
+      },
+      {
+        "command": "dotori.formatFile",
+        "title": "Dotori: Format Current File"
+      },
+      {
+        "command": "dotori.restartLanguageServer",
+        "title": "Dotori: Restart Language Server"
+      }
+    ],
+    "configuration": {
+      "title": "Dotori",
+      "properties": {
+        "dotori.path": {
+          "type": "string",
+          "default": "dotori",
+          "description": "Path to the Dotori executable used for commands and the language server."
+        },
+        "dotori.languageServer.logFile": {
+          "type": "string",
+          "default": "",
+          "description": "Optional path for Dotori language server logs."
+        }
+      }
+    }
+  }
+}

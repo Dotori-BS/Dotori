@@ -1,0 +1,1293 @@
+[
+  {
+    "type": "assembler_block",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "assembler_item",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "assembler_item",
+    "named": true,
+    "fields": {
+      "pattern": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "authors_block",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "boolean",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "condition_block",
+    "named": true,
+    "fields": {
+      "condition": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "condition_expr",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "project_item",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "condition_expr",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "copy_block",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "copy_item",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "copy_item",
+    "named": true,
+    "fields": {
+      "from": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "to": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "dep_field",
+    "named": true,
+    "fields": {
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "dep_item",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "dep_name",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "dep_value",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "dep_name",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "dep_object",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "dep_field",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "dep_value",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "dep_object",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "dependencies_block",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "dep_item",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "env_interpolation",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "export_entry",
+    "named": true,
+    "fields": {
+      "key": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "exports_block",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "export_entry",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "header_item",
+    "named": true,
+    "fields": {
+      "path": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "visibility": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "private",
+            "named": false
+          },
+          {
+            "type": "public",
+            "named": false
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "headers_block",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "header_item",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "option_block",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "option_field",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "option_field",
+    "named": true,
+    "fields": {
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "boolean",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "dep_item",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "output_block",
+    "named": true,
+    "fields": {
+      "binaries": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "libraries": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "symbols": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "package_decl",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "package_item",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "package_item",
+    "named": true,
+    "fields": {
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "authors_block",
+          "named": true
+        },
+        {
+          "type": "exports_block",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "pch_block",
+    "named": true,
+    "fields": {
+      "header": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "modules": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "boolean",
+            "named": true
+          }
+        ]
+      },
+      "source": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "project_decl",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "project_item",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "project_item",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "assembler_block",
+          "named": true
+        },
+        {
+          "type": "condition_block",
+          "named": true
+        },
+        {
+          "type": "copy_block",
+          "named": true
+        },
+        {
+          "type": "dependencies_block",
+          "named": true
+        },
+        {
+          "type": "headers_block",
+          "named": true
+        },
+        {
+          "type": "option_block",
+          "named": true
+        },
+        {
+          "type": "output_block",
+          "named": true
+        },
+        {
+          "type": "pch_block",
+          "named": true
+        },
+        {
+          "type": "property_stmt",
+          "named": true
+        },
+        {
+          "type": "sources_block",
+          "named": true
+        },
+        {
+          "type": "string_list_block",
+          "named": true
+        },
+        {
+          "type": "unity_build_block",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "property_stmt",
+    "named": true,
+    "fields": {
+      "key": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "android-api-level",
+            "named": false
+          },
+          {
+            "type": "c-as-cpp",
+            "named": false
+          },
+          {
+            "type": "debug-info",
+            "named": false
+          },
+          {
+            "type": "description",
+            "named": false
+          },
+          {
+            "type": "ios-min",
+            "named": false
+          },
+          {
+            "type": "libc",
+            "named": false
+          },
+          {
+            "type": "lto",
+            "named": false
+          },
+          {
+            "type": "macos-min",
+            "named": false
+          },
+          {
+            "type": "manifest",
+            "named": false
+          },
+          {
+            "type": "objc-arc",
+            "named": false
+          },
+          {
+            "type": "objc-as-objcpp",
+            "named": false
+          },
+          {
+            "type": "optimize",
+            "named": false
+          },
+          {
+            "type": "runtime-link",
+            "named": false
+          },
+          {
+            "type": "std",
+            "named": false
+          },
+          {
+            "type": "stdlib",
+            "named": false
+          },
+          {
+            "type": "toolchain",
+            "named": false
+          },
+          {
+            "type": "tvos-min",
+            "named": false
+          },
+          {
+            "type": "type",
+            "named": false
+          },
+          {
+            "type": "warnings",
+            "named": false
+          },
+          {
+            "type": "warnings-as-errors",
+            "named": false
+          },
+          {
+            "type": "watchos-min",
+            "named": false
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "boolean",
+            "named": true
+          },
+          {
+            "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "integer",
+            "named": true
+          },
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "source_file",
+    "named": true,
+    "root": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "package_decl",
+          "named": true
+        },
+        {
+          "type": "project_decl",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "sources_block",
+    "named": true,
+    "fields": {
+      "kind": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "modules",
+            "named": false
+          },
+          {
+            "type": "sources",
+            "named": false
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "sources_item",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "sources_item",
+    "named": true,
+    "fields": {
+      "pattern": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "boolean",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "string",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "env_interpolation",
+          "named": true
+        },
+        {
+          "type": "escape_sequence",
+          "named": true
+        },
+        {
+          "type": "string_content",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "string_list_block",
+    "named": true,
+    "fields": {
+      "kind": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "compile-flags",
+            "named": false
+          },
+          {
+            "type": "defines",
+            "named": false
+          },
+          {
+            "type": "emscripten-flags",
+            "named": false
+          },
+          {
+            "type": "framework-paths",
+            "named": false
+          },
+          {
+            "type": "frameworks",
+            "named": false
+          },
+          {
+            "type": "link-flags",
+            "named": false
+          },
+          {
+            "type": "links",
+            "named": false
+          },
+          {
+            "type": "post-build",
+            "named": false
+          },
+          {
+            "type": "pre-build",
+            "named": false
+          },
+          {
+            "type": "resources",
+            "named": false
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "unity_build_block",
+    "named": true,
+    "fields": {
+      "batch_size": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "integer",
+            "named": true
+          }
+        ]
+      },
+      "enabled": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "boolean",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "\"",
+    "named": false
+  },
+  {
+    "type": "${",
+    "named": false
+  },
+  {
+    "type": ",",
+    "named": false
+  },
+  {
+    "type": ".",
+    "named": false
+  },
+  {
+    "type": "/",
+    "named": false
+  },
+  {
+    "type": "=",
+    "named": false
+  },
+  {
+    "type": "[",
+    "named": false
+  },
+  {
+    "type": "]",
+    "named": false
+  },
+  {
+    "type": "android-api-level",
+    "named": false
+  },
+  {
+    "type": "assembler",
+    "named": false
+  },
+  {
+    "type": "authors",
+    "named": false
+  },
+  {
+    "type": "batch-size",
+    "named": false
+  },
+  {
+    "type": "binaries",
+    "named": false
+  },
+  {
+    "type": "block_comment",
+    "named": true,
+    "extra": true
+  },
+  {
+    "type": "c-as-cpp",
+    "named": false
+  },
+  {
+    "type": "comment",
+    "named": true,
+    "extra": true
+  },
+  {
+    "type": "commit",
+    "named": false
+  },
+  {
+    "type": "compile-flags",
+    "named": false
+  },
+  {
+    "type": "copy",
+    "named": false
+  },
+  {
+    "type": "debug-info",
+    "named": false
+  },
+  {
+    "type": "default",
+    "named": false
+  },
+  {
+    "type": "defines",
+    "named": false
+  },
+  {
+    "type": "dependencies",
+    "named": false
+  },
+  {
+    "type": "description",
+    "named": false
+  },
+  {
+    "type": "emscripten-flags",
+    "named": false
+  },
+  {
+    "type": "enabled",
+    "named": false
+  },
+  {
+    "type": "escape_sequence",
+    "named": true
+  },
+  {
+    "type": "exclude",
+    "named": false
+  },
+  {
+    "type": "export-map",
+    "named": false
+  },
+  {
+    "type": "exports",
+    "named": false
+  },
+  {
+    "type": "false",
+    "named": false
+  },
+  {
+    "type": "flags",
+    "named": false
+  },
+  {
+    "type": "format",
+    "named": false
+  },
+  {
+    "type": "framework-paths",
+    "named": false
+  },
+  {
+    "type": "frameworks",
+    "named": false
+  },
+  {
+    "type": "from",
+    "named": false
+  },
+  {
+    "type": "git",
+    "named": false
+  },
+  {
+    "type": "header",
+    "named": false
+  },
+  {
+    "type": "headers",
+    "named": false
+  },
+  {
+    "type": "homepage",
+    "named": false
+  },
+  {
+    "type": "identifier",
+    "named": true
+  },
+  {
+    "type": "include",
+    "named": false
+  },
+  {
+    "type": "integer",
+    "named": true
+  },
+  {
+    "type": "ios-min",
+    "named": false
+  },
+  {
+    "type": "libc",
+    "named": false
+  },
+  {
+    "type": "libraries",
+    "named": false
+  },
+  {
+    "type": "license",
+    "named": false
+  },
+  {
+    "type": "link-flags",
+    "named": false
+  },
+  {
+    "type": "links",
+    "named": false
+  },
+  {
+    "type": "lto",
+    "named": false
+  },
+  {
+    "type": "macos-min",
+    "named": false
+  },
+  {
+    "type": "manifest",
+    "named": false
+  },
+  {
+    "type": "modules",
+    "named": false
+  },
+  {
+    "type": "name",
+    "named": false
+  },
+  {
+    "type": "objc-arc",
+    "named": false
+  },
+  {
+    "type": "objc-as-objcpp",
+    "named": false
+  },
+  {
+    "type": "optimize",
+    "named": false
+  },
+  {
+    "type": "option",
+    "named": false
+  },
+  {
+    "type": "output",
+    "named": false
+  },
+  {
+    "type": "package",
+    "named": false
+  },
+  {
+    "type": "path",
+    "named": false
+  },
+  {
+    "type": "pch",
+    "named": false
+  },
+  {
+    "type": "post-build",
+    "named": false
+  },
+  {
+    "type": "pre-build",
+    "named": false
+  },
+  {
+    "type": "private",
+    "named": false
+  },
+  {
+    "type": "project",
+    "named": false
+  },
+  {
+    "type": "public",
+    "named": false
+  },
+  {
+    "type": "resources",
+    "named": false
+  },
+  {
+    "type": "runtime-link",
+    "named": false
+  },
+  {
+    "type": "source",
+    "named": false
+  },
+  {
+    "type": "sources",
+    "named": false
+  },
+  {
+    "type": "std",
+    "named": false
+  },
+  {
+    "type": "stdlib",
+    "named": false
+  },
+  {
+    "type": "string_content",
+    "named": true
+  },
+  {
+    "type": "symbols",
+    "named": false
+  },
+  {
+    "type": "tag",
+    "named": false
+  },
+  {
+    "type": "to",
+    "named": false
+  },
+  {
+    "type": "tool",
+    "named": false
+  },
+  {
+    "type": "toolchain",
+    "named": false
+  },
+  {
+    "type": "true",
+    "named": false
+  },
+  {
+    "type": "tvos-min",
+    "named": false
+  },
+  {
+    "type": "type",
+    "named": false
+  },
+  {
+    "type": "unity-build",
+    "named": false
+  },
+  {
+    "type": "version",
+    "named": false
+  },
+  {
+    "type": "warnings",
+    "named": false
+  },
+  {
+    "type": "warnings-as-errors",
+    "named": false
+  },
+  {
+    "type": "watchos-min",
+    "named": false
+  },
+  {
+    "type": "{",
+    "named": false
+  },
+  {
+    "type": "}",
+    "named": false
+  }
+]

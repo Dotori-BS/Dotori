@@ -1,0 +1,28 @@
+{
+  "comments": {
+    "lineComment": "#"
+  },
+  "brackets": [
+    ["{", "}"],
+    ["[", "]"],
+    ["(", ")"]
+  ],
+  "autoClosingPairs": [
+    { "open": "{", "close": "}" },
+    { "open": "[", "close": "]" },
+    { "open": "(", "close": ")" },
+    { "open": "\"", "close": "\"", "notIn": ["string", "comment"] }
+  ],
+  "surroundingPairs": [
+    ["{", "}"],
+    ["[", "]"],
+    ["(", ")"],
+    ["\"", "\""]
+  ],
+  "folding": {
+    "markers": {
+      "start": "^\\s*(project|package|sources|modules|headers|dependencies|toolchain|output|pch|unity-build|copy|build-rule)\\b.*\\{\\s*$",
+      "end": "^\\s*}\\s*$"
+    }
+  }
+}

@@ -19,6 +19,7 @@ internal static class GenerateCompileCommandsCommandFactory
         var stdlibOption       = new Option<string?>("--stdlib")         { Description = "C++ standard library (libc++, libstdc++)" };
         var outputOption       = new Option<string?>("--output")         { Description = "Output path (default: compile_commands.json in project root)" };
         var clangdOption       = new Option<bool>("--clangd")            { Description = "Generate .clangd config file (default: true)", DefaultValueFactory = _ => true };
+        var noClangdOption     = new Option<bool>("--no-clangd")         { Description = "Do not generate a .clangd config file" };
         var clangdOutputOption = new Option<string?>("--clangd-output")  { Description = "Output path for .clangd (default: same directory as compile_commands.json)" };
 
         command.Add(projectOption);
@@ -30,6 +31,7 @@ internal static class GenerateCompileCommandsCommandFactory
         command.Add(stdlibOption);
         command.Add(outputOption);
         command.Add(clangdOption);
+        command.Add(noClangdOption);
         command.Add(clangdOutputOption);
 
         command.SetAction(async (parseResult, ct) =>
@@ -42,7 +44,8 @@ internal static class GenerateCompileCommandsCommandFactory
             var libc            = parseResult.GetValue(libcOption);
             var stdlib          = parseResult.GetValue(stdlibOption);
             var outputArg       = parseResult.GetValue(outputOption);
-            var generateClangd  = parseResult.GetValue(clangdOption);
+            var generateClangd  = parseResult.GetValue(clangdOption) &&
+                                   !parseResult.GetValue(noClangdOption);
             var clangdOutputArg = parseResult.GetValue(clangdOutputOption);
 
             var targetId = BuildContext.ResolveTargetId(targetArg);

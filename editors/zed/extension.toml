@@ -1,0 +1,15 @@
+id = "dotori"
+name = "Dotori"
+version = "0.1.0"
+schema_version = 1
+authors = ["Dotori Contributors"]
+description = "Language support for the Dotori C++ build system"
+repository = "https://github.com/Dotori-BS/Dotori"
+
+[grammars.dotori]
+repository = "https://github.com/Dotori-BS/tree-sitter-dotori"
+rev = "main"
+
+[language_servers.dotori-lsp]
+name = "Dotori Language Server"
+languages = ["Dotori"]

@@ -1,6 +1,7 @@
 using System.CommandLine;
 using Dotori.Core.Generators;
 using Dotori.Core.Graph;
+using Dotori.Core.Model;
 
 namespace Dotori.Cli.Commands;
 
@@ -95,39 +96,72 @@ internal static class ExportBuildSystemCommandFactory
             if (dag is null) return Task.FromResult(1);
 
             var buildOrder = ProjectDagBuilder.BuildLevels(dag);
+            var orderedNodes = buildOrder.SelectMany(level => level).ToList();
+            var commonProjectDir = FindCommonDirectory(orderedNodes.Select(node => node.ProjectDir));
+            var rootPath = Path.GetFullPath(paths[0]);
+            string? rootOutputDir = null;
+            FlatProjectModel? rootModel = null;
+            var generatedModels = new List<FlatProjectModel>();
+            var generatedDirectories = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var written = 0;
 
-            foreach (var level in buildOrder)
+            foreach (var node in orderedNodes)
             {
-                foreach (var node in level)
+                var model = BuildContext.FlattenProject(node.DotoriPath, ctx, node);
+                if (model is null)
                 {
-                    var model = BuildContext.FlattenProject(node.DotoriPath, ctx, node);
-                    if (model is null)
-                    {
-                        Console.Error.WriteLine(
-                            $"Warning: Could not flatten '{node.DotoriPath}', skipping.");
-                        continue;
-                    }
-
-                    var files = generator.Generate(model, config, targetId);
-
-                    // Determine output directory
-                    var outDir = outputArg is not null
-                        ? (Path.IsPathRooted(outputArg) ? outputArg : Path.GetFullPath(outputArg))
-                        : model.ProjectDir;
-
-                    foreach (var (relativePath, content) in files)
-                    {
-                        var fullPath = Path.Combine(outDir, relativePath);
-                        var fileDir = Path.GetDirectoryName(fullPath);
-                        if (!string.IsNullOrEmpty(fileDir))
-                            Directory.CreateDirectory(fileDir);
-
-                        File.WriteAllText(fullPath, content);
-                        Console.WriteLine($"Generated '{fullPath}'");
-                        written++;
-                    }
+                    Console.Error.WriteLine(
+                        $"Warning: Could not flatten '{node.DotoriPath}', skipping.");
+                    continue;
                 }
+
+                var files = generator.Generate(model, config, targetId);
+
+                // Preserve the projects' relative layout when a dependency graph is
+                // exported into one directory. This keeps add_subdirectory() paths valid
+                // and prevents CMakeLists.txt files from overwriting one another.
+                var outDir = ResolveOutputDirectory(
+                    outputArg, model.ProjectDir, commonProjectDir, orderedNodes.Count > 1);
+
+                if (Path.GetFullPath(node.DotoriPath).Equals(rootPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    rootOutputDir = outDir;
+                    rootModel = model;
+                }
+                generatedModels.Add(model);
+                generatedDirectories[model.DotoriPath] = outDir;
+
+                foreach (var (relativePath, content) in files)
+                {
+                    var fullPath = Path.Combine(outDir, relativePath);
+                    var fileDir = Path.GetDirectoryName(fullPath);
+                    if (!string.IsNullOrEmpty(fileDir))
+                        Directory.CreateDirectory(fileDir);
+
+                    File.WriteAllText(fullPath, content);
+                    Console.WriteLine($"Generated '{fullPath}'");
+                    written++;
+                }
+            }
+
+            if (format.Equals("cmake", StringComparison.OrdinalIgnoreCase) && rootOutputDir is not null)
+            {
+                var presetsPath = Path.Combine(rootOutputDir, "CMakePresets.json");
+                Directory.CreateDirectory(rootOutputDir);
+                File.WriteAllText(presetsPath, CMakePresetsGenerator.Generate(config, targetId));
+                Console.WriteLine($"Generated '{presetsPath}'");
+                written++;
+            }
+
+            if (format.Equals("vcxproj", StringComparison.OrdinalIgnoreCase) &&
+                rootOutputDir is not null && rootModel is not null)
+            {
+                var (fileName, content) = VisualStudioSolutionGenerator.Generate(
+                    generatedModels, rootModel, rootOutputDir, config, targetId, generatedDirectories);
+                var solutionPath = Path.Combine(rootOutputDir, fileName);
+                File.WriteAllText(solutionPath, content);
+                Console.WriteLine($"Generated '{solutionPath}'");
+                written++;
             }
 
             if (written == 0)
@@ -137,5 +171,47 @@ internal static class ExportBuildSystemCommandFactory
         });
 
         return command;
+    }
+
+    private static string ResolveOutputDirectory(
+        string? outputArg,
+        string projectDir,
+        string commonProjectDir,
+        bool hasMultipleProjects)
+    {
+        if (outputArg is null) return projectDir;
+
+        var outputRoot = Path.IsPathRooted(outputArg) ? outputArg : Path.GetFullPath(outputArg);
+        if (!hasMultipleProjects) return outputRoot;
+
+        var relativeDir = Path.GetRelativePath(commonProjectDir, projectDir);
+        return relativeDir == "." ? outputRoot : Path.Combine(outputRoot, relativeDir);
+    }
+
+    private static string FindCommonDirectory(IEnumerable<string> directories)
+    {
+        var paths = directories.Select(Path.GetFullPath).ToList();
+        if (paths.Count == 0) return Directory.GetCurrentDirectory();
+
+        var common = paths[0];
+        foreach (var path in paths.Skip(1))
+        {
+            while (!IsSameOrChildPath(path, common))
+            {
+                var parent = Directory.GetParent(common);
+                if (parent is null) return Path.GetPathRoot(common) ?? common;
+                common = parent.FullName;
+            }
+        }
+
+        return common;
+    }
+
+    private static bool IsSameOrChildPath(string path, string candidateParent)
+    {
+        var relative = Path.GetRelativePath(candidateParent, path);
+        return relative == "." ||
+               (!relative.Equals("..", StringComparison.Ordinal) &&
+                !relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal));
     }
 }

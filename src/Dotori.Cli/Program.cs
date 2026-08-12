@@ -22,6 +22,7 @@ rootCommand.Add(PackageCommandFactory.Create());   // `dotori package ...` alias
 rootCommand.Add(FormatCommandFactory.Create());
 rootCommand.Add(InfoCommandFactory.Create());
 rootCommand.Add(ExportCommandFactory.Create());
+rootCommand.Add(SetupCommandFactory.Create());
 rootCommand.Add(GenerateCompileCommandsCommandFactory.Create());
 rootCommand.Add(LspCommandFactory.Create());
 
