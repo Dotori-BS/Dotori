@@ -2,6 +2,7 @@ using System.CommandLine;
 using Dotori.Core.Generators;
 using Dotori.Core.Graph;
 using Dotori.Core.Model;
+using Dotori.Core.Toolchain;
 
 namespace Dotori.Cli.Commands;
 
@@ -88,8 +89,18 @@ internal static class ExportBuildSystemCommandFactory
             var paths = BuildContext.ResolveProjectPaths(projectArg, buildAll: false);
             if (paths.Count == 0) return Task.FromResult(1);
 
+            ToolchainInfo? selectedToolchain = null;
+            if (compiler is not null)
+            {
+                selectedToolchain = BuildContext.DetectToolchain(
+                    targetId, compiler, paths.FirstOrDefault(), libc);
+                if (selectedToolchain is null) return Task.FromResult(1);
+            }
+
             var ctx = BuildContext.MakeTargetContext(targetId, config == "both" ? "debug" : config,
-                runtimeLink, libc, stdlib);
+                runtimeLink, libc, stdlib,
+                compiler: selectedToolchain?.Kind == CompilerKind.Msvc ? "msvc" :
+                          selectedToolchain is not null ? "clang" : null);
 
             // Build DAG
             var dag = BuildContext.BuildDag(paths);
@@ -148,7 +159,9 @@ internal static class ExportBuildSystemCommandFactory
             {
                 var presetsPath = Path.Combine(rootOutputDir, "CMakePresets.json");
                 Directory.CreateDirectory(rootOutputDir);
-                File.WriteAllText(presetsPath, CMakePresetsGenerator.Generate(config, targetId));
+                File.WriteAllText(
+                    presetsPath,
+                    CMakePresetsGenerator.Generate(config, targetId, selectedToolchain));
                 Console.WriteLine($"Generated '{presetsPath}'");
                 written++;
             }

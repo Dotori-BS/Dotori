@@ -243,6 +243,9 @@ public sealed class BuildSystemGeneratorTests
         StringAssert.Contains(content, "\"buildPresets\"");
         StringAssert.Contains(content, "\"testPresets\"");
         StringAssert.Contains(content, "\"CMAKE_EXPORT_COMPILE_COMMANDS\": true");
+        StringAssert.Contains(content, "${sourceDir}/build/cmake/linux-x64-debug");
+        StringAssert.Contains(content, "${sourceDir}/build/cmake/linux-x64-release");
+        Assert.DoesNotContain("${presetName}", content);
     }
 
     [TestMethod]
@@ -253,6 +256,40 @@ public sealed class BuildSystemGeneratorTests
         StringAssert.Contains(content, "\"windows-x64-debug\"");
         StringAssert.Contains(content, "\"value\": \"x64\"");
         Assert.DoesNotContain("windows-x64-release", content);
+    }
+
+    [TestMethod]
+    public void CMakePresets_ExplicitClang_WritesCAndCxxCompilers()
+    {
+        var toolchain = new Dotori.Core.Toolchain.ToolchainInfo
+        {
+            Kind = Dotori.Core.Toolchain.CompilerKind.Clang,
+            CompilerPath = "/opt/llvm/bin/clang++-18",
+            LinkerPath = "/opt/llvm/bin/clang++-18",
+            TargetTriple = "x86_64-unknown-linux-gnu",
+        };
+
+        var content = CMakePresetsGenerator.Generate("debug", "linux-x64", toolchain);
+
+        StringAssert.Contains(content, "\"CMAKE_C_COMPILER\": \"/opt/llvm/bin/clang-18\"");
+        StringAssert.Contains(content, "\"CMAKE_CXX_COMPILER\": \"/opt/llvm/bin/clang++-18\"");
+    }
+
+    [TestMethod]
+    public void CMakePresets_ExplicitMsvc_UsesCompilerForBothLanguages()
+    {
+        var toolchain = new Dotori.Core.Toolchain.ToolchainInfo
+        {
+            Kind = Dotori.Core.Toolchain.CompilerKind.Msvc,
+            CompilerPath = "cl.exe",
+            LinkerPath = "link.exe",
+            TargetTriple = "x86_64-pc-windows-msvc",
+        };
+
+        var content = CMakePresetsGenerator.Generate("debug", "windows-x64", toolchain);
+
+        StringAssert.Contains(content, "\"CMAKE_C_COMPILER\": \"cl.exe\"");
+        StringAssert.Contains(content, "\"CMAKE_CXX_COMPILER\": \"cl.exe\"");
     }
 
     [TestMethod]

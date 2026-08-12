@@ -23,6 +23,7 @@ C# (.NET 10, NativeAOT). 설계 문서: `docs/` 참조
 - [x] Zed 확장 (Tree-sitter 문법, LSP 어댑터)
 - [x] JetBrains 2026.2 플러그인 (CLion/Rider LSP 어댑터)
 - [x] Visual Studio solution 생성 및 VSIX (TextMate 문법, LSP 어댑터)
+- [x] IDE 생성/CMake smoke 및 에디터 확장 패키징 CI
 
 ---
 

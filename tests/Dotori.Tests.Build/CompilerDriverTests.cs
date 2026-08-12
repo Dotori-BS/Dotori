@@ -42,10 +42,10 @@ public sealed class CompilerDriverTests
             ["/tmp/project/a.swift", "/tmp/project/b.swift"], "/usr/bin/swiftc",
             hasCxxSources: true, dependencyModuleDirectories: ["/tmp/dependency"]);
 
-        Assert.AreEqual("/tmp/obj/Mixed_App.swift.o", job.OutputFile);
+        Assert.AreEqual(Path.Combine("/tmp/obj", "Mixed_App.swift.o"), job.OutputFile);
         Assert.IsTrue(job.Args.Contains("-emit-module"));
         Assert.IsTrue(job.Args.Contains("-cxx-interoperability-mode=default"));
-        Assert.IsTrue(job.Args.Contains("\"/tmp/obj/Mixed_App.swiftmodule\""));
+        Assert.IsTrue(job.Args.Contains($"\"{Path.Combine("/tmp/obj", "Mixed_App.swiftmodule")}\""));
         Assert.IsTrue(job.Args.Contains("\"/tmp/dependency\""));
         CollectionAssert.Contains(job.DependencyFiles.ToArray(), "/tmp/project/b.swift");
     }

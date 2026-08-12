@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using Dotori.Core.Toolchain;
 
 namespace Dotori.Core.Generators;
 
@@ -10,7 +11,7 @@ namespace Dotori.Core.Generators;
 /// </summary>
 public static class CMakePresetsGenerator
 {
-    public static string Generate(string config, string targetId)
+    public static string Generate(string config, string targetId, ToolchainInfo? toolchain = null)
     {
         var configurations = config == "both"
             ? new[] { "debug", "release" }
@@ -40,10 +41,15 @@ public static class CMakePresetsGenerator
                 writer.WriteString("name", presetName);
                 writer.WriteString("displayName", $"{targetId} {displayConfiguration}");
                 writer.WriteString("generator", "Ninja");
-                writer.WriteString("binaryDir", "${sourceDir}/build/cmake/${presetName}");
+                writer.WriteString("binaryDir", $"${{sourceDir}}/build/cmake/{presetName}");
                 writer.WriteStartObject("cacheVariables");
                 writer.WriteString("CMAKE_BUILD_TYPE", displayConfiguration);
                 writer.WriteBoolean("CMAKE_EXPORT_COMPILE_COMMANDS", true);
+                if (toolchain is not null)
+                {
+                    writer.WriteString("CMAKE_C_COMPILER", ResolveCCompiler(toolchain));
+                    writer.WriteString("CMAKE_CXX_COMPILER", toolchain.CompilerPath);
+                }
                 writer.WriteEndObject();
 
                 var architecture = ResolveArchitecture(targetId);
@@ -109,5 +115,34 @@ public static class CMakePresetsGenerator
         if (targetId.EndsWith("-arm64", StringComparison.OrdinalIgnoreCase)) return "arm64";
         if (targetId.EndsWith("-arm", StringComparison.OrdinalIgnoreCase)) return "arm";
         return null;
+    }
+
+    private static string ResolveCCompiler(ToolchainInfo toolchain)
+    {
+        if (toolchain.Kind is CompilerKind.Msvc or CompilerKind.Emscripten)
+            return toolchain.CompilerPath;
+
+        var separatorIndex = Math.Max(
+            toolchain.CompilerPath.LastIndexOf('/'),
+            toolchain.CompilerPath.LastIndexOf('\\'));
+        var directory = separatorIndex >= 0
+            ? toolchain.CompilerPath[..(separatorIndex + 1)]
+            : string.Empty;
+        var fileName = separatorIndex >= 0
+            ? toolchain.CompilerPath[(separatorIndex + 1)..]
+            : toolchain.CompilerPath;
+        var extension = Path.GetExtension(fileName);
+        var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+        var cCompilerName = fileNameWithoutExtension switch
+        {
+            var name when name.StartsWith("clang++", StringComparison.OrdinalIgnoreCase) =>
+                "clang" + name["clang++".Length..],
+            var name when name.StartsWith("g++", StringComparison.OrdinalIgnoreCase) =>
+                "gcc" + name["g++".Length..],
+            "c++" => "cc",
+            _ => fileNameWithoutExtension,
+        };
+        var cCompiler = cCompilerName + extension;
+        return directory + cCompiler;
     }
 }

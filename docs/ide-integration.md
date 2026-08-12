@@ -68,7 +68,7 @@ cargo check
 
 ### CLion / Rider
 
-JDK 21 이상이 필요합니다.
+JetBrains 2026.2 플랫폼에 맞춰 JDK 25가 필요합니다.
 
 ```bash
 cd editors/jetbrains
@@ -93,7 +93,8 @@ VSIX는 `.dotori` TextMate 문법과 `dotori lsp` 언어 클라이언트를 제�
 
 - 코드 탐색이 오래된 경우 `dotori setup ide --ide <ide>`를 다시 실행합니다.
 - clangd가 시스템 헤더를 못 찾으면 `--compiler clang`, `--compiler brew-llvm`처럼
-  실제 빌드에 쓰는 컴파일러를 지정합니다.
+  실제 빌드에 쓰는 컴파일러를 지정합니다. 이 선택은 `.clangd`뿐 아니라
+  `CMakePresets.json`의 C/C++ 컴파일러에도 반영됩니다.
 - 언어 서버가 시작되지 않으면 IDE 내장 터미널에서 `dotori lsp`가 실행되는지 먼저
   확인합니다.
 - Visual Studio solution은 Windows 타겟으로 생성해야 하며, 해당 C++ workload와

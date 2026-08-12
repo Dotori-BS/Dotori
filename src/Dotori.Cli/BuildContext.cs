@@ -317,11 +317,12 @@ internal static class BuildContext
         string targetId, string config,
         string? runtimeLink = null, string? libc = null, string? stdlib = null,
         IReadOnlySet<string>? enabledOptions = null,
-        Dictionary<string, bool>? declaredOptions = null)
+        Dictionary<string, bool>? declaredOptions = null,
+        string? compiler = null)
     {
         var parts    = targetId.Split('-');
         var platform = parts.Length > 0 ? parts[0] : "linux";
-        var compiler = parts.Any(p => p is "msvc") ? "msvc" : "clang";
+        var compilerKind = compiler ?? (parts.Any(p => p is "msvc") ? "msvc" : "clang");
 
         // Inject build context into the process environment so .dotori files
         // can reference them via ${DOTORI_CONFIG}, ${DOTORI_PLATFORM}, etc.
@@ -345,7 +346,7 @@ internal static class BuildContext
         {
             Platform = platform,
             Config   = config,
-            Compiler = compiler,
+            Compiler = compilerKind,
             Runtime  = runtimeLink ?? "static",
             Libc     = libc,
             Stdlib   = stdlib,

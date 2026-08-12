@@ -123,3 +123,140 @@ jobs:
           --no-build -c Release -- test
           --project tests/test-target-smoke
           --all
+
+  ide-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+            compiler: clang
+          - os: macos-latest
+            target: macos-arm64
+            compiler: apple-clang
+          - os: windows-latest
+            target: windows-x64
+            compiler: msvc
+
+    runs-on: ${{ matrix.os }}
+    name: IDE smoke (${{ matrix.target }}, ${{ matrix.compiler }})
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Setup MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build clang
+
+      - name: Build Dotori CLI
+        run: dotnet build src/Dotori.Cli/Dotori.Cli.csproj -c Release
+
+      - name: Generate IDE files
+        run: >-
+          dotnet run --project src/Dotori.Cli/Dotori.Cli.csproj
+          --no-build -c Release -- setup ide
+          --ide auto
+          --project tests/platform-smoke
+          --target ${{ matrix.target }}
+          --compiler ${{ matrix.compiler }}
+
+      - name: Configure generated CMake project
+        working-directory: tests/platform-smoke
+        run: cmake --preset ${{ matrix.target }}-debug
+
+      - name: Build generated CMake project
+        working-directory: tests/platform-smoke
+        run: cmake --build --preset ${{ matrix.target }}-debug
+
+  editor-extensions:
+    runs-on: ubuntu-latest
+    name: Editor extensions (VS Code, Zed, JetBrains)
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+
+      - name: Setup Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: gradle
+
+      - name: Check and package VS Code extension
+        working-directory: editors/vscode
+        run: |
+          npm ci
+          npm run check
+          npm run package
+
+      - name: Install Zed WebAssembly target
+        run: rustup target add wasm32-wasip1
+
+      - name: Verify generated Tree-sitter parser
+        working-directory: editors/zed/tree-sitter-dotori
+        run: |
+          npx --yes tree-sitter-cli@0.26.12 generate
+          npx --yes tree-sitter-cli@0.26.12 parse ../../../tests/platform-smoke/.dotori
+          git diff --exit-code -- .
+
+      - name: Build Zed extension
+        working-directory: editors/zed
+        run: cargo build --locked --release --target wasm32-wasip1
+
+      - name: Build and validate JetBrains plugin
+        working-directory: editors/jetbrains
+        run: >-
+          ./gradlew buildPlugin verifyPluginStructure verifyPluginProjectConfiguration
+          --no-daemon --no-configuration-cache
+
+      - name: Upload editor extension artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: dotori-editor-extensions
+          path: |
+            editors/vscode/*.vsix
+            editors/zed/target/wasm32-wasip1/release/*.wasm
+            editors/jetbrains/build/distributions/*.zip
+          if-no-files-found: error
+
+  visual-studio-extension:
+    runs-on: windows-latest
+    name: Visual Studio extension
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build Visual Studio VSIX
+        run: dotnet build editors/visualstudio/Dotori.VisualStudio.csproj -c Release
+
+      - name: Upload Visual Studio VSIX
+        uses: actions/upload-artifact@v7
+        with:
+          name: dotori-visual-studio-extension
+          path: editors/visualstudio/bin/Release/net472/*.vsix
+          if-no-files-found: error

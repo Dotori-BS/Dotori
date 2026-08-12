@@ -591,6 +591,10 @@ CMake 형식은 선택한 타겟과 구성에 맞는 configure/build/test preset
 `linux-x64-release` preset을 만듭니다. 생성된 프로젝트는 다음과 같이 IDE 밖에서도
 동일하게 실행할 수 있습니다.
 
+`--compiler`를 명시하면 탐지된 C/C++ 컴파일러 절대 경로도 preset의
+`CMAKE_C_COMPILER`와 `CMAKE_CXX_COMPILER`에 기록되어 IDE와 CLI가 같은
+툴체인을 사용합니다.
+
 ```bash
 cmake --preset linux-x64-debug
 cmake --build --preset linux-x64-debug

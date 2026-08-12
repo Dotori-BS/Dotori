@@ -1,2 +1,7 @@
 target/
 *.wasm
+tree-sitter-dotori/parser.dll
+tree-sitter-dotori/parser.exp
+tree-sitter-dotori/parser.lib
+tree-sitter-dotori/parser.so
+tree-sitter-dotori/parser.dylib

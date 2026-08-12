@@ -19,8 +19,13 @@ dependencies {
     }
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
 tasks.withType<JavaCompile>().configureEach {
-    options.release = 21
+    options.release = 25
 }
 
 intellijPlatform {
