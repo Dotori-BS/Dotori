@@ -227,6 +227,77 @@ public sealed class DefinitionParams
     public required LspPosition Position { get; set; }
 }
 
+// ─── References / Rename / Formatting ────────────────────────────────────
+
+public sealed class ReferenceParams
+{
+    [JsonPropertyName("textDocument")]
+    public required LspTextDocumentIdentifier TextDocument { get; set; }
+
+    [JsonPropertyName("position")]
+    public required LspPosition Position { get; set; }
+
+    [JsonPropertyName("context")]
+    public required ReferenceContext Context { get; set; }
+}
+
+public sealed class ReferenceContext
+{
+    [JsonPropertyName("includeDeclaration")]
+    public bool IncludeDeclaration { get; set; }
+}
+
+public sealed class RenameParams
+{
+    [JsonPropertyName("textDocument")]
+    public required LspTextDocumentIdentifier TextDocument { get; set; }
+
+    [JsonPropertyName("position")]
+    public required LspPosition Position { get; set; }
+
+    [JsonPropertyName("newName")]
+    public required string NewName { get; set; }
+}
+
+public sealed class DocumentFormattingParams
+{
+    [JsonPropertyName("textDocument")]
+    public required LspTextDocumentIdentifier TextDocument { get; set; }
+
+    [JsonPropertyName("options")]
+    public FormattingOptions? Options { get; set; }
+}
+
+public sealed class FormattingOptions
+{
+    [JsonPropertyName("tabSize")]
+    public int TabSize { get; set; }
+
+    [JsonPropertyName("insertSpaces")]
+    public bool InsertSpaces { get; set; }
+}
+
+public sealed class LspTextEdit
+{
+    [JsonPropertyName("range")]
+    public required LspRange Range { get; set; }
+
+    [JsonPropertyName("newText")]
+    public required string NewText { get; set; }
+}
+
+public sealed class LspWorkspaceEdit
+{
+    [JsonPropertyName("changes")]
+    public required Dictionary<string, List<LspTextEdit>> Changes { get; set; }
+}
+
+public sealed class RenameOptions
+{
+    [JsonPropertyName("prepareProvider")]
+    public bool PrepareProvider { get; set; }
+}
+
 // ─── Initialize ───────────────────────────────────────────────────────────
 
 public sealed class InitializeParams
@@ -263,6 +334,15 @@ public sealed class ServerCapabilities
 
     [JsonPropertyName("definitionProvider")]
     public bool DefinitionProvider { get; set; }
+
+    [JsonPropertyName("referencesProvider")]
+    public bool ReferencesProvider { get; set; }
+
+    [JsonPropertyName("renameProvider")]
+    public RenameOptions? RenameProvider { get; set; }
+
+    [JsonPropertyName("documentFormattingProvider")]
+    public bool DocumentFormattingProvider { get; set; }
 }
 
 public sealed class CompletionOptions

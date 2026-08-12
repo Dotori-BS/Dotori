@@ -23,6 +23,7 @@ rootCommand.Add(FormatCommandFactory.Create());
 rootCommand.Add(InfoCommandFactory.Create());
 rootCommand.Add(ExportCommandFactory.Create());
 rootCommand.Add(SetupCommandFactory.Create());
+rootCommand.Add(DoctorCommandFactory.Create());
 rootCommand.Add(GenerateCompileCommandsCommandFactory.Create());
 rootCommand.Add(LspCommandFactory.Create());
 

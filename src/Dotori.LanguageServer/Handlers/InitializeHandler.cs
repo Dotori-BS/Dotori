@@ -21,6 +21,9 @@ public static class InitializeHandler
                 TextDocumentSync = 1, // Full sync
                 HoverProvider    = true,
                 DefinitionProvider = true,
+                ReferencesProvider = true,
+                RenameProvider = new RenameOptions { PrepareProvider = true },
+                DocumentFormattingProvider = true,
                 CompletionProvider = new CompletionOptions
                 {
                     TriggerCharacters = ["=", "[", " "],

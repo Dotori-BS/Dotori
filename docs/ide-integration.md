@@ -5,6 +5,9 @@ Dotori 프로젝트는 `setup ide` 한 번으로 IDE가 읽을 빌드 모델과 
 
 ```bash
 dotori setup ide --ide <ide>
+dotori setup ide --ide <ide> --check   # 생성 파일 누락·변경·노후 여부 확인
+dotori setup ide --ide <ide> --dry-run # 쓰지 않고 생성 예정 파일 표시
+dotori doctor --ide <ide>              # 도구 체인과 IDE 설정 종합 진단
 dotori watch --ide             # .dotori 변경 시 다시 생성
 ```
 
@@ -23,6 +26,10 @@ dotori watch --ide             # .dotori 변경 시 다시 생성
 
 `--ide auto`는 CMake, compilation database, VS Code와 Zed 작업 파일을 만듭니다.
 Windows에서 `--ide all`을 쓰면 CMake 파일과 Visual Studio solution도 함께 만듭니다.
+
+`setup ide --check`는 생성 파일이 없거나 `.dotori`보다 오래됐거나 에디터 설정의
+내용이 바뀌면 1을 반환하므로 CI에서도 사용할 수 있습니다. `dotori doctor --fix`는
+컴파일러와 필수 도구를 확인한 뒤 IDE 파일을 다시 생성합니다.
 
 ## 공통으로 생성되는 파일
 
@@ -97,5 +104,7 @@ VSIX는 `.dotori` TextMate 문법과 `dotori lsp` 언어 클라이언트를 제�
   `CMakePresets.json`의 C/C++ 컴파일러에도 반영됩니다.
 - 언어 서버가 시작되지 않으면 IDE 내장 터미널에서 `dotori lsp`가 실행되는지 먼저
   확인합니다.
+- Dotori 언어 서버는 선언된 빌드 옵션의 참조 찾기와 이름 바꾸기, 문서 포매팅을
+  지원합니다. 이름 바꾸기는 키워드나 선언되지 않은 이름에는 적용되지 않습니다.
 - Visual Studio solution은 Windows 타겟으로 생성해야 하며, 해당 C++ workload와
   SDK가 설치되어 있어야 합니다.

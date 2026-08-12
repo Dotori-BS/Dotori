@@ -1,5 +1,4 @@
 using System.CommandLine;
-using System.Diagnostics;
 using Dotori.Core.Generators;
 
 namespace Dotori.Cli.Commands;
@@ -30,6 +29,8 @@ internal static class SetupCommandFactory
         var releaseOption = new Option<bool>("--release") { Description = "Use Release configuration for compile_commands.json" };
         var targetOption = new Option<string?>("--target") { Description = "Build target (default: host target)" };
         var compilerOption = new Option<string?>("--compiler") { Description = "Compiler to use (msvc, clang, brew-llvm, etc.)" };
+        var checkOption = new Option<bool>("--check") { Description = "Check whether generated IDE files are present and current" };
+        var dryRunOption = new Option<bool>("--dry-run") { Description = "Show files that would be generated without writing them" };
 
         command.Add(ideOption);
         command.Add(projectOption);
@@ -37,6 +38,8 @@ internal static class SetupCommandFactory
         command.Add(releaseOption);
         command.Add(targetOption);
         command.Add(compilerOption);
+        command.Add(checkOption);
+        command.Add(dryRunOption);
 
         command.SetAction(async (parseResult, ct) =>
         {
@@ -63,6 +66,20 @@ internal static class SetupCommandFactory
                     ? new[] { "cmake", "vcxproj" }
                     : new[] { "cmake" };
 
+            var check = parseResult.GetValue(checkOption);
+            var dryRun = parseResult.GetValue(dryRunOption);
+            if (check && dryRun)
+            {
+                Console.Error.WriteLine("error: --check and --dry-run cannot be used together.");
+                return 1;
+            }
+            if (check || dryRun)
+            {
+                var dag = BuildContext.BuildDag(paths);
+                if (dag is null) return 1;
+                return InspectSetup(rootDir, dag.Keys.ToList(), ide, buildSystemFormats, check);
+            }
+
             foreach (var format in buildSystemFormats)
             {
                 var buildSystemArgs = new List<string>
@@ -75,7 +92,7 @@ internal static class SetupCommandFactory
                     buildSystemArgs.Add("--compiler");
                     buildSystemArgs.Add(compiler);
                 }
-                var buildSystemExitCode = await RunSelfAsync(buildSystemArgs, ct);
+                var buildSystemExitCode = await CliProcessRunner.RunSelfAsync(buildSystemArgs, ct);
                 if (buildSystemExitCode != 0) return buildSystemExitCode;
             }
 
@@ -88,7 +105,7 @@ internal static class SetupCommandFactory
             if (all) ideArgs.Add("--all");
             if (parseResult.GetValue(releaseOption)) ideArgs.Add("--release");
             if (compiler is not null) { ideArgs.Add("--compiler"); ideArgs.Add(compiler); }
-            var exitCode = await RunSelfAsync(ideArgs, ct);
+            var exitCode = await CliProcessRunner.RunSelfAsync(ideArgs, ct);
             if (exitCode != 0) return exitCode;
 
             foreach (var (relativePath, content) in IdeIntegrationGenerator.Generate(ide))
@@ -106,33 +123,59 @@ internal static class SetupCommandFactory
         return command;
     }
 
-    private static async Task<int> RunSelfAsync(IReadOnlyList<string> arguments, CancellationToken ct)
+    private static int InspectSetup(
+        string rootDir,
+        IReadOnlyList<string> projectPaths,
+        string ide,
+        IReadOnlyList<string> buildSystemFormats,
+        bool check)
     {
-        var processPath = Environment.ProcessPath
-            ?? throw new InvalidOperationException("Unable to locate the current Dotori executable.");
-        var startInfo = new ProcessStartInfo(processPath) { UseShellExecute = false };
-        if (Path.GetFileNameWithoutExtension(processPath).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
+        var sourceTime = projectPaths.Max(path => File.GetLastWriteTimeUtc(path));
+        var expected = new List<(string Label, string? Path, string? Content)>();
+        if (buildSystemFormats.Contains("cmake"))
         {
-            var assemblyPath = Environment.GetCommandLineArgs().FirstOrDefault();
-            if (string.IsNullOrWhiteSpace(assemblyPath) ||
-                !assemblyPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-                assemblyPath = Path.Combine(AppContext.BaseDirectory, "dotori.dll");
-            startInfo.ArgumentList.Add(assemblyPath);
+            expected.Add(("CMakeLists.txt", Path.Combine(rootDir, "CMakeLists.txt"), null));
+            expected.Add(("CMakePresets.json", Path.Combine(rootDir, "CMakePresets.json"), null));
         }
-        foreach (var argument in arguments) startInfo.ArgumentList.Add(argument);
+        if (buildSystemFormats.Contains("vcxproj"))
+        {
+            expected.Add(("Visual Studio solution", Directory.EnumerateFiles(rootDir, "*.sln").FirstOrDefault(), null));
+            expected.Add(("Visual Studio project", Directory.EnumerateFiles(rootDir, "*.vcxproj").FirstOrDefault(), null));
+        }
+        expected.Add(("compile_commands.json", Path.Combine(rootDir, "compile_commands.json"), null));
+        expected.Add((".clangd", Path.Combine(rootDir, ".clangd"), null));
+        expected.AddRange(IdeIntegrationGenerator.Generate(ide)
+            .Select(file => (file.RelativePath, (string?)Path.Combine(rootDir, file.RelativePath), (string?)file.Content)));
 
-        using var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Unable to start the Dotori CLI process.");
-        try
+        var invalid = false;
+        foreach (var (label, path, content) in expected)
         {
-            await process.WaitForExitAsync(ct);
-            return process.ExitCode;
+            if (path is null || !File.Exists(path))
+            {
+                Console.WriteLine($"[{(check ? "missing" : "would generate")}] {label}");
+                invalid = true;
+            }
+            else if (File.GetLastWriteTimeUtc(path) < sourceTime)
+            {
+                Console.WriteLine($"[{(check ? "stale" : "would update")}] {label}");
+                invalid = true;
+            }
+            else if (content is not null && Normalize(File.ReadAllText(path)) != Normalize(content))
+            {
+                Console.WriteLine($"[{(check ? "changed" : "would update")}] {label}");
+                invalid = true;
+            }
+            else
+            {
+                Console.WriteLine($"[ok] {label}");
+            }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            try { process.Kill(entireProcessTree: true); } catch { }
-            await process.WaitForExitAsync(CancellationToken.None);
-            throw;
-        }
+
+        if (!check)
+            Console.WriteLine("Dry run complete; no files were written.");
+        return check && invalid ? 1 : 0;
     }
+
+    private static string Normalize(string value) =>
+        value.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd();
 }

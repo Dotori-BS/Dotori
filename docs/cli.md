@@ -463,6 +463,9 @@ dotori lsp                              # stdio transport (LSP 3.17)
 dotori lsp --log-file /tmp/dotori.log   # 디버그 로그 출력
 ```
 
+완성, hover, 정의 이동, 문서 심볼, 진단 외에 선언된 빌드 옵션의 참조 찾기와
+이름 바꾸기, 문서 포매팅을 지원합니다.
+
 ---
 
 ## setup ide — IDE 개발 환경 구성
@@ -479,11 +482,27 @@ dotori setup ide --ide rider
 dotori setup ide --ide visual-studio
 dotori setup ide --ide all
 dotori setup ide --target linux-x64 --compiler clang
+dotori setup ide --ide vscode --check
+dotori setup ide --ide vscode --dry-run
 ```
 
 `auto`는 CMake와 VS Code/Zed 작업 파일을 생성합니다. CLion과 Rider는
 `CMakeLists.txt`와 `CMakePresets.json`을 사용합니다. `visual-studio`는 `.sln`과
 `.vcxproj`를 생성하며, Windows에서 `all`은 CMake와 Visual Studio 파일을 모두 생성합니다.
+`--check`는 생성 파일의 누락·노후·변경을 검사하고 문제가 있으면 종료 코드 1을
+반환합니다. `--dry-run`은 파일을 쓰지 않고 생성 또는 갱신될 파일을 표시합니다.
+
+환경 전체를 점검하거나 자동으로 복구하려면 `doctor`를 사용합니다.
+
+```bash
+dotori doctor --ide vscode
+dotori doctor --ide rider --project path/to/.dotori
+dotori doctor --ide visual-studio --fix
+```
+
+`doctor`는 CMake, Ninja, clangd, 대상 컴파일러와 IDE 생성 파일을 함께 검사합니다.
+선택한 IDE에 필수인 도구 또는 생성 파일에 문제가 있으면 1을 반환하며, `--fix`는
+`setup ide`를 실행해 생성 파일을 다시 만듭니다.
 
 프로젝트 파일이 바뀔 때 IDE 산출물을 자동 갱신할 수도 있습니다.
 

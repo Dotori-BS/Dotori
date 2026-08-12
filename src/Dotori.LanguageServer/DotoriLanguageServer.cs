@@ -175,6 +175,72 @@ public static class DotoriLanguageServer
                     }
                     break;
 
+                case "textDocument/references":
+                    if (request.Params.HasValue)
+                    {
+                        var p = LspSerializer.DeserializeElement<ReferenceParams>(request.Params.Value);
+                        if (p is not null)
+                        {
+                            var doc = store.Get(p.TextDocument.Uri);
+                            var locations = OptionSymbolProvider.GetReferences(
+                                doc?.Text ?? "", p.TextDocument.Uri,
+                                p.Position.Line, p.Position.Character,
+                                p.Context.IncludeDeclaration);
+                            await SendResponseAsync(transport, request.Id, locations, ct);
+                        }
+                        else await SendNullResponseAsync(transport, request.Id, ct);
+                    }
+                    else await SendNullResponseAsync(transport, request.Id, ct);
+                    break;
+
+                case "textDocument/prepareRename":
+                    if (request.Params.HasValue)
+                    {
+                        var p = LspSerializer.DeserializeElement<DefinitionParams>(request.Params.Value);
+                        if (p is not null)
+                        {
+                            var doc = store.Get(p.TextDocument.Uri);
+                            var range = OptionSymbolProvider.PrepareRename(
+                                doc?.Text ?? "", p.Position.Line, p.Position.Character);
+                            await SendResponseAsync(transport, request.Id, range, ct);
+                        }
+                        else await SendNullResponseAsync(transport, request.Id, ct);
+                    }
+                    else await SendNullResponseAsync(transport, request.Id, ct);
+                    break;
+
+                case "textDocument/rename":
+                    if (request.Params.HasValue)
+                    {
+                        var p = LspSerializer.DeserializeElement<RenameParams>(request.Params.Value);
+                        if (p is not null)
+                        {
+                            var doc = store.Get(p.TextDocument.Uri);
+                            var edit = OptionSymbolProvider.Rename(
+                                doc?.Text ?? "", p.TextDocument.Uri,
+                                p.Position.Line, p.Position.Character, p.NewName);
+                            await SendResponseAsync(transport, request.Id, edit, ct);
+                        }
+                        else await SendNullResponseAsync(transport, request.Id, ct);
+                    }
+                    else await SendNullResponseAsync(transport, request.Id, ct);
+                    break;
+
+                case "textDocument/formatting":
+                    if (request.Params.HasValue)
+                    {
+                        var p = LspSerializer.DeserializeElement<DocumentFormattingParams>(request.Params.Value);
+                        if (p is not null)
+                        {
+                            var doc = store.Get(p.TextDocument.Uri);
+                            var edits = FormattingProvider.Format(doc?.Text ?? "", doc?.LocalPath);
+                            await SendResponseAsync(transport, request.Id, edits, ct);
+                        }
+                        else await SendNullResponseAsync(transport, request.Id, ct);
+                    }
+                    else await SendNullResponseAsync(transport, request.Id, ct);
+                    break;
+
                 case "$/cancelRequest":
                     // Ignore cancel (we process synchronously)
                     break;
@@ -262,6 +328,10 @@ public static class DotoriLanguageServer
             CompletionList cl      => LspSerializer.Serialize(cl),
             LspHover h             => LspSerializer.Serialize(h),
             LspLocation loc        => LspSerializer.Serialize(loc),
+            LspLocation[] locations => LspSerializer.Serialize(locations),
+            LspRange range         => LspSerializer.Serialize(range),
+            LspWorkspaceEdit edit  => LspSerializer.Serialize(edit),
+            List<LspTextEdit> edits => LspSerializer.Serialize(edits),
             // For plain object{} (shutdown response) just use null-like
             _                      => "{}",
         };
