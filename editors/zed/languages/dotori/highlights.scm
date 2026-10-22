@@ -6,6 +6,9 @@
 ;       then `tree-sitter generate` to build the parser.
 ; Used by: Zed, Helix, Neovim (nvim-treesitter)
 
+; General identifiers come before the more specific captures below.
+(identifier) @variable
+
 ; ── Comments ──────────────────────────────────────────────────────────────
 (comment)       @comment
 (block_comment) @comment.block
@@ -58,23 +61,26 @@
 (export_entry key: (identifier) @variable.member)
 
 ; ── Type values (type = ...) ──────────────────────────────────────────────
-[
+((identifier) @type
+(#any-of? @type
   "executable"
   "test"
   "static-library"
   "shared-library"
   "header-only"
-] @type
+))
 
 ; ── C++ standard values (std = ...) ───────────────────────────────────────
-[
+((identifier) @constant.builtin
+(#any-of? @constant.builtin
   "c++17"
   "c++20"
   "c++23"
-] @constant.builtin
+))
 
 ; ── Enum / constant values ────────────────────────────────────────────────
-[
+((identifier) @constant.builtin
+(#any-of? @constant.builtin
   "none"
   "size"
   "speed"
@@ -103,7 +109,7 @@
   "win32"
   "macho64"
   "macho32"
-] @constant.builtin
+))
 
 ; ── Condition block ───────────────────────────────────────────────────────
 (condition_block
@@ -127,6 +133,3 @@
 "}" @punctuation.bracket
 "[" @punctuation.bracket
 "]" @punctuation.bracket
-
-; ── General identifiers (fallback) ────────────────────────────────────────
-(identifier) @variable

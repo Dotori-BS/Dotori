@@ -67,11 +67,15 @@ Rust가 필요합니다. 로컬 검증은 다음과 같이 실행합니다.
 
 ```bash
 cd editors/zed
-cargo check
+cargo build --locked --release --target wasm32-wasip1
 ```
 
-마켓플레이스 배포 전 `editors/zed/extension.toml`의 Tree-sitter 저장소와 revision을
-실제 공개 저장소 및 고정 commit SHA로 바꿔야 합니다.
+Zed의 **Extensions: Install Dev Extension**에서 `editors/zed` 폴더를 선택합니다.
+문법은 이 저장소의 고정 커밋에서 불러옵니다. 별도 문법 저장소는 필요하지 않습니다.
+`.dotori` 및 `이름.dotori` 파일에 문법 강조와 LSP 기능을 제공합니다.
+Dotori가 PATH에 없다면 Zed 설정에서 `lsp.dotori-lsp.binary.path`를 지정합니다.
+인자는 기본 `["lsp"]`이며 `binary.arguments`와 `binary.env`로 변경할 수 있습니다.
+설정 예시는 [Zed 확장 README](../editors/zed/README.md)를 참조하세요.
 
 ### CLion / Rider
 
@@ -79,11 +83,16 @@ JetBrains 2026.2 플랫폼에 맞춰 JDK 25가 필요합니다.
 
 ```bash
 cd editors/jetbrains
-./gradlew buildPlugin
+./gradlew test buildPlugin verifyPluginStructure verifyPluginProjectConfiguration
 ```
 
 `build/distributions`의 ZIP을 IDE의 **Install Plugin from Disk...**로 설치합니다.
 플러그인은 JetBrains 2026.2 플랫폼의 LSP API를 사용합니다.
+Windows에서는 `gradlew.bat`를 사용합니다. **Settings | Languages & Frameworks | Dotori**에서
+실행 파일 경로를 지정할 수 있으며 기본값은 PATH의 `dotori`입니다.
+`.dotori` 및 `이름.dotori` 파일을 인식하고 문법 강조, 자동 완성, 진단, Hover,
+정의 이동과 포맷팅을 제공합니다. 경로 변경 후 언어 서버를 재시작하거나 프로젝트를 다시 엽니다.
+자세한 설치 절차는 [JetBrains 플러그인 README](../editors/jetbrains/README.md)를 참조하세요.
 
 ### Visual Studio
 

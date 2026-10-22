@@ -7,9 +7,13 @@ description = "Language support for the Dotori C++ build system"
 repository = "https://github.com/Dotori-BS/Dotori"
 
 [grammars.dotori]
-repository = "https://github.com/Dotori-BS/tree-sitter-dotori"
-rev = "main"
+repository = "https://github.com/Dotori-BS/Dotori"
+rev = "2eb24cb37dd6203cf669dd6c0f3aea43208703dd"
+path = "editors/zed/tree-sitter-dotori"
 
 [language_servers.dotori-lsp]
 name = "Dotori Language Server"
 languages = ["Dotori"]
+
+[language_servers.dotori-lsp.language_ids]
+Dotori = "dotori"

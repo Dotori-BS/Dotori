@@ -216,6 +216,7 @@ jobs:
         run: |
           npx --yes tree-sitter-cli@0.26.12 generate
           npx --yes tree-sitter-cli@0.26.12 parse ../../../tests/platform-smoke/.dotori
+          npx --yes tree-sitter-cli@0.26.12 query ../languages/dotori/highlights.scm ../../../tests/platform-smoke/.dotori
           git diff --exit-code -- .
 
       - name: Build Zed extension
@@ -225,7 +226,7 @@ jobs:
       - name: Build and validate JetBrains plugin
         working-directory: editors/jetbrains
         run: >-
-          ./gradlew buildPlugin verifyPluginStructure verifyPluginProjectConfiguration
+          ./gradlew test buildPlugin verifyPluginStructure verifyPluginProjectConfiguration
           --no-daemon --no-configuration-cache
 
       - name: Upload editor extension artifacts

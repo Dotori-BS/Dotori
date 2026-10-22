@@ -19,6 +19,9 @@ public sealed class ZedHighlightGenerator : IGrammarGenerator
         ;       then `tree-sitter generate` to build the parser.
         ; Used by: Zed, Helix, Neovim (nvim-treesitter)
 
+        ; General identifiers come before the more specific captures below.
+        (identifier) @variable
+
         ; ── Comments ──────────────────────────────────────────────────────────────
         (comment)       @comment
         (block_comment) @comment.block
@@ -71,19 +74,22 @@ public sealed class ZedHighlightGenerator : IGrammarGenerator
         (export_entry key: (identifier) @variable.member)
 
         ; ── Type values (type = ...) ──────────────────────────────────────────────
-        [
+        ((identifier) @type
+        (#any-of? @type
         {{TYPE_VALUE_LIST}}
-        ] @type
+        ))
 
         ; ── C++ standard values (std = ...) ───────────────────────────────────────
-        [
+        ((identifier) @constant.builtin
+        (#any-of? @constant.builtin
         {{STD_VALUE_LIST}}
-        ] @constant.builtin
+        ))
 
         ; ── Enum / constant values ────────────────────────────────────────────────
-        [
+        ((identifier) @constant.builtin
+        (#any-of? @constant.builtin
         {{ENUM_VALUE_LIST}}
-        ] @constant.builtin
+        ))
 
         ; ── Condition block ───────────────────────────────────────────────────────
         (condition_block
@@ -108,8 +114,6 @@ public sealed class ZedHighlightGenerator : IGrammarGenerator
         "[" @punctuation.bracket
         "]" @punctuation.bracket
 
-        ; ── General identifiers (fallback) ────────────────────────────────────────
-        (identifier) @variable
         """;
 
     public string Generate()

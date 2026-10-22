@@ -19,7 +19,7 @@ public final class DotoriLspIntegrationProvider implements LspIntegrationProvide
     }
 
     private static boolean isDotoriFile(VirtualFile file) {
-        return file.getName().equals(".dotori") || file.getName().endsWith(".dotori");
+        return file.getFileType() == DotoriFileType.INSTANCE;
     }
 
     private static final class DotoriLspClientDescriptor extends ProjectWideLspClientDescriptor {
@@ -37,7 +37,8 @@ public final class DotoriLspIntegrationProvider implements LspIntegrationProvide
 
         @Override
         public @NotNull GeneralCommandLine createCommandLine() {
-            return new GeneralCommandLine("dotori", "lsp")
+            return new GeneralCommandLine(DotoriSettings.getInstance().executable, "lsp")
+                    .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
                     .withWorkDirectory(dotoriProject.getBasePath());
         }
     }

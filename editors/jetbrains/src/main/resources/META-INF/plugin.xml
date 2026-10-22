@@ -4,7 +4,8 @@
     <vendor url="https://github.com/Dotori-BS/Dotori">Dotori Contributors</vendor>
     <description><![CDATA[
         Language Server integration for the Dotori C++ build system.
-        The <code>dotori</code> executable must be available on PATH.
+        Syntax highlighting and LSP completion, diagnostics, navigation and formatting
+        for .dotori files. Configure the executable under Settings | Languages &amp; Frameworks | Dotori.
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
@@ -13,11 +14,17 @@
     <depends>com.intellij.modules.lsp</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="dev.dotori.jetbrains.DotoriSettings"/>
         <fileType
                 name="Dotori"
                 implementationClass="dev.dotori.jetbrains.DotoriFileType"
                 fieldName="INSTANCE"
-                extensions="dotori"/>
+                extensions="dotori"
+                fileNames=".dotori"/>
+        <applicationConfigurable parentId="language" id="dev.dotori.settings"
+                displayName="Dotori" instance="dev.dotori.jetbrains.DotoriConfigurable"/>
+        <lang.syntaxHighlighterFactory language="Dotori"
+                implementationClass="dev.dotori.jetbrains.DotoriSyntaxHighlighterFactory"/>
         <platform.lsp.integrationProvider
                 implementation="dev.dotori.jetbrains.DotoriLspIntegrationProvider"/>
     </extensions>
