@@ -28,7 +28,7 @@ C# (.NET 10, NativeAOT). 설계 문서: `docs/` 참조
 - [x] CMakePresets.json (CMake 내보내기 시 configure/build/test preset 자동 생성)
 - [x] `setup ide` 공통/VS Code/Zed 개발 환경 자동 구성
 - [x] `watch --ide` IDE 산출물 자동 재생성
-- [x] VS Code 확장 (TextMate 문법, LSP, build/test/run/setup 명령)
+- [x] VS Code 확장 (TextMate 문법, LSP, 프로젝트 폴더별 build/test/run/setup 프로세스 작업, 저장 전 문서 포맷팅, 실행 경로·인자 설정 및 자동 재시작)
 - [x] Zed 확장 (고정 커밋 Tree-sitter 문법/강조 쿼리, LSP 실행 경로·인자·환경 설정)
 - [x] JetBrains 2026.2 플러그인 (CLion/Rider 문법 강조, LSP 어댑터, 실행 경로 설정)
 - [x] Visual Studio solution 생성 및 VSIX (TextMate 문법, LSP 어댑터)

@@ -42,29 +42,29 @@ public sealed class TextMateGrammarGenerator : IGrammarGenerator
             },
             "top-keywords": {
               "name":  "keyword.declaration.dotori",
-              "match": "\\b({{TOP_KEYWORDS}})\\b"
+              "match": "(?<![a-zA-Z0-9_+\\-])({{TOP_KEYWORDS}})(?![a-zA-Z0-9_+\\-])"
             },
             "block-keywords": {
               "name":  "keyword.other.block.dotori",
-              "match": "\\b({{BLOCK_KEYWORDS}})\\b"
+              "match": "(?<![a-zA-Z0-9_+\\-])({{BLOCK_KEYWORDS}})(?![a-zA-Z0-9_+\\-])"
             },
             "property-keywords": {
               "name":  "support.type.property-name.dotori",
-              "match": "\\b({{PROPERTY_KEYWORDS}})\\b"
+              "match": "(?<![a-zA-Z0-9_+\\-])({{PROPERTY_KEYWORDS}})(?![a-zA-Z0-9_+\\-])"
             },
             "value-keywords": {
               "patterns": [
                 {
                   "name":  "support.constant.type.dotori",
-                  "match": "\\b({{TYPE_VALUES}})\\b"
+                  "match": "(?<![a-zA-Z0-9_+\\-])({{TYPE_VALUES}})(?![a-zA-Z0-9_+\\-])"
                 },
                 {
                   "name":  "constant.language.std.dotori",
-                  "match": "\\b({{STD_VALUES}})\\b"
+                  "match": "(?<![a-zA-Z0-9_+\\-])({{STD_VALUES}})(?![a-zA-Z0-9_+\\-])"
                 },
                 {
                   "name":  "constant.language.dotori",
-                  "match": "\\b({{ENUM_VALUES}})\\b"
+                  "match": "(?<![a-zA-Z0-9_+\\-])({{ENUM_VALUES}})(?![a-zA-Z0-9_+\\-])"
                 }
               ]
             },
@@ -75,10 +75,10 @@ public sealed class TextMateGrammarGenerator : IGrammarGenerator
               "beginCaptures": { "0": { "name": "punctuation.section.condition.begin.dotori" } },
               "endCaptures":   { "0": { "name": "punctuation.section.condition.end.dotori"   } },
               "patterns": [
-                { "name": "keyword.control.platform.dotori",  "match": "\\b({{PLATFORM_CONDS}})\\b" },
-                { "name": "keyword.control.config.dotori",    "match": "\\b({{CONFIG_CONDS}})\\b"   },
-                { "name": "keyword.control.compiler.dotori",  "match": "\\b({{COMPILER_CONDS}})\\b" },
-                { "name": "keyword.control.runtime.dotori",   "match": "\\b({{RUNTIME_CONDS}})\\b"  },
+                { "name": "keyword.control.platform.dotori",  "match": "(?<![a-zA-Z0-9_+\\-])({{PLATFORM_CONDS}})(?![a-zA-Z0-9_+\\-])" },
+                { "name": "keyword.control.config.dotori",    "match": "(?<![a-zA-Z0-9_+\\-])({{CONFIG_CONDS}})(?![a-zA-Z0-9_+\\-])" },
+                { "name": "keyword.control.compiler.dotori",  "match": "(?<![a-zA-Z0-9_+\\-])({{COMPILER_CONDS}})(?![a-zA-Z0-9_+\\-])" },
+                { "name": "keyword.control.runtime.dotori",   "match": "(?<![a-zA-Z0-9_+\\-])({{RUNTIME_CONDS}})(?![a-zA-Z0-9_+\\-])" },
                 { "name": "punctuation.separator.condition.dotori", "match": "\\." }
               ]
             },
@@ -101,7 +101,7 @@ public sealed class TextMateGrammarGenerator : IGrammarGenerator
             },
             "identifiers": {
               "name":  "variable.other.dotori",
-              "match": "[a-zA-Z_][a-zA-Z0-9_\\-]*"
+              "match": "[a-zA-Z_][a-zA-Z0-9_+\\-]*"
             }
           }
         }

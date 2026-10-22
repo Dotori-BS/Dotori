@@ -5,6 +5,12 @@
   "version": "0.1.0",
   "publisher": "dotori",
   "license": "UNLICENSED",
+  "repository": { "type": "git", "url": "https://github.com/Dotori-BS/Dotori", "directory": "editors/vscode" },
+  "extensionKind": ["workspace"],
+  "capabilities": {
+    "untrustedWorkspaces": { "supported": false },
+    "virtualWorkspaces": { "supported": false }
+  },
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -25,16 +31,19 @@
   "main": "./dist/extension.js",
   "scripts": {
     "check": "node --check extension.js",
+    "test": "node --test test/*.test.js",
     "bundle": "esbuild extension.js --bundle --platform=node --external:vscode --outfile=dist/extension.js",
     "vscode:prepublish": "npm run bundle",
-    "package": "npm run bundle && vsce package"
+    "package": "vsce package"
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
     "@vscode/vsce": "^3.6.2",
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
   },
   "contributes": {
     "languages": [
@@ -44,6 +53,8 @@
           "Dotori",
           "dotori"
         ],
+        "filenames": [".dotori"],
+        "extensions": [".dotori"],
         "filenamePatterns": [
           "**/.dotori",
           "*.dotori"
@@ -90,11 +101,20 @@
         "dotori.path": {
           "type": "string",
           "default": "dotori",
+          "scope": "window",
           "description": "Path to the Dotori executable used for commands and the language server."
+        },
+        "dotori.arguments": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "scope": "window",
+          "description": "Arguments placed before every Dotori command. For a managed build, set dotori.path to dotnet and put the absolute dotori.dll path here."
         },
         "dotori.languageServer.logFile": {
           "type": "string",
           "default": "",
+          "scope": "window",
           "description": "Optional path for Dotori language server logs."
         }
       }

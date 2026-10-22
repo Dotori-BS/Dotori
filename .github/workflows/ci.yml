@@ -206,6 +206,7 @@ jobs:
         run: |
           npm ci
           npm run check
+          npm test
           npm run package
 
       - name: Install Zed WebAssembly target

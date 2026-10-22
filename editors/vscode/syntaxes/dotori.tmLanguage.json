@@ -31,29 +31,29 @@
     },
     "top-keywords": {
       "name":  "keyword.declaration.dotori",
-      "match": "\\b(project|package)\\b"
+      "match": "(?<![a-zA-Z0-9_+\\-])(project|package)(?![a-zA-Z0-9_+\\-])"
     },
     "block-keywords": {
       "name":  "keyword.other.block.dotori",
-      "match": "\\b(sources|modules|headers|defines|links|frameworks|framework-paths|compile-flags|link-flags|resources|dependencies|pch|unity-build|output|pre-build|post-build|copy|option|authors|exports|emscripten-flags|assembler)\\b"
+      "match": "(?<![a-zA-Z0-9_+\\-])(sources|modules|headers|defines|links|frameworks|framework-paths|compile-flags|link-flags|resources|dependencies|pch|unity-build|output|pre-build|post-build|copy|option|authors|exports|emscripten-flags|assembler)(?![a-zA-Z0-9_+\\-])"
     },
     "property-keywords": {
       "name":  "support.type.property-name.dotori",
-      "match": "\\b(type|std|description|optimize|debug-info|runtime-link|libc|stdlib|lto|warnings|warnings-as-errors|android-api-level|macos-min|ios-min|tvos-min|watchos-min|c-as-cpp|objc-arc|objc-as-objcpp|manifest|header|source|enabled|batch-size|export-map|name|version|license|homepage|include|exclude|public|private|git|tag|commit|path|from|to|binaries|libraries|symbols|default|tool|format|flags)\\b"
+      "match": "(?<![a-zA-Z0-9_+\\-])(type|std|description|optimize|debug-info|runtime-link|libc|stdlib|lto|warnings|warnings-as-errors|android-api-level|macos-min|ios-min|tvos-min|watchos-min|c-as-cpp|objc-arc|objc-as-objcpp|manifest|header|source|enabled|batch-size|export-map|name|version|license|homepage|include|exclude|public|private|git|tag|commit|path|from|to|binaries|libraries|symbols|default|tool|format|flags)(?![a-zA-Z0-9_+\\-])"
     },
     "value-keywords": {
       "patterns": [
         {
           "name":  "support.constant.type.dotori",
-          "match": "\\b(executable|test|static-library|shared-library|header-only)\\b"
+          "match": "(?<![a-zA-Z0-9_+\\-])(executable|test|static-library|shared-library|header-only)(?![a-zA-Z0-9_+\\-])"
         },
         {
           "name":  "constant.language.std.dotori",
-          "match": "\\b(c\\+\\+17|c\\+\\+20|c\\+\\+23)\\b"
+          "match": "(?<![a-zA-Z0-9_+\\-])(c\\+\\+17|c\\+\\+20|c\\+\\+23)(?![a-zA-Z0-9_+\\-])"
         },
         {
           "name":  "constant.language.dotori",
-          "match": "\\b(none|size|speed|full|minimal|static|dynamic|glibc|musl|libc\\+\\+|libstdc\\+\\+|default|all|extra|true|false|nasm|yasm|gas|as|masm|auto|elf64|elf32|win64|win32|macho64|macho32)\\b"
+          "match": "(?<![a-zA-Z0-9_+\\-])(none|size|speed|full|minimal|static|dynamic|glibc|musl|libc\\+\\+|libstdc\\+\\+|default|all|extra|true|false|nasm|yasm|gas|as|masm|auto|elf64|elf32|win64|win32|macho64|macho32)(?![a-zA-Z0-9_+\\-])"
         }
       ]
     },
@@ -64,10 +64,10 @@
       "beginCaptures": { "0": { "name": "punctuation.section.condition.begin.dotori" } },
       "endCaptures":   { "0": { "name": "punctuation.section.condition.end.dotori"   } },
       "patterns": [
-        { "name": "keyword.control.platform.dotori",  "match": "\\b(windows|uwp|linux|android|macos|ios|tvos|watchos|wasm)\\b" },
-        { "name": "keyword.control.config.dotori",    "match": "\\b(debug|release)\\b"   },
-        { "name": "keyword.control.compiler.dotori",  "match": "\\b(msvc|clang)\\b" },
-        { "name": "keyword.control.runtime.dotori",   "match": "\\b(static|dynamic|glibc|musl|libcxx|libstdcxx|emscripten|bare)\\b"  },
+        { "name": "keyword.control.platform.dotori",  "match": "(?<![a-zA-Z0-9_+\\-])(windows|uwp|linux|android|macos|ios|tvos|watchos|wasm)(?![a-zA-Z0-9_+\\-])" },
+        { "name": "keyword.control.config.dotori",    "match": "(?<![a-zA-Z0-9_+\\-])(debug|release)(?![a-zA-Z0-9_+\\-])" },
+        { "name": "keyword.control.compiler.dotori",  "match": "(?<![a-zA-Z0-9_+\\-])(msvc|clang)(?![a-zA-Z0-9_+\\-])" },
+        { "name": "keyword.control.runtime.dotori",   "match": "(?<![a-zA-Z0-9_+\\-])(static|dynamic|glibc|musl|libcxx|libstdcxx|emscripten|bare)(?![a-zA-Z0-9_+\\-])" },
         { "name": "punctuation.separator.condition.dotori", "match": "\\." }
       ]
     },
@@ -90,7 +90,7 @@
     },
     "identifiers": {
       "name":  "variable.other.dotori",
-      "match": "[a-zA-Z_][a-zA-Z0-9_\\-]*"
+      "match": "[a-zA-Z_][a-zA-Z0-9_+\\-]*"
     }
   }
 }

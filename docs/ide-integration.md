@@ -55,11 +55,23 @@ Node.js와 npm이 필요합니다.
 
 ```bash
 cd editors/vscode
-npm install
+npm ci
+npm run check
+npm test
 npm run package
 ```
 
 생성된 VSIX를 VS Code의 **Extensions: Install from VSIX...**로 설치합니다.
+`.dotori` 및 `이름.dotori` 파일의 문법 강조, 자동 완성, 진단, Hover, 정의·참조 이동과
+포맷팅을 지원합니다. 명령 팔레트의 `Dotori: Build/Test/Run/Refresh IDE Files`는
+활성 파일이 속한 프로젝트 폴더에서 프로세스 작업으로 실행됩니다. 여러 폴더를 열고
+활성 파일의 프로젝트를 판단할 수 없으면 폴더 선택 창을 표시합니다.
+
+`dotori.path`로 실행 파일 경로를 지정할 수 있습니다. 관리형 빌드는 이를 `dotnet`으로
+설정하고 `dotori.arguments`에 `dotori.dll`의 절대 경로를 넣습니다. 설정은 창 전체에
+적용되며 경로·인자·`dotori.languageServer.logFile` 변경 시 언어 서버를 다시 시작합니다.
+`Dotori: Format Current File`은 저장 전 문서와 이름 없는 문서도 LSP로 포맷팅합니다.
+설정 예제와 원격 환경 설치 방법은 [VS Code 확장 README](../editors/vscode/README.md)를 참조하세요.
 
 ### Zed
 
