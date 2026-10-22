@@ -216,7 +216,7 @@ Dotori.slnx
 ├── src/
 │   ├── Dotori.Cli/              ← CLI 진입점 (NativeAOT)
 │   ├── Dotori.Core/             ← 핵심 빌드 시스템 로직
-│   ├── Dotori.Grpc/             ← gRPC 스텁 (proto/ 자동 생성)
+│   ├── Dotori.Grpc/             ← gRPC 스텁, 원격 실행기 및 인증
 │   ├── Dotori.PackageManager/   ← 패키지 매니저
 │   ├── Dotori.BuildServer/      ← 분산 빌드 코디네이터
 │   ├── Dotori.Worker/           ← 분산 빌드 워커

@@ -1,6 +1,6 @@
 using Dotori.Core.Build;
 
-namespace Dotori.Core.Executor;
+namespace Dotori.Grpc;
 
 /// <summary>Maps coordinator-local paths to worker-local placeholders.</summary>
 public static class RemoteArgumentMapper

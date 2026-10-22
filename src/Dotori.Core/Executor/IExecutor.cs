@@ -4,7 +4,7 @@ namespace Dotori.Core.Executor;
 
 /// <summary>
 /// Abstraction over local and remote build execution.
-/// Implementations: <see cref="LocalExecutor"/>, RemoteExecutor (Phase 2).
+/// Local implementations live in Core; the remote implementation lives in Dotori.Grpc.
 /// </summary>
 public interface IExecutor
 {

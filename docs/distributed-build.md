@@ -22,6 +22,8 @@ BuildServer (Coordinator)
 - **Coordinator**: CLI로부터 컴파일/링크 요청을 받아 워커에게 분배. 오브젝트 파일 캐시 관리.
 - **Worker**: 실제 컴파일러/링커를 실행하여 결과를 반환. 지원 타겟 목록을 코디네이터에 등록.
 
+원격 실행기(`RemoteExecutor`), 원격 인자 변환 및 gRPC 통신은 `Dotori.Grpc` 프로젝트에 모여 있습니다. CLI가 이를 참조하며, 로컬 빌드 엔진인 `Dotori.Core`는 gRPC 의존성 없이 사용할 수 있습니다.
+
 ---
 
 ## 빠른 시작 (Docker Compose)

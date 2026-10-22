@@ -3,6 +3,7 @@ WORKDIR /repo
 
 COPY proto/           proto/
 COPY src/Dotori.Core/ src/Dotori.Core/
+COPY src/Dotori.Grpc/ src/Dotori.Grpc/
 COPY src/Dotori.BuildServer/ src/Dotori.BuildServer/
 
 RUN dotnet publish src/Dotori.BuildServer/Dotori.BuildServer.csproj \

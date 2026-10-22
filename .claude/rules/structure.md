@@ -33,7 +33,7 @@ Dotori/
 │   ├── Dotori.PackageManager/ # 의존성 해석 및 패키지 관리
 │   ├── Dotori.BuildServer/    # 분산 빌드 서버
 │   ├── Dotori.Worker/         # 분산 빌드 워커
-│   └── Dotori.Grpc/           # 분산 빌드 gRPC 정의 및 인증 헬퍼
+│   └── Dotori.Grpc/           # 분산 빌드 gRPC 정의, 원격 실행 및 인증
 ├── tests/                     # 테스트 프로젝트 (src 구조와 동일)
 │   ├── Dotori.Tests.Build/
 │   ├── Dotori.Tests.Generators/
@@ -125,6 +125,8 @@ IDE 통합 (자동 완성, Hover, GoToDefinition, References, 진단 정보).
 ### 7. **Dotori.Grpc** — gRPC 정의
 
 `proto/build.proto`에서 분산 빌드 RPC 클라이언트/서버 코드를 생성하고, 원격 빌드 인증 헬퍼를 제공합니다. 레지스트리 통신은 PackageManager의 npm 호환 HTTP 클라이언트가 담당합니다.
+
+`RemoteExecutor`와 `RemoteArgumentMapper`도 이 프로젝트에 위치합니다. Core는 로컬 실행과 `IExecutor` 인터페이스를 제공하며 gRPC를 참조하지 않습니다.
 
 ---
 
@@ -227,11 +229,12 @@ Dotori.Core/Generators 모듈이 지원하는 형식 (`export build-system --for
 ```
 Dotori.Cli
 ├── Dotori.Core (빌드, 파싱, 생성)
+├── Dotori.Grpc (원격 빌드 실행)
 ├── Dotori.PackageManager (의존성 관리)
 └── Dotori.LanguageServer (LSP 지원)
 
 Dotori.Core
-└── Dotori.Grpc
+└── (직접 프로젝트 참조 없음)
 
 Dotori.BuildServer
 ├── Dotori.Core
@@ -248,7 +251,7 @@ Dotori.PackageManager
 └── Dotori.Core
 
 Dotori.Grpc
-└── (외부 gRPC/Protobuf 패키지)
+└── Dotori.Core
 ```
 
 분산 빌드 서버는 gRPC로 Worker와 통신합니다. 위 의존성 트리는 `.csproj`의 직접 프로젝트 참조를 나타냅니다. 레지스트리는 .NET 프로젝트가 아닌 외부 Verdaccio 서비스입니다.

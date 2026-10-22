@@ -1,5 +1,5 @@
 using Dotori.Core.Build;
-using Dotori.Grpc;
+using Dotori.Core.Executor;
 using Google.Protobuf;
 using Grpc.Core;
 using Grpc.Net.Client;
@@ -7,7 +7,7 @@ using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Dotori.Core.Executor;
+namespace Dotori.Grpc;
 
 /// <summary>
 /// Executes compile and link jobs on a remote <c>dotori-server</c> (BuildCoordinator).
