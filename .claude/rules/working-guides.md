@@ -56,7 +56,7 @@ public void 새로운기능_정상동작()
 | CLI 명령어/옵션 추가/변경 | `docs/cli.md` + `docs/dotori.1` |
 | .dotori DSL 문법/블록/속성 변경 | `docs/dotori-file.md` |
 | 분산 빌드 서버 관련 변경 | `docs/distributed-build.md` |
-| 레지스트리 서버 관련 변경 | `docs/registry.md` |
+| 레지스트리 서버 관련 변경 | `deploy/registry/README.md` + 관련 `docs/cli.md` 항목 |
 | 새로운 기능 추가 | `docs/examples.md`에 예제 추가 권장 |
 | build.sh 빌드 옵션/대상 변경 | `docs/building.md` |
 | 프로젝트 자체 빌드 프로세스 변경 | `docs/building.md` + `build.sh` 주석 |

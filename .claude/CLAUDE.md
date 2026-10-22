@@ -8,7 +8,7 @@ Dotori: C# 12 / .NET 10 (NativeAOT) 로 작성된 C++ 빌드 시스템 및 패�
 
 ### 1단계: 프로젝트 구조 이해 (필수)
 읽기: `.claude/rules/structure.md`
-- 8개 컴포넌트 역할, 모듈 위치, 의존성 파악
+- 7개 .NET 컴포넌트 역할, 모듈 위치, 의존성 파악
 
 ### 2단계: 개발 가이드 검토
 읽기: `.claude/rules/working-guides.md`
@@ -32,7 +32,7 @@ Dotori: C# 12 / .NET 10 (NativeAOT) 로 작성된 C++ 빌드 시스템 및 패�
 | CLI 도구 | `src/Dotori.Cli/` |
 | 패키지 관리자 | `src/Dotori.PackageManager/` |
 | 언어 서버 (LSP) | `src/Dotori.LanguageServer/` |
-| 패키지 레지스트리 | `src/Dotori.Registry/` |
+| 패키지 레지스트리 배포 | `deploy/registry/` (Verdaccio, npm 호환) |
 | 분산 빌드 서버 | `src/Dotori.BuildServer/` |
 | 빌드 워커 | `src/Dotori.Worker/` |
 | gRPC 정의 | `src/Dotori.Grpc/` |

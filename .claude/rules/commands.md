@@ -41,9 +41,10 @@ $ dotnet run -p src/Dotori.Cli/Dotori.Cli.csproj -- export build-system --format
 $ dotnet run -p src/Dotori.Cli/Dotori.Cli.csproj -- build
 ```
 
-### 레지스트리 서버 실행
+### 레지스트리 서버 실행 (Verdaccio)
+인증 파일 준비는 `deploy/registry/README.md` 참조.
 ```bash
-$ dotnet run -p src/Dotori.Registry/Dotori.Registry.csproj
+$ docker compose --profile registry up -d registry
 ```
 
 ### 빌드 서버 실행
@@ -73,7 +74,7 @@ $ dotnet test tests/Dotori.Tests.PackageManager/
 $ dotnet test tests/Dotori.Tests.Generators/
 $ dotnet test tests/Dotori.Tests.Graph/
 $ dotnet test tests/Dotori.Tests.LanguageServer/
-$ dotnet test tests/Dotori.Tests.Registry/
+$ dotnet test tests/Dotori.Tests.BuildServer/
 ```
 
 ### 특정 테스트만 실행
@@ -171,21 +172,22 @@ $ .\build.ps1
 
 ## Docker를 이용한 서비스 실행
 
-### Docker Compose로 전체 서비스 실행
+### Docker Compose로 분산 빌드 서비스 실행
+`DOTORI_SERVER_TOKEN`, `DOTORI_WORKER_TOKEN`을 설정한 뒤 실행합니다. 레지스트리는 별도의 `registry` 프로필로 실행합니다.
 ```bash
-$ docker-compose up
+$ docker compose up
 ```
 
 ### 특정 서비스만 실행
 ```bash
-$ docker-compose up dotori-registry
-$ docker-compose up dotori-build-server
-$ docker-compose up dotori-worker
+$ docker compose --profile registry up -d registry
+$ docker compose up server
+$ docker compose up worker1 worker2
 ```
 
 ### 서비스 중지
 ```bash
-$ docker-compose down
+$ docker compose down
 ```
 
 ---

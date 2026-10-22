@@ -26,15 +26,14 @@ Dotori/
 │   ├── CLAUDE.md              # 세션 시작 지시사항
 │   └── settings.local.json    # 로컬 설정
 ├── .github/                   # GitHub 워크플로우 및 CI/CD
-├── src/                       # 소스 코드 - 8개 핵심 컴포넌트
+├── src/                       # 소스 코드 - 7개 .NET 컴포넌트
 │   ├── Dotori.Core/           # 빌드 엔진 핵심 로직
 │   ├── Dotori.Cli/            # 커맨드라인 인터페이스
 │   ├── Dotori.LanguageServer/ # LSP (Language Server Protocol) 구현
 │   ├── Dotori.PackageManager/ # 의존성 해석 및 패키지 관리
-│   ├── Dotori.Registry/       # 패키지 레지스트리 서버
 │   ├── Dotori.BuildServer/    # 분산 빌드 서버
 │   ├── Dotori.Worker/         # 분산 빌드 워커
-│   └── Dotori.Grpc/           # gRPC 서비스 정의
+│   └── Dotori.Grpc/           # 분산 빌드 gRPC 정의 및 인증 헬퍼
 ├── tests/                     # 테스트 프로젝트 (src 구조와 동일)
 │   ├── Dotori.Tests.Build/
 │   ├── Dotori.Tests.Generators/
@@ -42,8 +41,9 @@ Dotori/
 │   ├── Dotori.Tests.LanguageServer/
 │   ├── Dotori.Tests.PackageManager/
 │   ├── Dotori.Tests.Parsing/
-│   ├── Dotori.Tests.Registry/
+│   ├── Dotori.Tests.BuildServer/
 │   └── platform-smoke/        # 플랫폼별 통합 테스트
+├── deploy/registry/           # Verdaccio 배포 구성 (Docker Compose/Kubernetes)
 ├── docs/                      # 사용자 및 개발자 문서
 │   ├── index.md               # 문서 목차
 │   ├── cli.md                 # CLI 명령어 및 옵션
@@ -51,13 +51,11 @@ Dotori/
 │   ├── examples.md            # 사용 예제 및 튜토리얼
 │   ├── building.md            # Dotori 자체 빌드 방법
 │   ├── distributed-build.md   # 분산 빌드 설정
-│   ├── registry.md            # 패키지 레지스트리 설정
 │   └── dotori.1              # Man page
 ├── grammar/                   # DSL 문법 정의
 ├── proto/                     # Protocol Buffer 파일 (gRPC용)
 ├── build/                     # 빌드 아티팩트 및 출력
 ├── AGENTS.md                  # LLM 에이전트 개발 가이드 (참조용)
-├── CLAUDE.md                  # Claude AI 세션 지시사항 (읽기 시작점)
 ├── SPEC.md                    # 기술 사양 및 구현 현황
 ├── README.md                  # 프로젝트 개요
 ├── Dotori.slnx               # Visual Studio 솔루션 파일
@@ -69,7 +67,7 @@ Dotori/
 
 ---
 
-## 8개 핵심 컴포넌트
+## 7개 .NET 컴포넌트
 
 ### 1. **Dotori.Core** — 빌드 엔진 핵심
 
@@ -83,7 +81,7 @@ Dotori/
 - **Executor/** — 병렬 빌드 작업 스케줄링
 - **Graph/** — 의존성 그래프 구성, 순환 참조 감지
 - **Model/** — 프로젝트/타겟/속성 데이터 모델
-- **Debugger/** — 디버그 정보 생성
+- **Debugger/** — 디버거 탐지 및 실행
 - `DotoriConstants.cs` — 상수 및 기본값 정의
 
 ---
@@ -92,7 +90,7 @@ Dotori/
 
 사용자 진입점. Commands/ 핸들러, BuildContext.cs, Program.cs로 구성.
 
-지원 명령어: `export build-system`, `build`, `install`
+주요 명령어: `build`, `run`, `test`, `watch`, `install`, `export`, `setup`, `package`, `lsp` 및 레지스트리 명령. 전체 등록 목록은 `src/Dotori.Cli/Program.cs` 참조.
 
 ---
 
@@ -104,25 +102,19 @@ SemVer 기반 PubGrub 알고리즘으로 의존성 해석 및 패키지 설치.
 
 ---
 
-### 4. **Dotori.Registry** — 패키지 레지스트리 서버
-
-중앙 패키지 저장소. REST API(`Api/`), 데이터 영속성(`Database/`), 저장소 관리(`Storage/`), 인증(`Auth/`)으로 구성.
-
----
-
-### 5. **Dotori.BuildServer** — 분산 빌드 서버
+### 4. **Dotori.BuildServer** — 분산 빌드 서버
 
 여러 워커에 빌드 작업 분산 실행 및 캐시 관리. `Services/`(gRPC), `Workers/`, `Cache/`로 구성.
 
 ---
 
-### 6. **Dotori.Worker** — 빌드 워커
+### 5. **Dotori.Worker** — 빌드 워커
 
 BuildServer로부터 gRPC로 작업 수신, 빌드 실행 후 결과 보고. `Services/`로 구성.
 
 ---
 
-### 7. **Dotori.LanguageServer** — LSP 구현
+### 6. **Dotori.LanguageServer** — LSP 구현
 
 IDE 통합 (자동 완성, Hover, GoToDefinition, References, 진단 정보).
 
@@ -130,9 +122,9 @@ IDE 통합 (자동 완성, Hover, GoToDefinition, References, 진단 정보).
 
 ---
 
-### 8. **Dotori.Grpc** — gRPC 정의
+### 7. **Dotori.Grpc** — gRPC 정의
 
-BuildServer ↔ Worker, 레지스트리 클라이언트 등 분산 시스템 간 RPC 통신 정의 (프로토콜 정의만).
+`proto/build.proto`에서 분산 빌드 RPC 클라이언트/서버 코드를 생성하고, 원격 빌드 인증 헬퍼를 제공합니다. 레지스트리 통신은 PackageManager의 npm 호환 HTTP 클라이언트가 담당합니다.
 
 ---
 
@@ -148,7 +140,7 @@ tests/
 ├── Dotori.Tests.Graph/           # 의존성 그래프 테스트
 ├── Dotori.Tests.PackageManager/  # 패키지 관리 테스트
 ├── Dotori.Tests.LanguageServer/  # LSP 테스트
-├── Dotori.Tests.Registry/        # 레지스트리 테스트
+├── Dotori.Tests.BuildServer/     # 분산 빌드 테스트
 ├── platform-smoke/               # 플랫폼 통합 테스트
 ├── Directory.Build.props          # 테스트 공통 설정
 └── MSTestSettings.cs             # MSTest 설정
@@ -171,7 +163,7 @@ dotnet test
 | `docs/examples.md` | 사용 예제 및 튜토리얼 |
 | `docs/building.md` | Dotori 자체 빌드 방법 |
 | `docs/distributed-build.md` | 분산 빌드 설정 및 사용법 |
-| `docs/registry.md` | 패키지 레지스트리 설정 및 API |
+| `deploy/registry/README.md` | Verdaccio 레지스트리 배포 및 인증 설정 |
 | `docs/dotori.1` | Man page (Unix 매뉴얼 페이지) |
 
 ---
@@ -238,12 +230,11 @@ Dotori.Cli
 ├── Dotori.PackageManager (의존성 관리)
 └── Dotori.LanguageServer (LSP 지원)
 
+Dotori.Core
+└── Dotori.Grpc
+
 Dotori.BuildServer
 ├── Dotori.Core
-├── Dotori.Grpc
-└── Dotori.Worker (상호 통신)
-
-Dotori.Registry
 └── Dotori.Grpc
 
 Dotori.Worker
@@ -251,13 +242,13 @@ Dotori.Worker
 └── Dotori.Grpc
 
 Dotori.LanguageServer
-├── Dotori.Core
-└── Dotori.PackageManager
+└── Dotori.Core
 
 Dotori.PackageManager
-└── Dotori.Grpc (레지스트리 통신)
+└── Dotori.Core
 
 Dotori.Grpc
-└── (프로토콜 정의만)
+└── (외부 gRPC/Protobuf 패키지)
 ```
 
+분산 빌드 서버는 gRPC로 Worker와 통신합니다. 위 의존성 트리는 `.csproj`의 직접 프로젝트 참조를 나타냅니다. 레지스트리는 .NET 프로젝트가 아닌 외부 Verdaccio 서비스입니다.
