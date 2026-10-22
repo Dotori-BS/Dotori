@@ -73,21 +73,7 @@ public static class ProjectDagBuilder
             foreach (var dep in node.Dependencies)
                 inDegree.TryAdd(dep.DotoriPath, 0);
         }
-        foreach (var node in nodes.Values)
-        {
-            foreach (var dep in node.Dependencies)
-            {
-                // dep must be built before node → node's in-degree increases
-                inDegree[node.DotoriPath]++;
-            }
-        }
-
-        // Wait — in-degree for Kahn's: count incoming edges (predecessors)
-        // Reset and recount properly: dep → node means node depends on dep
-        // "in-degree of node" = number of nodes that must be built before node
-        foreach (var key in inDegree.Keys.ToList())
-            inDegree[key] = 0;
-
+        // Each dependency must complete before its dependent can enter the queue.
         foreach (var node in nodes.Values)
             foreach (var dep in node.Dependencies)
                 inDegree[node.DotoriPath]++;

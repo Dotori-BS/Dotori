@@ -1,4 +1,4 @@
-"""Exercise CLI project preparation and PCH reuse with a real Clang toolchain.
+"""Exercise CLI project preparation and PCH reuse with a real Clang or MSVC toolchain.
 
 Run after dotnet build: python tests/cli-preparation-smoke.py
 Pass --cli to test another managed DLL or a published native executable.

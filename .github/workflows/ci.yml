@@ -109,6 +109,19 @@ jobs:
       - name: Restore and build Dotori CLI
         run: dotnet build src/Dotori.Cli/Dotori.Cli.csproj -c Release
 
+      - name: Setup Python for CLI preparation smoke
+        if: matrix.compiler != 'g++'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify CLI preparation and PCH reuse
+        if: matrix.compiler != 'g++'
+        run: >-
+          python tests/cli-preparation-smoke.py
+          --cli src/Dotori.Cli/bin/Release/net10.0/dotori.dll
+          --compiler ${{ matrix.compiler }}
+
       - name: Build C++ platform smoke
         run: >-
           dotnet run --project src/Dotori.Cli/Dotori.Cli.csproj

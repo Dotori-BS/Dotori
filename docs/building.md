@@ -187,9 +187,10 @@ dotnet run --project src/Dotori.Cli/Dotori.Cli.csproj -- build --help
 # 테스트
 dotnet test
 
-# CLI 프로젝트 준비/PCH 통합 검증 (Python 3 및 Clang 필요)
+# CLI 프로젝트 준비/PCH 통합 검증 (Python 3 및 Clang 또는 MSVC 필요)
 python tests/cli-preparation-smoke.py
 # 다른 CLI 빌드 검증: --cli build/cli/dotori.exe
+# MSVC 검증: --compiler msvc
 
 # 코드 포매팅
 dotnet csharpier format .
@@ -197,6 +198,8 @@ dotnet csharpier format .
 ```
 
 ---
+
+CI의 C++ smoke 작업은 Linux Clang, Apple Clang, Windows MSVC에서 CLI 프로젝트 준비와 PCH 재사용 테스트도 실행합니다. GCC 작업은 기존 C++ 빌드 검증을 유지하며, Clang/MSVC용 PCH 테스트는 실행하지 않습니다.
 
 ## 지원 Runtime Identifier (RID)
 
