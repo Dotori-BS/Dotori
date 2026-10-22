@@ -22,10 +22,11 @@ impl zed::Extension for DotoriExtension {
                 "dotori was not found on PATH; set lsp.dotori-lsp.binary.path in Zed settings"
                     .to_string()
             })?;
-        let args = binary
+        let mut args = binary
             .as_ref()
             .and_then(|b| b.arguments.clone())
             .unwrap_or_else(|| vec!["lsp".to_string()]);
+        args.push("--watch-ide".to_string());
         let mut env = worktree.shell_env();
         if let Some(overrides) = binary.and_then(|b| b.env) {
             env.retain(|(key, _)| !overrides.contains_key(key));

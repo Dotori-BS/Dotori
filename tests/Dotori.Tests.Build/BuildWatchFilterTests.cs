@@ -31,4 +31,22 @@ public sealed class BuildWatchFilterTests
         Assert.IsFalse(BuildWatchFilter.ShouldTrigger(
             Path.Combine(Path.GetTempPath(), "project", relativePath)));
     }
+
+    [TestMethod]
+    [DataRow(".dotori", WatcherChangeTypes.Changed, true)]
+    [DataRow("nested/library.dotori", WatcherChangeTypes.Created, true)]
+    [DataRow("src/main.cpp", WatcherChangeTypes.Created, true)]
+    [DataRow("src/main.cpp", WatcherChangeTypes.Deleted, true)]
+    [DataRow("include/api.h", WatcherChangeTypes.Renamed, true)]
+    [DataRow("src/main.cpp", WatcherChangeTypes.Changed, false)]
+    [DataRow("include/api.h", WatcherChangeTypes.Changed, false)]
+    [DataRow(".dotori-cache/generated.cpp", WatcherChangeTypes.Created, false)]
+    public void ShouldTriggerClangd_FiltersProjectEvents(
+        string relativePath,
+        WatcherChangeTypes changeType,
+        bool expected)
+    {
+        Assert.AreEqual(expected, BuildWatchFilter.ShouldTriggerClangd(
+            Path.Combine(Path.GetTempPath(), "project", relativePath), changeType));
+    }
 }

@@ -9,7 +9,7 @@ internal static class WatchCommandFactory
 {
     public static Command Create()
     {
-        var command = new Command("watch", "Rebuild when project files change");
+        var command = new Command("watch", "Rebuild or refresh IDE files when project files change");
         var projectOption = new Option<string?>("--project") { Description = "Path to .dotori file or directory" };
         var allOption = new Option<bool>("--all") { Description = "Watch all projects below the directory" };
         var debounceOption = new Option<int>("--debounce")
@@ -18,15 +18,18 @@ internal static class WatchCommandFactory
             DefaultValueFactory = _ => 250,
         };
         var noInitialOption = new Option<bool>("--no-initial-build")
-            { Description = "Wait for a file change before the first build" };
+            { Description = "Wait for a file change before the first action" };
         var ideOption = new Option<bool>("--ide")
             { Description = "Regenerate IDE integration files instead of building" };
+        var clangdOption = new Option<bool>("--clangd")
+            { Description = "Regenerate clangd files when Dotori or C/C++ source files change" };
 
         command.Add(projectOption);
         command.Add(allOption);
         command.Add(debounceOption);
         command.Add(noInitialOption);
         command.Add(ideOption);
+        command.Add(clangdOption);
         command.TreatUnmatchedTokensAsErrors = false;
 
         command.SetAction(async (parseResult, ct) =>
@@ -35,6 +38,12 @@ internal static class WatchCommandFactory
             var watchAll = parseResult.GetValue(allOption);
             var debounceMs = parseResult.GetValue(debounceOption);
             var watchIde = parseResult.GetValue(ideOption);
+            var watchClangd = parseResult.GetValue(clangdOption);
+            if (watchIde && watchClangd)
+            {
+                Console.Error.WriteLine("Error: --ide and --clangd cannot be used together.");
+                return 1;
+            }
             if (debounceMs < 0)
             {
                 Console.Error.WriteLine("Error: --debounce must be zero or greater.");
@@ -43,13 +52,14 @@ internal static class WatchCommandFactory
 
             var paths = BuildContext.ResolveProjectPaths(projectArg, watchAll);
             if (paths.Count == 0) return 1;
-            var actionArgs = CreateActionArguments(projectArg, watchAll, watchIde, parseResult.UnmatchedTokens);
+            var actionArgs = CreateActionArguments(
+                projectArg, watchAll, watchIde, watchClangd, parseResult.UnmatchedTokens, paths);
 
             if (!parseResult.GetValue(noInitialOption))
             {
                 var initialCode = await RunActionAsync(actionArgs, ct);
                 if (initialCode != 0)
-                    Console.Error.WriteLine($"  Initial {(watchIde ? "IDE refresh" : "build")} failed (exit {initialCode}); continuing to watch.");
+                    Console.Error.WriteLine($"  Initial {ActionName(watchIde, watchClangd)} failed (exit {initialCode}); continuing to watch.");
             }
 
             var changes = Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
@@ -59,7 +69,7 @@ internal static class WatchCommandFactory
                 SingleWriter = false,
             });
             using var registration = ct.Register(() => changes.Writer.TryComplete());
-            using var watchers = new WatcherCollection(paths, changes.Writer);
+            using var watchers = new WatcherCollection(paths, changes.Writer, watchClangd);
 
             Console.WriteLine($"  Watching {watchers.RootCount} project root(s). Press Ctrl+C to stop.");
             try
@@ -70,11 +80,11 @@ internal static class WatchCommandFactory
                         await Task.Delay(debounceMs, ct);
                     while (changes.Reader.TryRead(out var pendingSignal)) { }
 
-                    Console.WriteLine($"\n  Change detected at {DateTime.Now:T}; {(watchIde ? "refreshing IDE files" : "rebuilding")}...");
+                    Console.WriteLine($"\n  Change detected at {DateTime.Now:T}; {ActionVerb(watchIde, watchClangd)}...");
                     var exitCode = await RunActionAsync(actionArgs, ct);
                     Console.WriteLine(exitCode == 0
-                        ? $"  {(watchIde ? "IDE refresh" : "Build")} completed."
-                        : $"  {(watchIde ? "IDE refresh" : "Build")} failed (exit {exitCode}); waiting for changes.");
+                        ? $"  {ActionName(watchIde, watchClangd)} completed."
+                        : $"  {ActionName(watchIde, watchClangd)} failed (exit {exitCode}); waiting for changes.");
                 }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -90,20 +100,56 @@ internal static class WatchCommandFactory
         string? projectArg,
         bool all,
         bool ide,
-        IReadOnlyList<string> forwarded)
+        bool clangd,
+        IReadOnlyList<string> forwarded,
+        IReadOnlyList<string> projectPaths)
     {
-        var args = ide
-            ? new List<string> { "setup", "ide", "--ide", "all" }
-            : new List<string> { "build" };
+        List<string> args;
+        var includeAll = all;
+        if (clangd)
+        {
+            includeAll |= projectArg is null && projectPaths.Count > 1;
+            var project = projectArg ?? (includeAll ? Directory.GetCurrentDirectory() : projectPaths[0]);
+            var outputDirectory = Directory.Exists(project)
+                ? Path.GetFullPath(project)
+                : Path.GetDirectoryName(Path.GetFullPath(project))!;
+            args =
+            [
+                "export", "ide", "--project", project,
+                "--output", Path.Combine(outputDirectory, "compile_commands.json"),
+                "--clangd-output", Path.Combine(outputDirectory, ".clangd"),
+            ];
+        }
+        else if (ide)
+        {
+            args = ["setup", "ide", "--ide", "all"];
+        }
+        else
+        {
+            args = ["build"];
+        }
+
         if (projectArg is not null)
         {
-            args.Add("--project");
-            args.Add(projectArg);
+            if (!clangd)
+            {
+                args.Add("--project");
+                args.Add(projectArg);
+            }
         }
-        if (all) args.Add("--all");
+        if (includeAll)
+        {
+            args.Add("--all");
+        }
         args.AddRange(forwarded);
         return args;
     }
+
+    private static string ActionName(bool ide, bool clangd) =>
+        clangd ? "clangd refresh" : ide ? "IDE refresh" : "Build";
+
+    private static string ActionVerb(bool ide, bool clangd) =>
+        clangd ? "refreshing clangd files" : ide ? "refreshing IDE files" : "rebuilding";
 
     private static async Task<int> RunActionAsync(
         IReadOnlyList<string> arguments,
@@ -146,12 +192,15 @@ internal static class WatchCommandFactory
     private sealed class WatcherCollection : IDisposable
     {
         private readonly List<FileSystemWatcher> _watchers = [];
+        private readonly bool _clangd;
         public int RootCount => _watchers.Count;
 
         public WatcherCollection(
             IReadOnlyList<string> projectPaths,
-            ChannelWriter<bool> changes)
+            ChannelWriter<bool> changes,
+            bool clangd)
         {
+            _clangd = clangd;
             foreach (var root in projectPaths.Select(path => Path.GetDirectoryName(path)!)
                          .Distinct(StringComparer.OrdinalIgnoreCase))
             {
@@ -162,8 +211,12 @@ internal static class WatchCommandFactory
                                    NotifyFilters.LastWrite | NotifyFilters.Size,
                     EnableRaisingEvents = false,
                 };
-                FileSystemEventHandler onChange = (_, e) => Signal(e.FullPath, changes);
-                RenamedEventHandler onRename = (_, e) => Signal(e.FullPath, changes);
+                FileSystemEventHandler onChange = (_, e) => Signal(e.FullPath, e.ChangeType, changes);
+                RenamedEventHandler onRename = (_, e) =>
+                {
+                    Signal(e.FullPath, e.ChangeType, changes);
+                    Signal(e.OldFullPath, e.ChangeType, changes);
+                };
                 watcher.Changed += onChange;
                 watcher.Created += onChange;
                 watcher.Deleted += onChange;
@@ -175,9 +228,12 @@ internal static class WatchCommandFactory
             }
         }
 
-        private static void Signal(string path, ChannelWriter<bool> changes)
+        private void Signal(string path, WatcherChangeTypes changeType, ChannelWriter<bool> changes)
         {
-            if (BuildWatchFilter.ShouldTrigger(path)) changes.TryWrite(true);
+            var shouldTrigger = _clangd
+                ? BuildWatchFilter.ShouldTriggerClangd(path, changeType)
+                : BuildWatchFilter.ShouldTrigger(path);
+            if (shouldTrigger) changes.TryWrite(true);
         }
 
         public void Dispose()

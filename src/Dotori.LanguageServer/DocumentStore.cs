@@ -37,8 +37,20 @@ public sealed record DocumentEntry(string Uri, string Text, int Version)
     /// <summary>
     /// Convert LSP URI (file:///path) to a local file system path.
     /// </summary>
-    public string? LocalPath =>
-        Uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase)
-            ? new Uri(Uri).LocalPath
-            : null;
+    public string? LocalPath
+    {
+        get
+        {
+            if (!System.Uri.TryCreate(Uri, UriKind.Absolute, out var parsed) || !parsed.IsFile)
+                return null;
+
+            var path = parsed.LocalPath;
+            // VS Code escapes the drive colon (file:///c%3A/...). System.Uri
+            // decodes it but leaves a leading slash instead of recognizing a DOS path.
+            if (OperatingSystem.IsWindows() && path.Length >= 3 && path[0] == '/' &&
+                char.IsAsciiLetter(path[1]) && path[2] == ':')
+                return path[1..].Replace('/', '\\');
+            return path;
+        }
+    }
 }

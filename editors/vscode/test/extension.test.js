@@ -79,7 +79,7 @@ test('starts stdio LSP with managed binary arguments, log path and dotfile watch
     'languageServer.logFile': '/logs with spaces/lsp.log' };
   await h.activate();
   assert.deepEqual(plain(h.state.clients[0].server), {
-    command: 'dotnet', args: ['/tools with spaces/dotori.dll', 'lsp', '--log-file', '/logs with spaces/lsp.log']
+    command: 'dotnet', args: ['/tools with spaces/dotori.dll', 'lsp', '--watch-ide', '--log-file', '/logs with spaces/lsp.log']
   });
   assert.equal(h.state.clients[0].options.documentSelector.length, 2);
   assert.deepEqual(h.state.watchers, ['**/{.dotori,*.dotori}']);

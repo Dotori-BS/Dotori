@@ -5,11 +5,21 @@
   "version": "0.1.0",
   "publisher": "dotori",
   "license": "UNLICENSED",
-  "repository": { "type": "git", "url": "https://github.com/Dotori-BS/Dotori", "directory": "editors/vscode" },
-  "extensionKind": ["workspace"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dotori-BS/Dotori",
+    "directory": "editors/vscode"
+  },
+  "extensionKind": [
+    "workspace"
+  ],
   "capabilities": {
-    "untrustedWorkspaces": { "supported": false },
-    "virtualWorkspaces": { "supported": false }
+    "untrustedWorkspaces": {
+      "supported": false
+    },
+    "virtualWorkspaces": {
+      "supported": false
+    }
   },
   "engines": {
     "vscode": "^1.95.0"
@@ -26,12 +36,16 @@
   ],
   "activationEvents": [
     "onLanguage:dotori",
+    "workspaceContains:.dotori",
+    "workspaceContains:**/.dotori",
+    "workspaceContains:*.dotori",
     "onCommand:dotori.setupIde"
   ],
   "main": "./dist/extension.js",
   "scripts": {
     "check": "node --check extension.js",
     "test": "node --test test/*.test.js",
+    "test:integration": "node test/integration/run.js",
     "bundle": "esbuild extension.js --bundle --platform=node --external:vscode --outfile=dist/extension.js",
     "vscode:prepublish": "npm run bundle",
     "package": "vsce package"
@@ -40,6 +54,7 @@
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
+    "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.6.2",
     "esbuild": "^0.25.0",
     "vscode-oniguruma": "^2.0.1",
@@ -53,8 +68,12 @@
           "Dotori",
           "dotori"
         ],
-        "filenames": [".dotori"],
-        "extensions": [".dotori"],
+        "filenames": [
+          ".dotori"
+        ],
+        "extensions": [
+          ".dotori"
+        ],
         "filenamePatterns": [
           "**/.dotori",
           "*.dotori"
@@ -106,7 +125,9 @@
         },
         "dotori.arguments": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [],
           "scope": "window",
           "description": "Arguments placed before every Dotori command. For a managed build, set dotori.path to dotnet and put the absolute dotori.dll path here."

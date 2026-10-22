@@ -17,8 +17,7 @@ npm run package
 Choose **Extensions: Install from VSIX...** in VS Code and select
 `dotori-0.1.0.vsix`. Open a project folder and a `.dotori` or `name.dotori`
 file. The extension provides syntax highlighting, completion, diagnostics,
-hover, definition/reference navigation, symbols and formatting through
-`dotori lsp`.
+hover, definition/reference navigation and formatting through `dotori lsp`.
 
 ## Settings
 
@@ -64,6 +63,10 @@ the active file's workspace folder is used; otherwise choose a project folder.
 Cancelling that choice or failing to save cancels the command. Formatting keeps
 unsaved edits and supports untitled Dotori documents and Undo.
 
+When a workspace contains a `.dotori` project, the language server also keeps
+`compile_commands.json` and `.clangd` current after saved Dotori changes and
+C/C++ source or header files are added, removed or renamed.
+
 For C++ completion and debugging, run **Dotori: Refresh IDE Files** and install
 the C++ extensions recommended by the generated workspace configuration.
 This extension runs in the workspace extension host, including Remote SSH,
@@ -71,3 +74,19 @@ WSL and containers; install Dotori and configure paths in that environment.
 It requires a trusted workspace with a filesystem and process execution.
 
 The extension is packaged locally; it has not been published to the Marketplace.
+
+## Integration test
+
+From a Visual Studio Developer PowerShell, build the Release CLI, package the
+extension, then run the installed VSIX in VS Code's real extension host:
+
+```powershell
+dotnet build ../../src/Dotori.Cli/Dotori.Cli.csproj -c Release
+npm ci
+npm run package
+npm run test:integration
+```
+
+The first integration run downloads the official stable VS Code test runtime.
+It installs the VSIX into a temporary profile, exercises language features and
+project commands, and stores its result under `build/editor-integration`.

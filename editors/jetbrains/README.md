@@ -9,12 +9,16 @@ are provided by Dotori's shared language server.
 Configure the executable under **Settings | Languages & Frameworks | Dotori**.
 The default is `dotori` from the console environment's PATH. For an explicit
 path such as `C:\Tools\Dotori\dotori.exe`, enter it without shell quotes.
-Use a published Dotori executable; the plugin adds the `lsp` argument.
+Use a published Dotori executable; the plugin adds `lsp --watch-ide`.
 Restart the Dotori language server (or reopen the project) after changing it.
 
 Use
 `dotori setup ide --ide clion` or `--ide rider` to generate CMake Presets and
 the C++ compilation database used by the IDE project model.
+
+When the Dotori language server starts, it also watches the project and
+refreshes `compile_commands.json` and `.clangd` after saved `.dotori` changes
+or C/C++ source and header files are added, removed or renamed.
 
 Build the plugin with JDK 25:
 

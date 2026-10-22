@@ -17,7 +17,10 @@ public static class DotoriLanguageServer
     /// <summary>
     /// Start the language server and process messages until the client disconnects or sends shutdown.
     /// </summary>
-    public static async Task RunAsync(string? logFilePath = null, CancellationToken ct = default)
+    public static async Task RunAsync(
+        string? logFilePath = null,
+        CancellationToken ct = default,
+        Action<IReadOnlyList<string>>? onInitialize = null)
     {
         // Set up optional logging
         if (logFilePath is not null)
@@ -30,6 +33,7 @@ public static class DotoriLanguageServer
         var store     = new DocumentStore();
         var pendingDiagnostics = new Queue<(string Uri, List<LspDiagnostic> Diagnostics)>();
         bool shutdown = false;
+        bool exitReceived = false;
 
         TextDocumentHandler? textDocHandler = null;
 
@@ -61,6 +65,14 @@ public static class DotoriLanguageServer
             {
                 case "initialize":
                 {
+                    if (request.Params.HasValue && onInitialize is not null)
+                    {
+                        try { onInitialize(InitializeHandler.GetWorkspaceRoots(request.Params.Value)); }
+                        catch (Exception ex)
+                        {
+                            _log?.WriteLine($"[dotori-lsp] Workspace initialization callback failed: {ex.Message}");
+                        }
+                    }
                     var result = InitializeHandler.Handle();
                     textDocHandler = new TextDocumentHandler(store, (uri, diags) =>
                         pendingDiagnostics.Enqueue((uri, diags)));
@@ -79,10 +91,10 @@ public static class DotoriLanguageServer
                     break;
 
                 case "exit":
-                    // After shutdown+exit, the server should terminate with code 0
-                    // If exit comes without prior shutdown, use code 1
-                    Environment.Exit(shutdown ? 0 : 1);
-                    return;
+                    // Leave the message loop so command-level resources can be disposed.
+                    Environment.ExitCode = shutdown ? 0 : 1;
+                    exitReceived = true;
+                    break;
 
                 case "textDocument/didOpen":
                     if (textDocHandler is not null && request.Params.HasValue)
@@ -260,6 +272,8 @@ public static class DotoriLanguageServer
             // writes can interleave frame headers/bodies or be lost when the client exits.
             while (pendingDiagnostics.TryDequeue(out var diagnostic))
                 await PublishDiagnosticsAsync(transport, diagnostic.Uri, diagnostic.Diagnostics, ct);
+
+            if (exitReceived) break;
         }
 
         _log?.WriteLine("[dotori-lsp] Server exiting.");

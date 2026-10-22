@@ -9,6 +9,10 @@ For local development, install this directory with **Zed: Install Dev
 Extension**. Run `dotori setup ide --ide zed` in a project to generate C++
 clangd and task configuration.
 
+While the Dotori language server is running, it watches the worktree and updates
+`compile_commands.json` and `.clangd` after saved `.dotori` changes or C/C++
+source and header files are added, removed or renamed.
+
 If Dotori is outside PATH, configure Zed's `settings.json` (paths containing
 spaces are a single JSON string; do not add shell quotes):
 
@@ -27,7 +31,8 @@ spaces are a single JSON string; do not add shell quotes):
 ```
 
 `arguments` defaults to `["lsp"]` and replaces the complete argument list when
-set. For a managed build, use `"path": "dotnet"` and arguments
+set; the extension adds its file-watch option after these arguments. For a
+managed build, use `"path": "dotnet"` and arguments
 `["/absolute/path/to/dotori.dll", "lsp"]`. Restart the language server after
 changing settings.
 

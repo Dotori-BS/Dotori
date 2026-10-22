@@ -5,6 +5,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.platform.lsp.api.LspIntegrationProvider;
 import com.intellij.platform.lsp.api.ProjectWideLspClientDescriptor;
+import com.intellij.platform.lsp.api.customization.LspCustomization;
 import org.jetbrains.annotations.NotNull;
 
 public final class DotoriLspIntegrationProvider implements LspIntegrationProvider {
@@ -31,13 +32,18 @@ public final class DotoriLspIntegrationProvider implements LspIntegrationProvide
         }
 
         @Override
+        public @NotNull LspCustomization getLspCustomization() {
+            return new DotoriLspCustomization();
+        }
+
+        @Override
         public boolean isSupportedFile(@NotNull VirtualFile file) {
             return isDotoriFile(file);
         }
 
         @Override
         public @NotNull GeneralCommandLine createCommandLine() {
-            return new GeneralCommandLine(DotoriSettings.getInstance().executable, "lsp")
+            return new GeneralCommandLine(DotoriSettings.getInstance().executable, "lsp", "--watch-ide")
                     .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
                     .withWorkDirectory(dotoriProject.getBasePath());
         }

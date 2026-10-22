@@ -1,6 +1,9 @@
 # Dotori for Visual Studio
 
 This VSIX adds syntax highlighting and starts `dotori lsp` for `.dotori` files.
+While the language server is running, it updates `compile_commands.json` and
+`.clangd` after saved `.dotori` changes or C/C++ source and header files are
+added, removed or renamed.
 
 ## Build
 

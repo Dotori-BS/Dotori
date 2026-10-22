@@ -59,7 +59,7 @@ function restartLanguageServer() {
     }
     if (shuttingDown) return;
     const program = executable();
-    const args = [...program.args, 'lsp'];
+    const args = [...program.args, 'lsp', '--watch-ide'];
     const logFile = configuration().get('languageServer.logFile', '');
     if (logFile) args.push('--log-file', logFile);
     client = new LanguageClient(

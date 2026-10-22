@@ -38,7 +38,7 @@ internal sealed class DotoriLanguageClient : ILanguageClient
         var startInfo = new ProcessStartInfo
         {
             FileName = "dotori",
-            Arguments = "lsp",
+            Arguments = "lsp --watch-ide",
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardInput = true,

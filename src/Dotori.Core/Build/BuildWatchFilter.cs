@@ -14,6 +14,10 @@ public static class BuildWatchFilter
         ["compile_commands.json", "CMakeLists.txt", "CMakePresets.json"],
         StringComparer.OrdinalIgnoreCase);
 
+    private static readonly HashSet<string> IdeSourceExtensions = new(
+        [".c", ".cc", ".cpp", ".cxx", ".c++", ".h", ".hh", ".hpp", ".hxx", ".h++", ".cppm", ".ixx", ".mpp"],
+        StringComparer.OrdinalIgnoreCase);
+
     public static bool ShouldTrigger(string path)
     {
         if (string.IsNullOrWhiteSpace(path)) return false;
@@ -31,5 +35,19 @@ public static class BuildWatchFilter
             fileName.EndsWith(".swp", StringComparison.OrdinalIgnoreCase))
             return false;
         return !IgnoredExtensions.Contains(Path.GetExtension(fileName));
+    }
+
+    /// <summary>Whether a file event can change clangd's compilation database.</summary>
+    public static bool ShouldTriggerClangd(string path, WatcherChangeTypes changeType)
+    {
+        if (!ShouldTrigger(path)) return false;
+
+        var fileName = Path.GetFileName(path);
+        if (fileName.Equals(".dotori", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith(".dotori", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return IdeSourceExtensions.Contains(Path.GetExtension(fileName)) &&
+               changeType != WatcherChangeTypes.Changed;
     }
 }

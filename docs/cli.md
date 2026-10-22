@@ -218,8 +218,9 @@ dotori test --filter "MyTest*"
 ## watch — 변경 감지 빌드
 
 프로젝트 디렉터리를 재귀 감시하고 관련 파일이 바뀌면 증분 빌드를 다시 실행합니다.
-여러 파일 이벤트는 debounce 구간 동안 하나로 합쳐지며 `.git`, `.dotori-cache`,
-일반적인 빌드 출력 디렉터리와 오브젝트 파일 변경은 무시합니다.
+`--ide`를 쓰면 빌드 대신 전체 IDE 파일을 갱신하고, `--clangd`는 clangd 출력만 갱신합니다.
+여러 파일 이벤트는 debounce 구간 동안 하나로 합쳐지며 `.git`, `.dotori-cache`, 일반적인
+빌드 출력 디렉터리와 오브젝트 파일 변경은 무시합니다.
 
 ```bash
 dotori watch [watch 옵션] [build 옵션]
@@ -231,6 +232,8 @@ dotori watch [watch 옵션] [build 옵션]
 | `--all` | 명시한 디렉터리 아래의 모든 프로젝트 감시 |
 | `--debounce <ms>` | 연관 이벤트를 합칠 대기 시간 (기본값: `250`) |
 | `--no-initial-build` | 시작 시 빌드하지 않고 첫 변경까지 대기 |
+| `--ide` | 프로젝트 변경 시 전체 IDE 생성 파일 갱신 |
+| `--clangd` | `.dotori` 변경과 C/C++ 파일 추가·삭제·이름 변경 시 clangd 파일만 갱신 |
 
 watch가 직접 처리하지 않는 옵션은 `build`에 그대로 전달합니다. 따라서 release,
 target, compiler, remote, locked/offline, 프로젝트 선언 옵션 등을 함께 사용할 수 있습니다.
@@ -462,6 +465,7 @@ IDE 플러그인이 내부적으로 호출합니다.
 ```bash
 dotori lsp                              # stdio transport (LSP 3.17)
 dotori lsp --log-file /tmp/dotori.log   # 디버그 로그 출력
+dotori lsp --watch-ide                  # clangd 파일 자동 갱신도 시작
 ```
 
 완성, hover, 정의 이동, 문서 심볼, 진단 외에 선언된 빌드 옵션의 참조 찾기와
@@ -505,7 +509,10 @@ dotori doctor --ide visual-studio --fix
 선택한 IDE에 필수인 도구 또는 생성 파일에 문제가 있으면 1을 반환하며, `--fix`는
 `setup ide`를 실행해 생성 파일을 다시 만듭니다.
 
-프로젝트 파일이 바뀔 때 IDE 산출물을 자동 갱신할 수도 있습니다.
+`--clangd` 감시는 시작할 때 한 번 생성하고, 저장된 `.dotori` 파일이나 C/C++ 소스·헤더가
+추가·삭제·이름 변경될 때 `compile_commands.json`과 `.clangd`만 다시 생성합니다.
+VS Code, Zed, CLion, Rider, Visual Studio 플러그인은 Dotori 언어 서버가 시작될 때
+이 감시를 자동으로 함께 실행합니다.
 
 ```bash
 dotori watch --ide --project . --target linux-x64 --compiler clang
