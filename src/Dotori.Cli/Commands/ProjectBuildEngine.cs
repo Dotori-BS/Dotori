@@ -29,29 +29,14 @@ internal static class ProjectBuildEngine
         bool fallbackToExecutable = false,
         CancellationToken ct = default)
     {
-        IReadOnlyDictionary<string, string> gitPackageMap;
-        try
-        {
-            gitPackageMap = await BuildContext.ResolveAndFetchGitPackagesAsync(
-                projectPaths, locked: false, offline: false, ct);
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Error: dependency resolution failed: {ex.Message}");
+        var prepared = await BuildContext.PrepareBuildAsync(projectPaths, targetId, ct: ct);
+        if (prepared is null)
             return new RunnableBuildResult(1, []);
-        }
+        var buildOrder = prepared.Projects.BuildOrder;
+        var toolchain = prepared.Toolchain;
 
-        var dag = BuildContext.BuildDag(projectPaths, gitPackageMap);
-        if (dag is null)
-            return new RunnableBuildResult(1, []);
-
-        var buildOrder = ProjectDagBuilder.BuildLevels(dag);
-        var toolchain = BuildContext.DetectToolchain(
-            targetId, cliCompiler: null, projectPaths.FirstOrDefault());
-        if (toolchain is null)
-            return new RunnableBuildResult(1, []);
-
-        var declaredOptions = BuildContext.ScanOptions(dag.Values.Select(node => node.DotoriPath));
+        var declaredOptions = BuildContext.ScanOptions(
+            prepared.Projects.Nodes.Values.Select(node => node.DotoriPath));
         var enabledOptions = BuildContext.ResolveEnabledOptions(
             declaredOptions,
             new HashSet<string>(StringComparer.OrdinalIgnoreCase),
@@ -182,6 +167,16 @@ internal static class ProjectBuildEngine
         // PCH — plan once, used by both --file and normal build paths
         var pchPlan = planner.PlanPch(checker);
 
+        // Build PCH before either the single-file or full build path.
+        if (pchPlan?.BuildJob is not null)
+        {
+            var pchResults = await executor.RunCompileJobsAsync(
+                toolchain.CompilerPath, new[] { pchPlan.BuildJob }, ct);
+            int pchCode = PrintResults(pchResults);
+            if (pchCode != 0) return pchCode;
+            if (!dryRun) RecordCompiledInputs(checker, [pchPlan.BuildJob]);
+        }
+
         // Single-file mode
         if (fileArg is not null)
         {
@@ -189,24 +184,6 @@ internal static class ProjectBuildEngine
             var ext = Path.GetExtension(absFile);
             bool isModuleFile = ext.Equals(".cppm", StringComparison.OrdinalIgnoreCase) ||
                                 ext.Equals(".ixx",  StringComparison.OrdinalIgnoreCase);
-
-            // Plan PCH first (rebuild if stale)
-            if (pchPlan?.BuildJob is not null)
-            {
-                var pchResults = await executor.RunCompileJobsAsync(
-                    toolchain.CompilerPath,
-                    new[] { pchPlan.BuildJob }, ct);
-                var pchCode = PrintResults(pchResults);
-                if (pchCode != 0) return pchCode;
-                if (!dryRun)
-                {
-                    checker.Record(pchPlan.BuildJob.SourceFile);
-                    foreach (var dependency in pchPlan.BuildJob.DependencyFiles)
-                        checker.Record(dependency);
-                    checker.RecordFingerprint(
-                        pchPlan.BuildJob.OutputFile, pchPlan.BuildJob.Fingerprint);
-                }
-            }
 
             var singleJob = planner.PlanSingleFileJob(absFile, noUnity);
 
@@ -262,23 +239,6 @@ internal static class ProjectBuildEngine
             return 0;
         }
 
-        // Normal build — PCH first (pchPlan already computed above)
-        if (pchPlan?.BuildJob is not null)
-        {
-            var pchResults = await executor.RunCompileJobsAsync(
-                toolchain.CompilerPath, new[] { pchPlan.BuildJob }, ct);
-            int pchCode = PrintResults(pchResults);
-            if (pchCode != 0) return pchCode;
-            if (!dryRun)
-            {
-                checker.Record(pchPlan.BuildJob.SourceFile);
-                foreach (var dependency in pchPlan.BuildJob.DependencyFiles)
-                    checker.Record(dependency);
-                checker.RecordFingerprint(
-                    pchPlan.BuildJob.OutputFile, pchPlan.BuildJob.Fingerprint);
-            }
-        }
-
         // Modules next (order-sensitive BMI generation)
         var moduleJobs = await planner.PlanModuleJobsAsync(ct: ct);
         IReadOnlyDictionary<string, string>? bmiPaths = null;
@@ -313,12 +273,7 @@ internal static class ProjectBuildEngine
                 planner.GetSwiftCompilerPath(), [swiftJob], ct);
             var swiftCode = PrintResults(swiftResults);
             if (swiftCode != 0) return swiftCode;
-            if (!dryRun)
-            {
-                checker.Record(swiftJob.SourceFile);
-                foreach (var dependency in swiftJob.DependencyFiles) checker.Record(dependency);
-                checker.RecordFingerprint(swiftJob.OutputFile, swiftJob.Fingerprint);
-            }
+            if (!dryRun) RecordCompiledInputs(checker, [swiftJob]);
         }
 
         // Keep the complete object set separate from the subset that needs compiling.
@@ -360,13 +315,7 @@ internal static class ProjectBuildEngine
             int code = PrintResults(compileResults);
             if (code != 0) return code;
 
-            if (!dryRun) foreach (var job in compileJobs)
-            {
-                checker.Record(job.SourceFile);
-                foreach (var dependency in job.DependencyFiles)
-                    checker.Record(dependency);
-                checker.RecordFingerprint(job.OutputFile, job.Fingerprint);
-            }
+            if (!dryRun) RecordCompiledInputs(checker, compileJobs);
         }
 
         if (noLink) return 0;
@@ -458,6 +407,17 @@ internal static class ProjectBuildEngine
         }
 
         return 0;
+    }
+
+    private static void RecordCompiledInputs(IncrementalChecker checker, IEnumerable<CompileJob> jobs)
+    {
+        foreach (var job in jobs)
+        {
+            checker.Record(job.SourceFile);
+            foreach (var dependency in job.DependencyFiles)
+                checker.Record(dependency);
+            checker.RecordFingerprint(job.OutputFile, job.Fingerprint);
+        }
     }
 
     private static IReadOnlyList<string> CollectDepLibs(

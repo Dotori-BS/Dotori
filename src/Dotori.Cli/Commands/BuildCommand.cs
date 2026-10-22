@@ -2,7 +2,6 @@ using System.CommandLine;
 using Dotori.Core;
 using Dotori.Core.Build;
 using Dotori.Core.Executor;
-using Dotori.Core.Graph;
 using Dotori.Grpc;
 
 namespace Dotori.Cli.Commands;
@@ -92,33 +91,14 @@ internal static class BuildCommandFactory
             var paths = BuildContext.ResolveProjectPaths(projectArg, buildAll);
             if (paths.Count == 0) return 1;
 
-            // Resolve and fetch git dependencies, then include them in the DAG
-            IReadOnlyDictionary<string, string> gitPackageMap;
-            try
-            {
-                gitPackageMap = await BuildContext.ResolveAndFetchGitPackagesAsync(
-                    paths, locked, offline, ct);
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine($"Error: dependency resolution failed: {ex.Message}");
-                return 1;
-            }
-
-            // Build DAG (includes git package nodes when their .dotori is found)
-            var dag = BuildContext.BuildDag(paths, gitPackageMap);
-            if (dag is null) return 1;
-
-            // Get build order
-            var buildOrder = ProjectDagBuilder.BuildLevels(dag);
-
-            // Detect toolchain (CLI --compiler > DSL toolchain > CXX env > auto-detect)
-            var toolchain = BuildContext.DetectToolchain(
-                targetId, compiler, paths.FirstOrDefault(), libc);
-            if (toolchain is null) return 1;
+            var prepared = await BuildContext.PrepareBuildAsync(
+                paths, targetId, compiler, libc, locked, offline, ct);
+            if (prepared is null) return 1;
+            var buildOrder = prepared.Projects.BuildOrder;
+            var toolchain = prepared.Toolchain;
 
             // Scan declared options across all project files in the DAG
-            var allDotoriPaths = dag.Values.Select(n => n.DotoriPath);
+            var allDotoriPaths = prepared.Projects.Nodes.Values.Select(n => n.DotoriPath);
             var declaredOptions = BuildContext.ScanOptions(allDotoriPaths);
 
             // Parse unmatched tokens for --option-name / --no-option-name

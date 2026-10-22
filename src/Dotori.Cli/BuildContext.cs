@@ -9,12 +9,54 @@ using Dotori.PackageManager;
 
 namespace Dotori.Cli;
 
+internal sealed record ProjectGraph(
+    IReadOnlyDictionary<string, ProjectNode> Nodes,
+    IReadOnlyList<IReadOnlyList<ProjectNode>> BuildOrder);
+
+internal sealed record PreparedBuild(ProjectGraph Projects, ToolchainInfo Toolchain);
+
 /// <summary>
 /// Shared helper to resolve projects, select targets, detect toolchains,
 /// and flatten project models for CLI commands.
 /// </summary>
 internal static class BuildContext
 {
+    internal static ProjectGraph? LoadProjectGraph(
+        IReadOnlyList<string> paths,
+        IReadOnlyDictionary<string, string>? gitPackageMap = null)
+    {
+        var dag = BuildDag(paths, gitPackageMap);
+        return dag is null ? null : new ProjectGraph(dag, ProjectDagBuilder.BuildLevels(dag));
+    }
+
+    /// <summary>Prepare build/run/test inputs, including dependency lock and offline policies.</summary>
+    internal static async Task<PreparedBuild?> PrepareBuildAsync(
+        IReadOnlyList<string> paths,
+        string targetId,
+        string? compiler = null,
+        string? libc = null,
+        bool locked = false,
+        bool offline = false,
+        CancellationToken ct = default)
+    {
+        IReadOnlyDictionary<string, string> gitPackageMap;
+        try
+        {
+            gitPackageMap = await ResolveAndFetchGitPackagesAsync(paths, locked, offline, ct);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error: dependency resolution failed: {ex.Message}");
+            return null;
+        }
+
+        var projects = LoadProjectGraph(paths, gitPackageMap);
+        if (projects is null) return null;
+
+        var toolchain = DetectToolchain(targetId, compiler, paths.FirstOrDefault(), libc);
+        return toolchain is null ? null : new PreparedBuild(projects, toolchain);
+    }
+
     /// <summary>
     /// Resolve which .dotori files to operate on, using the standard search order.
     /// </summary>

@@ -1,6 +1,5 @@
 using System.CommandLine;
 using Dotori.Core.Build;
-using Dotori.Core.Graph;
 
 namespace Dotori.Cli.Commands;
 
@@ -63,8 +62,8 @@ internal static class IdeExportCommandFactory
             if (paths.Count == 0) return 1;
 
             // Build DAG
-            var dag = BuildContext.BuildDag(paths);
-            if (dag is null) return 1;
+            var projects = BuildContext.LoadProjectGraph(paths);
+            if (projects is null) return 1;
 
             // Detect toolchain (CLI --compiler > DSL toolchain > CXX env > auto-detect)
             var toolchain = BuildContext.DetectToolchain(
@@ -75,8 +74,7 @@ internal static class IdeExportCommandFactory
             var allEntries = new List<CompileCommandEntry>();
 
             // Walk all nodes in DAG and collect entries
-            var buildOrder = ProjectDagBuilder.BuildLevels(dag);
-            foreach (var level in buildOrder)
+            foreach (var level in projects.BuildOrder)
             {
                 foreach (var node in level)
                 {

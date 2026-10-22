@@ -90,6 +90,8 @@ Dotori/
 
 사용자 진입점. Commands/ 핸들러, BuildContext.cs, Program.cs로 구성.
 
+`BuildContext.LoadProjectGraph`는 빌드와 내보내기의 의존성 그래프·빌드 순서를 구성합니다. `PrepareBuildAsync`는 `build/run/test`에 필요한 패키지 준비와 툴체인 선택을 공통 처리합니다. 실행은 `Commands/ProjectBuildEngine.cs`가 담당하며, PCH 실행·상태 기록은 단일 파일 및 전체 빌드가 공유합니다.
+
 주요 명령어: `build`, `run`, `test`, `watch`, `install`, `export`, `setup`, `package`, `lsp` 및 레지스트리 명령. 전체 등록 목록은 `src/Dotori.Cli/Program.cs` 참조.
 
 ---

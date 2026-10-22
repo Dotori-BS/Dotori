@@ -187,6 +187,10 @@ dotnet run --project src/Dotori.Cli/Dotori.Cli.csproj -- build --help
 # 테스트
 dotnet test
 
+# CLI 프로젝트 준비/PCH 통합 검증 (Python 3 및 Clang 필요)
+python tests/cli-preparation-smoke.py
+# 다른 CLI 빌드 검증: --cli build/cli/dotori.exe
+
 # 코드 포매팅
 dotnet csharpier format .
 # (최초 실행 전: dotnet tool install csharpier)

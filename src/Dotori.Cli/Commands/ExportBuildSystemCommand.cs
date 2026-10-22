@@ -1,6 +1,5 @@
 using System.CommandLine;
 using Dotori.Core.Generators;
-using Dotori.Core.Graph;
 using Dotori.Core.Model;
 using Dotori.Core.Toolchain;
 
@@ -103,11 +102,10 @@ internal static class ExportBuildSystemCommandFactory
                           selectedToolchain is not null ? "clang" : null);
 
             // Build DAG
-            var dag = BuildContext.BuildDag(paths);
-            if (dag is null) return Task.FromResult(1);
+            var projects = BuildContext.LoadProjectGraph(paths);
+            if (projects is null) return Task.FromResult(1);
 
-            var buildOrder = ProjectDagBuilder.BuildLevels(dag);
-            var orderedNodes = buildOrder.SelectMany(level => level).ToList();
+            var orderedNodes = projects.BuildOrder.SelectMany(level => level).ToList();
             var commonProjectDir = FindCommonDirectory(orderedNodes.Select(node => node.ProjectDir));
             var rootPath = Path.GetFullPath(paths[0]);
             string? rootOutputDir = null;
