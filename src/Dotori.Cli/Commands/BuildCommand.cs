@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.Text.Json;
 using Dotori.Core;
 using Dotori.Core.Build;
 using Dotori.Core.Executor;
@@ -25,6 +26,7 @@ internal static class BuildCommandFactory
         var noLinkOption      = new Option<bool>("--no-link")         { Description = "Compile only, do not link" };
         var noUnityOption     = new Option<bool>("--no-unity")        { Description = "Bypass Unity Build for --file (compile file directly)" };
         var remoteOption      = new Option<string?>("--remote")       { Description = "Remote build server address (e.g. http://build-server:5100)" };
+        var remoteToolchainOption = new Option<string?>("--remote-toolchain") { Description = "Toolchain bundle configuration JSON; upload local tools, SDK and inputs to compatible workers" };
         var lockedOption      = new Option<bool>("--locked")         { Description = "Require dotori-lock.json to remain unchanged" };
         var offlineOption     = new Option<bool>("--offline")        { Description = "Disable dependency network access" };
         var frozenOption      = new Option<bool>("--frozen")         { Description = "Equivalent to --locked --offline" };
@@ -47,6 +49,7 @@ internal static class BuildCommandFactory
         command.Add(noLinkOption);
         command.Add(noUnityOption);
         command.Add(remoteOption);
+        command.Add(remoteToolchainOption);
         command.Add(lockedOption);
         command.Add(offlineOption);
         command.Add(frozenOption);
@@ -75,6 +78,12 @@ internal static class BuildCommandFactory
             var noUnity     = parseResult.GetValue(noUnityOption);
             var remoteArg   = parseResult.GetValue(remoteOption)
                            ?? Environment.GetEnvironmentVariable(DotoriConstants.EnvServer);
+            var remoteToolchain = parseResult.GetValue(remoteToolchainOption);
+            if (remoteToolchain is not null && remoteArg is null)
+            {
+                Console.Error.WriteLine("Error: --remote-toolchain requires --remote or DOTORI_SERVER.");
+                return 1;
+            }
             var frozen     = parseResult.GetValue(frozenOption);
             var locked     = frozen || parseResult.GetValue(lockedOption);
             var offline    = frozen || parseResult.GetValue(offlineOption);
@@ -143,11 +152,18 @@ internal static class BuildCommandFactory
                 enabledOptions, declaredOptions);
 
             // Select executor: remote (with local fallback) or local
-            IExecutor executor = dryRun
-                ? new DryRunExecutor()
-                : remoteArg is not null
-                ? new RemoteExecutor(remoteArg, toolchain.TargetTriple, jobs ?? 0)
-                : new LocalExecutor(jobs ?? 0);
+            IExecutor executor;
+            try
+            {
+                executor = dryRun ? new DryRunExecutor()
+                    : remoteArg is not null ? new RemoteExecutor(remoteArg, toolchain.TargetTriple, jobs ?? 0, remoteToolchain)
+                    : new LocalExecutor(jobs ?? 0);
+            }
+            catch (Exception ex) when (ex is IOException or ArgumentException or JsonException or UnauthorizedAccessException)
+            {
+                Console.Error.WriteLine($"Error: cannot configure build executor: {ex.Message}");
+                return 1;
+            }
             if (verbose && !dryRun)
                 executor = new VerboseExecutor(executor);
 

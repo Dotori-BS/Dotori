@@ -196,6 +196,11 @@ C++ Modules 지원을 비활성화합니다.
 분산 빌드 서버 주소를 지정합니다.
 예: \fIhttp://build-server:5100\fR
 .TP
+.BI "--remote-toolchain " JSON
+로컬 툴체인, SDK, 프로젝트 입력 경로를 선언한 JSON 설정으로 파일을 전송합니다.
+워커는 같은 OS/CPU여야 하며 DOTORI_ALLOW_UPLOADED_TOOLCHAINS=true가 필요합니다.
+PCH/Modules 및 Swift 컴파일은 로컬에 유지됩니다. 상세 설정은 docs/distributed-build.md 참조.
+.TP
 .B \-\-locked
 의존성 선언과 lock 파일이 다르면 실패하며 lock 파일을 변경하지 않습니다.
 .TP

@@ -6,6 +6,15 @@ C# (.NET 10, NativeAOT). 설계 문서: `docs/` 참조
 
 ## 구현된 항목
 
+### 로컬 툴체인 전송 원격 빌드
+
+- [x] `build --remote-toolchain <JSON>`: 명시한 컴파일러·링커·SDK·입력 경로 전송
+- [x] SHA-256 콘텐츠 저장소, 청크 전송, 누락 파일 조회 및 워커 툴체인 재사용
+- [x] 워커 OS/CPU·업로드 실행 허용 여부에 따른 라우팅 (사전 컴파일러 설치 불필요)
+- [x] 경로 재배치, 출력 파일 회수, 입력·툴체인·환경·인수 기반 컴파일 캐시
+- [x] 실제 gRPC 경로에서 CLI/워커 토큰 인증
+- 현재 범위: 경로 설정이 명시된 C/C++ 컴파일·링크. OS 시스템 런타임은 호스트가 제공하며, PCH/Modules/Swift 컴파일은 로컬 실행을 유지합니다. 상세 제약은 `docs/distributed-build.md` 참조.
+
 ### export build-system — 빌드 시스템 파일 자동 생성
 
 `dotori export build-system --format <fmt>` 명령으로 `.dotori` 파일에서 외부 빌드 시스템 파일 생성.

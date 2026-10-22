@@ -22,11 +22,13 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
     private readonly LocalExecutor                      _fallback;
     private readonly Metadata                           _headers;
     private readonly string                             _targetTriple;
+    private readonly RemoteBundleClient? _bundleClient;
     internal string TargetTriple => _targetTriple;
 
-    public RemoteExecutor(string serverAddress, string targetTriple, int localJobs = 0)
+    public RemoteExecutor(string serverAddress, string targetTriple, int localJobs = 0, string? toolchainConfiguration = null)
     {
-        _channel  = GrpcChannel.ForAddress(serverAddress);
+        _bundleClient = toolchainConfiguration is null ? null : new RemoteBundleClient(toolchainConfiguration);
+        _channel  = GrpcChannel.ForAddress(serverAddress, new GrpcChannelOptions { MaxReceiveMessageSize = 64 * 1024 * 1024 });
         _client   = new BuildCoordinator.BuildCoordinatorClient(_channel);
         _fallback = new LocalExecutor(localJobs);
         _headers  = new Metadata();
@@ -43,12 +45,20 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
         IReadOnlyList<CompileJob> jobs,
         CancellationToken         ct = default)
     {
+        if (_bundleClient is not null && jobs.Any(RequiresLocalCompilerState))
+        {
+            Console.Error.WriteLine("[dotori] PCH/module compiler state contains machine-local paths; compiling this batch locally.");
+            return await _fallback.RunCompileJobsAsync(compiler, jobs, ct);
+        }
         // Swift whole-module jobs contain multiple source files, while the remote
         // protocol currently transports one primary source. Keep them local until
         // the protocol can describe multi-input compile actions losslessly.
         if (Path.GetFileNameWithoutExtension(compiler)
             .Equals("swiftc", StringComparison.OrdinalIgnoreCase))
+        {
+            if (_bundleClient is not null) Console.Error.WriteLine("[dotori] Swift compilation remains local.");
             return await _fallback.RunCompileJobsAsync(compiler, jobs, ct);
+        }
 
         // Try remote; fall back to local on any transport error.
         try
@@ -62,6 +72,10 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
                 $"[dotori] Remote server unreachable ({ex.Status.Detail}). Falling back to local.");
             return await _fallback.RunCompileJobsAsync(compiler, jobs, ct);
         }
+        catch (Exception ex) when (_bundleClient is not null && ex is IOException or ArgumentException or RpcException or UnauthorizedAccessException)
+        {
+            return jobs.Select(job => Failure(job, $"Bundled remote compile failed: {ex.Message}")).ToArray();
+        }
     }
 
     public async Task<JobResult> RunLinkJobAsync(
@@ -69,9 +83,18 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
         LinkJob           job,
         CancellationToken ct = default)
     {
+        if (_bundleClient is not null && job.InputFiles.Any(path =>
+            Path.GetExtension(path).ToLowerInvariant() is ".pcm" or ".ifc"))
+        {
+            Console.Error.WriteLine("[dotori] Linking compiler module state remains local.");
+            return await _fallback.RunLinkJobAsync(linker, job, ct);
+        }
         if (Path.GetFileNameWithoutExtension(linker)
             .Equals("swiftc", StringComparison.OrdinalIgnoreCase))
+        {
+            if (_bundleClient is not null) Console.Error.WriteLine("[dotori] Swift linking remains local.");
             return await _fallback.RunLinkJobAsync(linker, job, ct);
+        }
 
         try
         {
@@ -82,6 +105,11 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
             Console.Error.WriteLine(
                 $"[dotori] Remote server unreachable ({ex.Status.Detail}). Falling back to local.");
             return await _fallback.RunLinkJobAsync(linker, job, ct);
+        }
+        catch (Exception ex) when (_bundleClient is not null && ex is IOException or ArgumentException or RpcException or UnauthorizedAccessException)
+        {
+            return new JobResult { Success = false, ExitCode = -1, Command = linker,
+                Stdout = "", Stderr = $"Bundled remote link failed: {ex.Message}" };
         }
     }
 
@@ -104,6 +132,15 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
             DependencyHash = dependencyHash,
         };
         request.Args.AddRange(RemoteArgumentMapper.MapCompile(job));
+        if (_bundleClient is not null)
+        {
+            var prepared = await _bundleClient.PrepareAsync(compiler, job.Args, job.OutputFile,
+                job.DependencyFiles.Prepend(job.SourceFile), ct);
+            request.Bundle = prepared.Bundle;
+            request.Args.Clear(); request.Args.AddRange(prepared.Arguments);
+            request.SourceBytes = ByteString.Empty;
+            await _bundleClient.UploadAsync(prepared.Bundle, _client, _headers, ct);
+        }
 
         var stdout = new System.Text.StringBuilder();
         var stderr = new System.Text.StringBuilder();
@@ -127,6 +164,9 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
 
         if (result is null)
             return Failure(job, "No result received from server.");
+
+        if (result.Success && _bundleClient is not null)
+            await _bundleClient.SaveOutputsAsync(result.Outputs, job.OutputFile, _client, _headers, ct);
 
         // Write received .obj file to expected output location
         if (result.Success && result.ObjBytes.Length > 0)
@@ -156,13 +196,23 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
         };
         request.Args.AddRange(RemoteArgumentMapper.MapLink(job));
 
-        foreach (var obj in job.InputFiles)
+        if (_bundleClient is not null)
+        {
+            var prepared = await _bundleClient.PrepareAsync(linker, job.Args, job.OutputFile, job.InputFiles, ct);
+            request.Bundle = prepared.Bundle;
+            request.Args.Clear(); request.Args.AddRange(prepared.Arguments);
+            await _bundleClient.UploadAsync(prepared.Bundle, _client, _headers, ct);
+        }
+        else foreach (var obj in job.InputFiles)
         {
             var bytes = File.Exists(obj) ? await File.ReadAllBytesAsync(obj, ct) : [];
             request.ObjFiles.Add(ByteString.CopyFrom(bytes));
         }
 
         var response = await _client.LinkAsync(request, headers: _headers, cancellationToken: ct);
+
+        if (response.Success && _bundleClient is not null)
+            await _bundleClient.SaveOutputsAsync(response.Outputs, job.OutputFile, _client, _headers, ct);
 
         if (response.Success && response.OutputBytes.Length > 0)
         {
@@ -257,6 +307,20 @@ public sealed class RemoteExecutor : IExecutor, IDisposable
             Stderr   = message,
             ExitCode = -1,
         };
+
+    private static bool RequiresLocalCompilerState(CompileJob job) =>
+        Path.GetExtension(job.SourceFile).ToLowerInvariant() is ".cppm" or ".ixx" ||
+        job.Args.Any(argument => argument.Contains("-include-pch", StringComparison.Ordinal) ||
+            argument.Contains("c++-header", StringComparison.Ordinal) ||
+            argument.Contains("-fmodule", StringComparison.Ordinal) ||
+            argument.Contains("-fprebuilt-module-path", StringComparison.Ordinal) ||
+            argument.Contains("--precompile", StringComparison.Ordinal) ||
+            argument.StartsWith("/Yc", StringComparison.OrdinalIgnoreCase) ||
+            argument.StartsWith("/Yu", StringComparison.OrdinalIgnoreCase) ||
+            argument.StartsWith("/reference", StringComparison.OrdinalIgnoreCase) ||
+            argument.StartsWith("/headerUnit", StringComparison.OrdinalIgnoreCase) ||
+            argument.StartsWith("/interface", StringComparison.OrdinalIgnoreCase) ||
+            argument.StartsWith("/ifc", StringComparison.OrdinalIgnoreCase));
 
     internal static bool IsTransportError(RpcException ex) =>
         ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded ||

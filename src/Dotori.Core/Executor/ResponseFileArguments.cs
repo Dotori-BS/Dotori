@@ -19,8 +19,11 @@ public sealed class ResponseFileArguments : IDisposable
 
     public static ResponseFileArguments Create(
         IEnumerable<string> fragments, int? threshold = null, string? directory = null)
+        => CreateExpanded(ProcessArguments.Expand(fragments), threshold, directory);
+
+    public static ResponseFileArguments CreateExpanded(
+        IReadOnlyList<string> arguments, int? threshold = null, string? directory = null)
     {
-        var arguments = ProcessArguments.Expand(fragments);
         var limit = threshold ?? (OperatingSystem.IsWindows() ? WindowsThreshold : UnixThreshold);
         var commandLength = arguments.Sum(argument => argument.Length + 1);
         if (commandLength <= limit)

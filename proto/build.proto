@@ -6,6 +6,9 @@ option csharp_namespace = "Dotori.Grpc";
 //  Coordinator  (client = dotori CLI)
 // ─────────────────────────────────────────────
 service BuildCoordinator {
+  rpc FindMissingBlobs (BlobQuery) returns (BlobQuery);
+  rpc UploadBlob (stream BlobChunk) returns (BlobReceipt);
+  rpc DownloadBlobs (BlobQuery) returns (stream BlobChunk);
   // Submit a compile job; response streams back log lines then the result.
   rpc Compile (CompileRequest)  returns (stream CompileEvent);
   // Submit a link job.
@@ -23,6 +26,7 @@ message CompileRequest {
   string source_path   = 6;  // original path for diagnostics / relative includes
   string compiler_fingerprint = 7; // compiler binary fingerprint
   string dependency_hash = 8;      // resolved include content fingerprint
+  ExecutionBundle bundle = 9;
 }
 
 message CompileEvent {
@@ -43,6 +47,7 @@ message CompileResult {
   int32  exit_code = 2;
   bytes  obj_bytes = 3;   // compiled object file bytes
   string obj_hash  = 4;   // SHA-256 of obj_bytes (for client-side cache)
+  repeated BundleFile outputs = 5;
 }
 
 message LinkRequest {
@@ -51,6 +56,7 @@ message LinkRequest {
   repeated string args = 3;
   repeated bytes  obj_files = 4;  // object file contents (in order matching args)
   string output_name   = 5;
+  ExecutionBundle bundle = 6;
 }
 
 message LinkResponse {
@@ -59,6 +65,7 @@ message LinkResponse {
   bytes  output_bytes = 3;
   string stdout       = 4;
   string stderr       = 5;
+  repeated BundleFile outputs = 6;
 }
 
 message ListWorkersRequest {}
@@ -78,6 +85,9 @@ message WorkerInfo {
 //  Worker  (called by Coordinator)
 // ─────────────────────────────────────────────
 service BuildWorker {
+  rpc FindMissingBlobs (BlobQuery) returns (BlobQuery);
+  rpc UploadBlob (stream BlobChunk) returns (BlobReceipt);
+  rpc DownloadBlobs (BlobQuery) returns (stream BlobChunk);
   rpc Compile (WorkerCompileRequest) returns (stream WorkerCompileEvent);
   rpc Link    (WorkerLinkRequest)    returns (WorkerLinkResponse);
   rpc Health  (HealthRequest)        returns (HealthResponse);
@@ -88,6 +98,7 @@ message WorkerCompileRequest {
   repeated string args = 2;
   bytes  source_bytes  = 3;
   string source_path   = 4;
+  ExecutionBundle bundle = 5;
 }
 
 message WorkerCompileEvent {
@@ -101,6 +112,7 @@ message WorkerCompileResult {
   bool   success   = 1;
   int32  exit_code = 2;
   bytes  obj_bytes = 3;
+  repeated BundleFile outputs = 4;
 }
 
 message WorkerLinkRequest {
@@ -108,6 +120,7 @@ message WorkerLinkRequest {
   repeated string args = 2;
   repeated bytes  obj_files = 3;
   string output_name   = 4;
+  ExecutionBundle bundle = 5;
 }
 
 message WorkerLinkResponse {
@@ -116,6 +129,7 @@ message WorkerLinkResponse {
   bytes  output_bytes = 3;
   string stdout       = 4;
   string stderr       = 5;
+  repeated BundleFile outputs = 6;
 }
 
 message HealthRequest {}
@@ -124,4 +138,33 @@ message HealthResponse {
   bool   ok      = 1;
   string version = 2;
   repeated string supported_targets = 3;
+  string host_os = 4;
+  string host_arch = 5;
+  bool uploaded_toolchains = 6;
+}
+
+// File bodies travel independently in bounded chunks and are cached by SHA-256.
+message BlobQuery { repeated string hashes = 1; }
+message BlobChunk { string hash = 1; bytes data = 2; }
+message BlobReceipt { string hash = 1; int64 size = 2; }
+message BundleFile {
+  string path = 1; // relative path under the toolchain or action input root
+  string hash = 2;
+  int64 size = 3;
+  bool executable = 4;
+}
+message ToolchainBundle {
+  string id = 1;
+  repeated BundleFile files = 2;
+  map<string, string> environment = 3;
+  string host_os = 4;
+  string host_arch = 5;
+}
+message ExecutionBundle {
+  ToolchainBundle toolchain = 1;
+  repeated BundleFile inputs = 2;
+  string executable = 3; // relative path under the toolchain root
+  string working_directory = 4; // relative path under the action input root
+  string output_path = 5; // relative path under the action input root
+  string id = 6; // digest covering inputs, toolchain, paths and environment
 }

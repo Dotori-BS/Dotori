@@ -14,9 +14,10 @@ namespace Dotori.Worker.Services;
 /// Receives compile/link requests, executes the compiler locally,
 /// and streams results back to the coordinator.
 /// </summary>
-public sealed class WorkerService(
+public sealed partial class WorkerService(
     ILogger<WorkerService> logger,
-    IConfiguration? configuration = null)
+    IConfiguration? configuration = null,
+    RemoteContentStore? contentStore = null)
     : BuildWorker.BuildWorkerBase
 {
     private static readonly string[] DefaultExecutables =
@@ -42,6 +43,17 @@ public sealed class WorkerService(
         IServerStreamWriter<WorkerCompileEvent>       responseStream,
         ServerCallContext                             context)
     {
+        if (request.Bundle is not null)
+        {
+            var result = await RunBundleAsync(request.Bundle, request.Args, context.CancellationToken);
+            foreach (var (stream, text) in new[] { (LogLine.Types.Stream.Stdout, result.Stdout), (LogLine.Types.Stream.Stderr, result.Stderr) })
+                if (text.Length > 0)
+                    await responseStream.WriteAsync(new WorkerCompileEvent { Log = new LogLine { Stream = stream, Text = text } }, context.CancellationToken);
+            var response = new WorkerCompileResult { Success = result.Success, ExitCode = result.ExitCode };
+            response.Outputs.AddRange(result.Outputs);
+            await responseStream.WriteAsync(new WorkerCompileEvent { Result = response }, context.CancellationToken);
+            return;
+        }
         if (!IsAllowedExecutable(request.Compiler))
         {
             await responseStream.WriteAsync(new WorkerCompileEvent
@@ -157,6 +169,14 @@ public sealed class WorkerService(
         WorkerLinkRequest request,
         ServerCallContext  context)
     {
+        if (request.Bundle is not null)
+        {
+            var result = await RunBundleAsync(request.Bundle, request.Args, context.CancellationToken);
+            var response = new WorkerLinkResponse { Success = result.Success, ExitCode = result.ExitCode,
+                Stdout = result.Stdout, Stderr = result.Stderr };
+            response.Outputs.AddRange(result.Outputs);
+            return response;
+        }
         if (!IsSafeFileName(request.OutputName))
         {
             return new WorkerLinkResponse
@@ -274,6 +294,9 @@ public sealed class WorkerService(
         var resp = new HealthResponse
         {
             Ok      = true,
+            HostOs = RemoteBundleClient.HostOs,
+            HostArch = RemoteBundleClient.HostArch,
+            UploadedToolchains = _allowUploadedToolchains,
             Version = Assembly.GetExecutingAssembly()
                           .GetName().Version?.ToString() ?? "0.0.0",
         };

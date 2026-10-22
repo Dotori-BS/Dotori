@@ -128,6 +128,7 @@ dotori build --simd --experimental
 | 옵션 | 설명 |
 |------|------|
 | `--remote <URL>` | 분산 빌드 서버 주소 (예: `http://build-server:5100`) |
+| `--remote-toolchain <JSON>` | 로컬 툴체인·SDK·입력 파일을 전송할 경로 설정. `--remote` 또는 `DOTORI_SERVER`와 함께 사용 |
 
 ### 예시
 

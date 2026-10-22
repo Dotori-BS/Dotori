@@ -11,7 +11,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options =>
     options.ConfigureEndpointDefaults(endpoint => endpoint.Protocols = HttpProtocols.Http2));
 
-builder.Services.AddGrpc();
+builder.Services.AddGrpc(options => options.MaxReceiveMessageSize = 64 * 1024 * 1024);
+builder.Services.AddSingleton(_ => new RemoteContentStore(
+    builder.Configuration["BUILD_CONTENT_CACHE_DIR"] ?? Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".dotori", "coordinator-content"),
+    builder.Configuration.GetValue<long?>("DOTORI_MAX_BLOB_BYTES") ?? 8L * 1024 * 1024 * 1024));
 builder.Services.AddSingleton(_ =>
 {
     var cacheDir = builder.Configuration["BUILD_CACHE_DIR"];
@@ -28,7 +32,7 @@ var app = builder.Build();
 
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/Dotori.Grpc.BuildCoordinator") &&
+    if (context.Request.Path.StartsWithSegments("/BuildCoordinator") &&
         !RemoteBuildAuth.IsAuthorized(
             RemoteBuildAuth.ResolveToken(
                 builder.Configuration["DOTORI_SERVER_TOKEN"],

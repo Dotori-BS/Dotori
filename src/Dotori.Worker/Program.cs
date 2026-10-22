@@ -8,13 +8,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options =>
     options.ConfigureEndpointDefaults(endpoint => endpoint.Protocols = HttpProtocols.Http2));
 
-builder.Services.AddGrpc();
+builder.Services.AddGrpc(options => options.MaxReceiveMessageSize = 64 * 1024 * 1024);
 
 var app = builder.Build();
 
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/Dotori.Grpc.BuildWorker") &&
+    if (context.Request.Path.StartsWithSegments("/BuildWorker") &&
         !RemoteBuildAuth.IsAuthorized(
             RemoteBuildAuth.ResolveToken(
                 builder.Configuration["DOTORI_WORKER_TOKEN"],

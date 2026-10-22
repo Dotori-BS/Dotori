@@ -130,6 +130,8 @@ IDE 통합 (자동 완성, Hover, GoToDefinition, References, 진단 정보).
 
 `RemoteExecutor`와 `RemoteArgumentMapper`도 이 프로젝트에 위치합니다. Core는 로컬 실행과 `IExecutor` 인터페이스를 제공하며 gRPC를 참조하지 않습니다.
 
+`RemoteBundleClient`는 명시한 툴체인·입력 경로의 스냅샷과 업로드를 담당합니다. `RemoteContentStore`/`RemoteContentTransfer`는 검증된 콘텐츠 전송·캐시를, `RemoteBundleRunner`는 워커의 복원·실행·출력 수집을 담당합니다. 기존 워커 도구 모드와 툴체인 전송 모드의 상세 범위는 `docs/distributed-build.md` 참조.
+
 ---
 
 ## 테스트 구조

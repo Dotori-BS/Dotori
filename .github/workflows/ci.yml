@@ -143,6 +143,20 @@ jobs:
           --compiler g++
           --timings
 
+      - name: Build remote services for uploaded toolchain smoke (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          dotnet build src/Dotori.BuildServer/Dotori.BuildServer.csproj -c Release
+          dotnet build src/Dotori.Worker/Dotori.Worker.csproj -c Release
+
+      - name: Verify uploaded compiler and linker (Linux)
+        if: runner.os == 'Linux'
+        run: >-
+          python tests/remote-toolchain-smoke.py
+          --cli src/Dotori.Cli/bin/Release/net10.0/dotori.dll
+          --server src/Dotori.BuildServer/bin/Release/net10.0/dotori-server.dll
+          --worker src/Dotori.Worker/bin/Release/net10.0/dotori-worker.dll
+
       - name: Run first-class test targets
         run: >-
           dotnet src/Dotori.Cli/bin/Release/net10.0/dotori.dll test

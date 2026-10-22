@@ -10,10 +10,11 @@ namespace Dotori.BuildServer.Services;
 /// gRPC implementation of <see cref="BuildCoordinator"/>.
 /// Handles cache lookup, worker dispatch, and result streaming back to the CLI.
 /// </summary>
-public sealed class CoordinatorService(
+public sealed partial class CoordinatorService(
     WorkerPool              workerPool,
     BuildCache              cache,
-    ILogger<CoordinatorService> logger)
+    ILogger<CoordinatorService> logger,
+    RemoteContentStore contentStore)
     : BuildCoordinator.BuildCoordinatorBase
 {
     public override async Task Compile(
@@ -21,6 +22,11 @@ public sealed class CoordinatorService(
         IServerStreamWriter<CompileEvent>       responseStream,
         ServerCallContext                       context)
     {
+        if (request.Bundle is not null)
+        {
+            await CompileBundledAsync(request, responseStream, context);
+            return;
+        }
         // ── 1. Cache hit? ──────────────────────────────────────────────
         var cacheKey = BuildCache.ComputeKey(
             request.SourceHash, request.Args, request.Compiler, request.TargetTriple,
@@ -129,6 +135,7 @@ public sealed class CoordinatorService(
         LinkRequest       request,
         ServerCallContext context)
     {
+        if (request.Bundle is not null) return await LinkBundledAsync(request, context);
         var workers = await workerPool.CandidatesAsync(
             request.TargetTriple, context.CancellationToken);
         if (workers.Count == 0)

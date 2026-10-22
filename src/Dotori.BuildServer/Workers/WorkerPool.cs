@@ -30,7 +30,7 @@ public sealed class WorkerPool : IDisposable
             var trimmed = addr.Trim();
             try
             {
-                var channel = GrpcChannel.ForAddress(trimmed);
+                var channel = GrpcChannel.ForAddress(trimmed, new GrpcChannelOptions { MaxReceiveMessageSize = 64 * 1024 * 1024 });
                 var client  = new BuildWorker.BuildWorkerClient(channel);
                 var headers = new global::Grpc.Core.Metadata();
                 if (!string.IsNullOrWhiteSpace(token))
@@ -71,12 +71,13 @@ public sealed class WorkerPool : IDisposable
 
     /// <summary>Probes unknown workers and returns only those supporting the requested triple.</summary>
     public async Task<IReadOnlyList<WorkerEntry>> CandidatesAsync(
-        string targetTriple, CancellationToken ct)
+        string targetTriple, CancellationToken ct, string? hostOs = null, string? hostArch = null)
     {
         var candidates = Candidates();
         await RefreshCapabilitiesAsync(candidates, ct);
         return candidates.Where(worker =>
-                worker.IsAvailable && worker.SupportsTarget(targetTriple))
+                worker.IsAvailable && (hostOs is null ? worker.SupportsTarget(targetTriple) :
+                    worker.SupportsBundleHost(hostOs, hostArch!)))
             .ToArray();
     }
 
@@ -94,6 +95,7 @@ public sealed class WorkerPool : IDisposable
                     new HealthRequest(), worker.Headers,
                     deadline: DateTime.UtcNow.Add(_healthTimeout), cancellationToken: ct);
                 if (!health.Ok) throw new RpcException(new Status(StatusCode.Unavailable, "Worker unhealthy"));
+                worker.SetBundleHost(health.HostOs, health.HostArch, health.UploadedToolchains);
                 worker.SetSupportedTargets(health.SupportedTargets);
                 worker.ReportSuccess();
             }
@@ -123,6 +125,9 @@ public sealed class WorkerEntry(
     private int _consecutiveFailures;
     private long _retryAfterTicks;
     private string[]? _supportedTargets;
+    private string _hostOs = "";
+    private string _hostArch = "";
+    private bool _uploadedToolchains;
 
     public string Address { get; } = address;
     public GrpcChannel Channel { get; } = channel;
@@ -141,6 +146,12 @@ public sealed class WorkerEntry(
     public bool SupportsTarget(string targetTriple) =>
         Volatile.Read(ref _supportedTargets)?.Contains(
             targetTriple, StringComparer.OrdinalIgnoreCase) == true;
+
+    public void SetBundleHost(string os, string arch, bool enabled)
+    { _hostOs = os; _hostArch = arch; _uploadedToolchains = enabled; }
+
+    public bool SupportsBundleHost(string os, string arch) =>
+        _uploadedToolchains && _hostOs == os && _hostArch == arch;
 
     public void ReportSuccess()
     {
