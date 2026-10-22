@@ -98,6 +98,16 @@ VSIX는 `.dotori` TextMate 문법과 `dotori lsp` 언어 클라이언트를 제�
 
 ## 문제 해결
 
+실제 `dotori lsp` 프로세스의 표준 입출력 프로토콜은 저장소 루트에서 다음과 같이 검증합니다. Python 3과 빌드한 CLI가 필요합니다.
+
+```bash
+dotnet build src/Dotori.Cli/Dotori.Cli.csproj -c Release
+python tests/lsp-smoke.py
+# 배포 바이너리 검증 예: python tests/lsp-smoke.py --cli build/cli/dotori.exe
+```
+
+이 검증은 초기화·종료, 문서 열기·수정·닫기와 진단 갱신, 자동 완성, 호버, 의존성 정의 이동, 옵션 참조·이름 바꾸기, 포매팅을 확인합니다. 한글·공백이 있는 경로, 문자열 요청 ID, 큰 진단 알림의 프레이밍도 확인하며, OS별 CI smoke 작업에서 실행합니다. 각 에디터 UI에서 확장을 설치하고 사용하는 과정은 별도 확인이 필요합니다.
+
 - 코드 탐색이 오래된 경우 `dotori setup ide --ide <ide>`를 다시 실행합니다.
 - clangd가 시스템 헤더를 못 찾으면 `--compiler clang`, `--compiler brew-llvm`처럼
   실제 빌드에 쓰는 컴파일러를 지정합니다. 이 선택은 `.clangd`뿐 아니라

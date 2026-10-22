@@ -13,7 +13,7 @@ public static class FormattingProvider
         {
             parsed = DotoriParser.ParseSource(text, localFilePath ?? "<lsp>");
         }
-        catch (ParseException)
+        catch (Exception ex) when (ex is ParseException or LexerException)
         {
             return [];
         }

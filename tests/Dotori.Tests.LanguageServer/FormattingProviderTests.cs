@@ -7,6 +7,14 @@ namespace Dotori.Tests.LanguageServer;
 public sealed class FormattingProviderTests
 {
     [TestMethod]
+    public void Format_UnterminatedString_ReturnsNoEdits()
+    {
+        var edits = FormattingProvider.Format("project App { description = \"unfinished", null);
+
+        Assert.IsEmpty(edits);
+    }
+
+    [TestMethod]
     public void Format_UnformattedDocument_ReturnsFullDocumentEdit()
     {
         const string source = "project App { type=executable std=c++23 }";

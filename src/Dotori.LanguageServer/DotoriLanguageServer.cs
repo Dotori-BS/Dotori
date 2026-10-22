@@ -28,6 +28,7 @@ public static class DotoriLanguageServer
 
         var transport = new LspTransport(Console.OpenStandardInput(), Console.OpenStandardOutput(), _log);
         var store     = new DocumentStore();
+        var pendingDiagnostics = new Queue<(string Uri, List<LspDiagnostic> Diagnostics)>();
         bool shutdown = false;
 
         TextDocumentHandler? textDocHandler = null;
@@ -62,7 +63,7 @@ public static class DotoriLanguageServer
                 {
                     var result = InitializeHandler.Handle();
                     textDocHandler = new TextDocumentHandler(store, (uri, diags) =>
-                        _ = PublishDiagnosticsAsync(transport, uri, diags, ct));
+                        pendingDiagnostics.Enqueue((uri, diags)));
 
                     await SendResponseAsync(transport, request.Id, result, ct);
                     break;
@@ -74,7 +75,7 @@ public static class DotoriLanguageServer
 
                 case "shutdown":
                     shutdown = true;
-                    await SendResponseAsync(transport, request.Id, new object(), ct);
+                    await SendNullResponseAsync(transport, request.Id, ct);
                     break;
 
                 case "exit":
@@ -254,6 +255,11 @@ public static class DotoriLanguageServer
                     }
                     break;
             }
+
+            // Complete notification writes before handling the next request. Unawaited
+            // writes can interleave frame headers/bodies or be lost when the client exits.
+            while (pendingDiagnostics.TryDequeue(out var diagnostic))
+                await PublishDiagnosticsAsync(transport, diagnostic.Uri, diagnostic.Diagnostics, ct);
         }
 
         _log?.WriteLine("[dotori-lsp] Server exiting.");
@@ -332,7 +338,6 @@ public static class DotoriLanguageServer
             LspRange range         => LspSerializer.Serialize(range),
             LspWorkspaceEdit edit  => LspSerializer.Serialize(edit),
             List<LspTextEdit> edits => LspSerializer.Serialize(edits),
-            // For plain object{} (shutdown response) just use null-like
             _                      => "{}",
         };
 
@@ -350,7 +355,7 @@ public static class DotoriLanguageServer
         if (notification.Params is PublishDiagnosticsParams p)
         {
             var paramsJson = LspSerializer.Serialize(p);
-            return $"{{\"jsonrpc\":\"2.0\",\"method\":{JsonEncodedText.Encode(notification.Method)},\"params\":{paramsJson}}}";
+            return $"{{\"jsonrpc\":\"2.0\",\"method\":\"{JsonEncodedText.Encode(notification.Method)}\",\"params\":{paramsJson}}}";
         }
         return LspSerializer.SerializeNotification(notification);
     }
@@ -361,7 +366,7 @@ public static class DotoriLanguageServer
         {
             null                                          => "null",
             { ValueKind: JsonValueKind.Number } e         => e.GetRawText(),
-            { ValueKind: JsonValueKind.String } e         => $"\"{e.GetString()}\"",
+            { ValueKind: JsonValueKind.String } e         => e.GetRawText(),
             _                                             => "null",
         };
         return $"{{\"jsonrpc\":\"2.0\",\"id\":{idJson},\"result\":{resultJson}}}";
