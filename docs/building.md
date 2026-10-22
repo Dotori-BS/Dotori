@@ -199,7 +199,7 @@ dotnet csharpier format .
 
 ---
 
-CI의 C++ smoke 작업은 Linux Clang, Apple Clang, Windows MSVC에서 CLI 프로젝트 준비와 PCH 재사용 테스트도 실행합니다. GCC 작업은 기존 C++ 빌드 검증을 유지하며, Clang/MSVC용 PCH 테스트는 실행하지 않습니다.
+CI는 Linux, macOS, Windows의 C++·IDE smoke 검증을 OS별 작업 하나로 묶고, 각 작업에서 Release CLI를 한 번 빌드해 재사용합니다. Linux Clang, Apple Clang, Windows MSVC에서 CLI 프로젝트 준비와 PCH 재사용, 테스트 타겟 실행, IDE 파일 생성 및 CMake 빌드를 검증합니다. Linux 작업은 GCC 빌드도 추가로 검증하며, GCC에는 Clang/MSVC용 PCH 테스트를 적용하지 않습니다. 전체 솔루션 테스트와 NativeAOT 검증은 별도 CI 작업에서 유지합니다.
 
 ## 지원 Runtime Identifier (RID)
 
