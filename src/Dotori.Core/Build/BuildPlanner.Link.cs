@@ -13,7 +13,7 @@ public sealed partial class BuildPlanner
     /// <summary>
     /// Plan the link job (returns null for header-only projects).
     /// Uses the appropriate linker: MsvcLinker, AppleLinker, LldLinker, or EmscriptenDriver.
-    /// For static libraries on non-MSVC targets, uses 'ar rcs'.
+    /// Static libraries use lib.exe for MSVC targets and 'ar rcs' elsewhere.
     /// </summary>
     public LinkJob? PlanLinkJob(IEnumerable<string> objFiles)
     {
@@ -78,18 +78,30 @@ public sealed partial class BuildPlanner
 
     private LinkJob WithFingerprint(LinkJob job)
     {
-        job.Fingerprint = BuildActionFingerprint.Compute(_toolchain.LinkerPath, job.Args);
+        job.Fingerprint = BuildActionFingerprint.Compute(GetLinkerPath(), job.Args);
         return job;
     }
 
     /// <summary>
     /// Returns the correct linker path for this project's link step.
-    /// Static libraries on non-MSVC use 'ar'; others use the toolchain linker.
+    /// Static libraries use the platform archiver; other projects use the toolchain linker.
     /// </summary>
     public string GetLinkerPath()
     {
-        if (_model.Type == ProjectType.StaticLibrary && _toolchain.Kind != CompilerKind.Msvc)
+        if (_model.Type == ProjectType.StaticLibrary)
+        {
+            if (_toolchain.Kind == CompilerKind.Msvc)
+            {
+                if (!string.IsNullOrWhiteSpace(_toolchain.Msvc?.LibExePath))
+                    return _toolchain.Msvc.LibExePath;
+
+                var linkerDir = Path.GetDirectoryName(_toolchain.LinkerPath);
+                return string.IsNullOrEmpty(linkerDir)
+                    ? "lib.exe"
+                    : Path.Combine(linkerDir, "lib.exe");
+            }
             return FindAr();
+        }
         if (_model.HasSwiftSources) return GetSwiftCompilerPath();
         return _toolchain.LinkerPath;
     }

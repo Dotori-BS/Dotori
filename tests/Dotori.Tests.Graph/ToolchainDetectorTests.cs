@@ -195,7 +195,8 @@ public sealed class ToolchainDetectorTests
 
         Assert.AreEqual(CompilerKind.Clang,                   overridden.Kind);
         Assert.AreEqual("/opt/llvm/bin/clang++-18",           overridden.CompilerPath);
-        Assert.AreEqual(original.LinkerPath,                  overridden.LinkerPath,   "LinkerPath preserved");
+        Assert.AreEqual("/opt/llvm/bin/clang++-18",           overridden.LinkerPath,
+            "Clang-family overrides must use the same driver for linking.");
         Assert.AreEqual(original.TargetTriple,                overridden.TargetTriple, "TargetTriple preserved");
         Assert.AreEqual(original.SysRoot,                     overridden.SysRoot,      "SysRoot preserved");
     }
@@ -216,6 +217,27 @@ public sealed class ToolchainDetectorTests
 
         Assert.AreEqual(CompilerKind.Msvc, overridden.Kind, "Kind should become Msvc for clang-cl");
         Assert.AreEqual(@"C:\LLVM\bin\clang-cl.exe", overridden.CompilerPath);
+        Assert.AreEqual(@"C:\LLVM\bin\clang-cl.exe", overridden.LinkerPath,
+            "When switching from a Clang toolchain to clang-cl, use the MSVC-compatible driver for linking.");
+    }
+
+    [TestMethod]
+    public void ApplyCompilerOverride_ClangCl_PreservesDetectedMsvcLinker()
+    {
+        var original = new ToolchainInfo
+        {
+            Kind         = CompilerKind.Msvc,
+            CompilerPath = @"C:\MSVC\cl.exe",
+            LinkerPath   = @"C:\MSVC\link.exe",
+            TargetTriple = "x86_64-pc-windows-msvc",
+        };
+
+        var overridden = ToolchainDetector.ApplyCompilerOverride(
+            original, @"C:\LLVM\bin\clang-cl.exe");
+
+        Assert.AreEqual(CompilerKind.Msvc, overridden.Kind);
+        Assert.AreEqual(original.LinkerPath, overridden.LinkerPath,
+            "A detected MSVC linker is compatible with clang-cl's MSVC-style arguments.");
     }
 
     [TestMethod]

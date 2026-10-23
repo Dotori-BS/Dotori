@@ -48,8 +48,8 @@ internal static class ClangFamilyDriver
         foreach (var h in model.Headers)
         {
             var path = projectDir is not null
-                ? PathUtils.MakeAbsolute(projectDir, h.Path)
-                : h.Path;
+                ? PathUtils.MakeAbsoluteDirectory(projectDir, h.Path)
+                : Path.TrimEndingDirectorySeparator(h.Path);
             flags.Add($"-I\"{path}\"");
         }
     }

@@ -189,6 +189,41 @@ public sealed class LldLinkerTests
 }
 
 [TestClass]
+public sealed class MsvcStaticLibraryTests
+{
+    [TestMethod]
+    public void LinkFlags_StaticLibrary_ContainOnlyLibrarianOptions()
+    {
+        var model = new FlatProjectModel
+        {
+            Name       = "MyLib",
+            ProjectDir = "/tmp/project",
+            DotoriPath = "/tmp/project/.dotori",
+            Type       = ProjectType.StaticLibrary,
+        };
+        model.Links.Add("system-lib");
+        model.DebugInfo = DebugInfoLevel.Full;
+
+        var toolchain = new ToolchainInfo
+        {
+            Kind         = CompilerKind.Msvc,
+            CompilerPath = "cl.exe",
+            LinkerPath   = "link.exe",
+            TargetTriple = "x86_64-pc-windows-msvc",
+        };
+
+        var flags = MsvcLinker.LinkFlags(model, toolchain, "debug", "out/MyLib.lib");
+
+        CollectionAssert.Contains(flags.ToArray(), "/nologo");
+        CollectionAssert.Contains(flags.ToArray(), "/OUT:\"out/MyLib.lib\"");
+        Assert.IsFalse(flags.Contains("/LIB"));
+        Assert.IsFalse(flags.Contains("/DEBUG"));
+        Assert.IsFalse(flags.Any(flag => flag.StartsWith("/LIBPATH:", StringComparison.OrdinalIgnoreCase)));
+        Assert.IsFalse(flags.Contains("\"system-lib.lib\""));
+    }
+}
+
+[TestClass]
 public sealed class AppleLinkerTests
 {
     private static FlatProjectModel MakeModel(
@@ -475,9 +510,17 @@ public sealed class MinGWOutputNameTests
             : new ToolchainInfo
             {
                 Kind         = CompilerKind.Msvc,
-                CompilerPath = @"C:\MSVC\cl.exe",
-                LinkerPath   = @"C:\MSVC\link.exe",
+                CompilerPath = Path.Combine("MSVC", "cl.exe"),
+                LinkerPath   = Path.Combine("MSVC", "link.exe"),
                 TargetTriple = "x86_64-pc-windows-msvc",
+                Msvc         = new MsvcPaths
+                {
+                    VcToolsDir   = "MSVC",
+                    WinSdkDir    = "",
+                    WinSdkVer    = "",
+                    Architecture = "x64",
+                    LibExePath   = Path.Combine("MSVC", "lib.exe"),
+                },
             };
 
         return new BuildPlanner(model, toolchain, "debug", targetId);
@@ -503,5 +546,7 @@ public sealed class MinGWOutputNameTests
         Assert.IsNotNull(job, "Static library should produce a link job");
         Assert.IsTrue(job.OutputFile.EndsWith("MyLib.lib", StringComparison.OrdinalIgnoreCase),
             $"MSVC static library should use Xxx.lib convention, got: {job.OutputFile}");
+        Assert.AreEqual(Path.Combine("MSVC", "lib.exe"), planner.GetLinkerPath(),
+            "MSVC static libraries must be created by lib.exe, not link.exe.");
     }
 }

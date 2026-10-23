@@ -88,7 +88,7 @@ public static class MsvcDriver
 
         // Include directories (resolve relative to project root)
         foreach (var h in model.Headers)
-            flags.Add($"/I\"{PathUtils.MakeAbsolute(model.ProjectDir, h.Path)}\"");
+            flags.Add($"/I\"{PathUtils.MakeAbsoluteDirectory(model.ProjectDir, h.Path)}\"");
 
         // No logo
         flags.Add("/nologo");

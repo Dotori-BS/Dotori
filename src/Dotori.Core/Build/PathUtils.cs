@@ -15,6 +15,14 @@ public static class PathUtils
             ? path
             : Path.GetFullPath(Path.Combine(basePath, path));
 
+    /// <summary>
+    /// Resolves a directory path and removes trailing separators before it is
+    /// embedded in a quoted compiler argument. A trailing backslash can escape
+    /// the closing quote in Windows command-line parsing.
+    /// </summary>
+    public static string MakeAbsoluteDirectory(string basePath, string path) =>
+        Path.TrimEndingDirectorySeparator(MakeAbsolute(basePath, path));
+
     /// <summary>Only project-owned subdirectories may be recursively cleaned.</summary>
     public static bool IsSafeCleanDirectory(string projectDir, string candidate)
     {

@@ -25,6 +25,16 @@ public static class MsvcLinker
         flags.Add("/nologo");
         flags.Add($"/OUT:\"{outputFile}\"");
 
+        // Static libraries are archives produced by lib.exe, not link.exe.
+        // Keep this branch limited to librarian options; link-only flags such as
+        // /DEBUG, /DLL and /LIBPATH are not meaningful while creating an archive.
+        if (model.Type == ProjectType.StaticLibrary)
+        {
+            if (model.Lto) flags.Add("/LTCG");
+            flags.AddRange(model.LinkFlags);
+            return flags;
+        }
+
         // LTO needs /LTCG
         if (model.Lto) flags.Add("/LTCG");
 
@@ -35,10 +45,6 @@ public static class MsvcLinker
             flags.Add($"/PDB:\"{pdb}\"");
             flags.Add("/DEBUG");
         }
-
-        // Library type
-        if (model.Type == ProjectType.StaticLibrary)
-            flags.Add("/LIB");
 
         // Shared library
         if (model.Type == ProjectType.SharedLibrary)
@@ -69,7 +75,7 @@ public static class MsvcLinker
         return flags;
     }
 
-    /// <summary>Generate a link job using MSVC link.exe.</summary>
+    /// <summary>Generate a link job using link.exe or lib.exe for static libraries.</summary>
     public static LinkJob MakeLinkJob(
         IEnumerable<string>   objFiles,
         string                outputFile,

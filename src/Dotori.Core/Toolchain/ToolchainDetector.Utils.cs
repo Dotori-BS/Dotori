@@ -94,20 +94,27 @@ public static partial class ToolchainDetector
 
     /// <summary>
     /// Returns a new <see cref="ToolchainInfo"/> identical to <paramref name="original"/>
-    /// except that <see cref="ToolchainInfo.CompilerPath"/> and
-    /// <see cref="ToolchainInfo.Kind"/> are replaced by values derived from
-    /// <paramref name="compilerPath"/>.
+    /// with compiler metadata derived from <paramref name="compilerPath"/> and a
+    /// linker driver compatible with that compiler.
     /// All platform-specific metadata (sysroot, SDK paths, Apple SDK, MSVC paths)
     /// are preserved so that the rest of the build pipeline still works.
     /// </summary>
     internal static ToolchainInfo ApplyCompilerOverride(
         ToolchainInfo original, string compilerPath)
     {
+        var kind = GuessKindFromPath(compilerPath);
+        // Clang-family drivers also understand their generated link flags and must
+        // own the link step. MSVC-compatible drivers use the detected linker when
+        // one is available; clang-cl can act as its own linker otherwise.
+        var linkerPath = kind == CompilerKind.Msvc && original.Kind == CompilerKind.Msvc
+            ? original.LinkerPath
+            : compilerPath;
+
         return new ToolchainInfo
         {
-            Kind         = GuessKindFromPath(compilerPath),
+            Kind         = kind,
             CompilerPath = compilerPath,
-            LinkerPath   = original.LinkerPath,
+            LinkerPath   = linkerPath,
             TargetTriple = original.TargetTriple,
             SysRoot      = original.SysRoot,
             Msvc         = original.Msvc,

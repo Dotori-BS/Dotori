@@ -64,6 +64,20 @@ public sealed class CompilerDriverTests
     }
 
     [TestMethod]
+    public void ClangDriver_IncludePaths_TrimTrailingDirectorySeparator()
+    {
+        var model = MakeModel();
+        model.Headers.Add(new HeaderItem(isPublic: true, path: "include/"));
+
+        var flags = ClangDriver.CompileFlags(model, MakeClangToolchain(), "debug", "/tmp/obj");
+        var includePath = PathUtils.MakeAbsoluteDirectory(model.ProjectDir, "include/");
+
+        CollectionAssert.Contains(flags.ToArray(), $"-I\"{includePath}\"");
+        Assert.IsFalse(flags.Any(flag => flag.EndsWith("\\\"", StringComparison.Ordinal)),
+            "A quoted include path must not end with a backslash immediately before its closing quote.");
+    }
+
+    [TestMethod]
     public void ClangDriver_ForceCxx_CppFile_NoXCxxFlag()
     {
         var model    = MakeModel(forceCxx: true);
@@ -165,5 +179,26 @@ public sealed class CompilerDriverTests
         var job   = MsvcDriver.MakeCompileJob("/tmp/project/src/foo.cpp", "/tmp/obj", flags, cAsCpp: true);
         Assert.IsFalse(job.Args.Any(a => a.StartsWith("/Tp")),
             "Expected no '/Tp' for .cpp file");
+    }
+
+    [TestMethod]
+    public void MsvcDriver_IncludePaths_TrimTrailingDirectorySeparator()
+    {
+        var model = MakeModel();
+        model.Headers.Add(new HeaderItem(isPublic: true, path: "include/"));
+        var toolchain = new ToolchainInfo
+        {
+            Kind         = CompilerKind.Msvc,
+            CompilerPath = "cl.exe",
+            LinkerPath   = "link.exe",
+            TargetTriple = "x86_64-pc-windows-msvc",
+        };
+
+        var flags = MsvcDriver.CompileFlags(model, toolchain, "debug", "/tmp/obj");
+        var includePath = PathUtils.MakeAbsoluteDirectory(model.ProjectDir, "include/");
+
+        CollectionAssert.Contains(flags.ToArray(), $"/I\"{includePath}\"");
+        Assert.IsFalse(flags.Any(flag => flag.EndsWith("\\\"", StringComparison.Ordinal)),
+            "A quoted include path must not end with a backslash immediately before its closing quote.");
     }
 }

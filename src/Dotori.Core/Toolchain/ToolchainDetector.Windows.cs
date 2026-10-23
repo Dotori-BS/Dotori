@@ -162,6 +162,7 @@ public static partial class ToolchainDetector
     private static MsvcPaths TryGetMsvcPaths(string vcToolsDir, string arch)
     {
         var (winSdkDir, winSdkVer) = FindWindowsKits();
+        var libExe = Path.Combine(vcToolsDir, "bin", $"Host{HostArch}", arch, "lib.exe");
         return winSdkDir is not null
             ? new MsvcPaths
             {
@@ -169,6 +170,7 @@ public static partial class ToolchainDetector
                 WinSdkDir    = winSdkDir,
                 WinSdkVer    = winSdkVer!,
                 Architecture = arch,
+                LibExePath   = libExe,
                 RcPath       = FindSdkTool(winSdkDir, winSdkVer!, "rc.exe"),
                 MtPath       = FindSdkTool(winSdkDir, winSdkVer!, "mt.exe"),
             }
@@ -178,6 +180,7 @@ public static partial class ToolchainDetector
                 WinSdkDir    = string.Empty,
                 WinSdkVer    = string.Empty,
                 Architecture = arch,
+                LibExePath   = libExe,
             };
     }
 

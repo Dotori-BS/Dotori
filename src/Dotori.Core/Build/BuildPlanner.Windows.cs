@@ -38,7 +38,7 @@ public sealed partial class BuildPlanner
 
             // Pass project include paths so .rc files can use #include
             foreach (var h in _model.Headers)
-                args.Add($"/I\"{PathUtils.MakeAbsolute(_model.ProjectDir, h.Path)}\"");
+                args.Add($"/I\"{PathUtils.MakeAbsoluteDirectory(_model.ProjectDir, h.Path)}\"");
 
             // Pass defines (rc.exe supports /D like cl.exe)
             foreach (var d in _model.Defines)
