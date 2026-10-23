@@ -165,4 +165,88 @@ public class CompletionProviderTests
         var labels = list.Items.Select(i => i.Label).ToList();
         CollectionAssert.Contains(labels, "option");
     }
+
+    [TestMethod]
+    public void GetCompletions_AfterBooleanProperties_SuggestsOnlyBooleanValues()
+    {
+        var contexts = new[]
+        {
+            "project Demo { lto = ",
+            "project Demo { warnings-as-errors = ",
+            "project Demo { c-as-cpp = ",
+            "project Demo { option feature { default = ",
+            "project Demo { modules { export-map = ",
+            "project Demo { pch { modules = ",
+            "project Demo { unity-build { enabled = ",
+        };
+
+        foreach (var text in contexts)
+        {
+            var list = CompletionProvider.GetCompletions(text, 0, text.Length);
+            CollectionAssert.AreEqual(
+                new[] { "true", "false" },
+                list.Items.Select(item => item.Label).ToArray(),
+                $"Expected only boolean values for: {text}");
+        }
+    }
+
+    [TestMethod]
+    public void GetCompletions_BooleanPropertyOutsideItsValidBlock_DoesNotSuggestBooleans()
+    {
+        const string text = "project Demo { modules = ";
+
+        var list = CompletionProvider.GetCompletions(text, 0, text.Length);
+
+        Assert.AreEqual(0, list.Items.Count);
+    }
+
+    [TestMethod]
+    public void GetCompletions_InsideNestedBlocks_SuggestsBlockSpecificKeywords()
+    {
+        const string text = "project Demo { sources { ";
+
+        var list = CompletionProvider.GetCompletions(text, 0, text.Length);
+        var labels = list.Items.Select(item => item.Label).ToArray();
+
+        CollectionAssert.AreEqual(new[] { "include", "exclude" }, labels);
+    }
+
+    [TestMethod]
+    public void GetCompletions_AfterEnumProperty_SuggestsOnlyThatPropertyValues()
+    {
+        const string text = "project Demo { type = ";
+
+        var list = CompletionProvider.GetCompletions(text, 0, text.Length);
+
+        CollectionAssert.AreEqual(
+            new[] { "executable", "test", "static-library", "shared-library", "header-only" },
+            list.Items.Select(item => item.Label).ToArray());
+    }
+
+    [TestMethod]
+    public void GetCompletions_AfterUnconstrainedValue_DoesNotSuggestBlockKeywords()
+    {
+        const string text = "project Demo { description = ";
+
+        var list = CompletionProvider.GetCompletions(text, 0, text.Length);
+
+        Assert.AreEqual(0, list.Items.Count);
+    }
+
+    [TestMethod]
+    public void GetCompletions_OnNextLine_DoesNotReusePreviousAssignmentContext()
+    {
+        const string text = """
+            project Demo {
+                type = executable
+
+            }
+            """;
+
+        var list = CompletionProvider.GetCompletions(text, 2, 0);
+        var labels = list.Items.Select(item => item.Label).ToArray();
+
+        CollectionAssert.Contains(labels, "lto");
+        CollectionAssert.DoesNotContain(labels, "executable");
+    }
 }

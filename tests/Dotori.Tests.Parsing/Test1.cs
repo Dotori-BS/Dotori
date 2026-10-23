@@ -422,4 +422,18 @@ public sealed class ParserTests
         var prop = file.Project!.Items.OfType<ForceCxxProp>().Single();
         Assert.IsFalse(prop.Value);
     }
+
+    [TestMethod]
+    public void Parser_ObjectiveCBooleanProperties_AreParsed()
+    {
+        var file = DotoriParser.ParseSource("""
+            project MyApp {
+                objc-arc = true
+                objc-as-objcpp = false
+            }
+            """, "<test>");
+
+        Assert.IsTrue(file.Project!.Items.OfType<ObjcArcProp>().Single().Value);
+        Assert.IsFalse(file.Project.Items.OfType<ForceObjcppProp>().Single().Value);
+    }
 }
