@@ -5,6 +5,9 @@ and starts `dotori lsp` through the
 IntelliJ Platform LSP API. It targets the 2026.2 platform and is intended for
 CLion and Rider. Completion, diagnostics, hover, navigation and formatting
 are provided by Dotori's shared language server.
+Reformat on save is enabled by default for `.dotori` files and uses the LSP
+formatter; change it under **Settings | Tools | Actions on Save | Reformat
+code**.
 
 Configure the executable under **Settings | Languages & Frameworks | Dotori**.
 The default is `dotori` from the console environment's PATH. For an explicit

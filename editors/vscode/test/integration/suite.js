@@ -86,6 +86,26 @@ exports.run = async () => {
     await vscode.commands.executeCommand('undo');
     assert.equal(bad.getText(), before);
   });
+  const autoFormatUri = vscode.Uri.joinPath(workspace, 'auto-format.dotori');
+  fs.writeFileSync(autoFormatUri.fsPath, 'project AutoFormat { type = header-only }\n');
+  const autoFormatDoc = await vscode.workspace.openTextDocument(autoFormatUri);
+  await vscode.window.showTextDocument(autoFormatDoc);
+  const pendingEdit = new vscode.WorkspaceEdit();
+  pendingEdit.insert(autoFormatUri, autoFormatDoc.positionAt(autoFormatDoc.getText().length), ' ');
+  await vscode.workspace.applyEdit(pendingEdit);
+  await check('format on save uses the default Dotori LSP formatter', async () => {
+    assert.equal(vscode.workspace.getConfiguration('dotori', autoFormatUri).get('formatOnSave'), true);
+    await eventually(async () => {
+      const edits = await vscode.commands.executeCommand('vscode.executeFormatDocumentProvider', autoFormatUri, {
+        tabSize: 4, insertSpaces: true
+      });
+      return edits?.length > 0;
+    }, 'formatting provider');
+    await autoFormatDoc.save();
+    await eventually(() => fs.readFileSync(autoFormatUri.fsPath, 'utf8') ===
+      'project AutoFormat {\n    type = header-only\n}\n', 'formatted file saved');
+    assert.equal(autoFormatDoc.isDirty, false);
+  });
   await check('untitled Dotori buffers are formatted', async () => {
     const untitled = await vscode.workspace.openTextDocument({ language: 'dotori', content: 'project Untitled { type = header-only }' });
     await vscode.window.showTextDocument(untitled);

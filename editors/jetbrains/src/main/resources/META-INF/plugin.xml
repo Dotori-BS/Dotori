@@ -27,5 +27,7 @@
                 implementationClass="dev.dotori.jetbrains.DotoriSyntaxHighlighterFactory"/>
         <platform.lsp.integrationProvider
                 implementation="dev.dotori.jetbrains.DotoriLspIntegrationProvider"/>
+        <formatOnSaveOptions.defaultsProvider
+                implementation="dev.dotori.jetbrains.DotoriFormatOnSaveDefaultsProvider"/>
     </extensions>
 </idea-plugin>

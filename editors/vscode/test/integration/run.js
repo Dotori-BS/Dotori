@@ -12,7 +12,7 @@ async function main() {
   const extensions = path.join(root, 'extensions');
   const userData = path.join(root, 'user-data');
   const driver = path.join(root, 'driver');
-  const cli = path.join(repo, 'src/Dotori.Cli/bin/Release/net10.0/dotori.dll');
+  const cli = process.env.DOTORI_CLI || path.join(repo, 'src/Dotori.Cli/bin/Release/net10.0/dotori.dll');
   if (!fs.existsSync(cli)) throw new Error('Build the Release CLI before running integration tests.');
   for (const dir of [workspace, extensions, path.join(userData, 'User'), driver, path.join(workspace, 'lib')])
     fs.mkdirSync(dir, { recursive: true });
@@ -30,7 +30,7 @@ async function main() {
     'dotori.languageServer.logFile': path.join(root, 'lsp.log'),
     'telemetry.telemetryLevel': 'off', 'extensions.autoUpdate': false,
     'workbench.startupEditor': 'none', 'security.workspace.trust.enabled': false,
-    'files.eol': '\n', 'editor.formatOnSave': false,
+    'files.eol': '\n',
     'task.showCommandCenter': false
   }, null, 2));
   fs.writeFileSync(path.join(driver, 'package.json'), JSON.stringify({

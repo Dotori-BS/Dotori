@@ -28,4 +28,10 @@ public class DotoriLspCustomizationTest {
         LightVirtualFile file = new LightVirtualFile("readme.txt", PlainTextFileType.INSTANCE, "");
         assertFalse(formatting.shouldFormatThisFileExclusivelyByServer(file, false, false));
     }
+
+    @Test public void enablesOnlyDotoriFilesForFormatOnSaveByDefault() {
+        var fileTypes = new DotoriFormatOnSaveDefaultsProvider().getFileTypesFormattedOnSaveByDefault();
+        assertEquals(1, fileTypes.size());
+        assertSame(DotoriFileType.INSTANCE, fileTypes.iterator().next());
+    }
 }

@@ -80,11 +80,35 @@ function restartLanguageServer() {
   return lifecycle;
 }
 
+function formatDocumentOnSave(event) {
+  const document = event.document;
+  if (document.languageId !== 'dotori' || !configuration().get('formatOnSave', true)) return;
+
+  // Let VS Code's native format-on-save handle the document when enabled.
+  const editorConfiguration = vscode.workspace.getConfiguration('editor', document.uri);
+  if (editorConfiguration.get('formatOnSave', false)) return;
+
+  event.waitUntil((async () => {
+    await lifecycle;
+    const options = {
+      tabSize: editorConfiguration.get('tabSize', 4),
+      insertSpaces: editorConfiguration.get('insertSpaces', true)
+    };
+    return await vscode.commands.executeCommand(
+      'vscode.executeFormatDocumentProvider', document.uri, options
+    ) || [];
+  })().catch(error => {
+    reportError(error);
+    return [];
+  }));
+}
+
 async function activate(context) {
   shuttingDown = false;
   output = vscode.window.createOutputChannel('Dotori');
   watcher = vscode.workspace.createFileSystemWatcher('**/{.dotori,*.dotori}');
   context.subscriptions.push(output, watcher);
+  context.subscriptions.push(vscode.workspace.onWillSaveTextDocument(formatDocumentOnSave));
   function command(id, handler) {
     context.subscriptions.push(vscode.commands.registerCommand(id, async (...args) => {
       try { return await handler(...args); }

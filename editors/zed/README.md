@@ -5,6 +5,20 @@ the active worktree's `PATH`. It recognizes `.dotori` and `name.dotori` files
 and uses the shared language server for completion, diagnostics, hover,
 navigation and formatting.
 
+To format `.dotori` files on save, add this language-specific setting to Zed's
+`settings.json` (the extension cannot change user settings):
+
+```json
+{
+  "languages": {
+    "Dotori": {
+      "formatter": "language_server",
+      "format_on_save": "on"
+    }
+  }
+}
+```
+
 For local development, install this directory with **Zed: Install Dev
 Extension**. Run `dotori setup ide --ide zed` in a project to generate C++
 clangd and task configuration.

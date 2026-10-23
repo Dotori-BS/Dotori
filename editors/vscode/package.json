@@ -137,6 +137,12 @@
           "default": "",
           "scope": "window",
           "description": "Optional path for Dotori language server logs."
+        },
+        "dotori.formatOnSave": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "description": "Format Dotori documents on save using the Dotori language server."
         }
       }
     }

@@ -5,9 +5,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const manifest = require('../package.json');
 
 const plain = value => JSON.parse(JSON.stringify(value));
 const tick = () => new Promise(resolve => setImmediate(resolve));
+
+test('enables Dotori format on save by default', () => {
+  assert.equal(manifest.contributes.configuration.properties['dotori.formatOnSave'].default, true);
+});
 
 function harness() {
   const state = {
@@ -19,11 +24,14 @@ function harness() {
   const vscode = {
     workspace: {
       get workspaceFolders() { return state.folders; },
-      getConfiguration: () => ({ get: (name, fallback) => state.config[name] ?? fallback }),
+      getConfiguration: section => ({
+        get: (name, fallback) => state.config[`${section}.${name}`] ?? state.config[name] ?? fallback
+      }),
       getWorkspaceFolder: uri => state.folders.find(folder => uri.folder === folder.name),
       saveAll: async untitled => { state.saves.push(untitled); return state.saveResult; },
       createFileSystemWatcher: glob => { state.watchers.push(glob); return disposable(); },
-      onDidChangeConfiguration: callback => { state.configChanged = callback; return disposable(); }
+      onDidChangeConfiguration: callback => { state.configChanged = callback; return disposable(); },
+      onWillSaveTextDocument: callback => { state.willSave = callback; return disposable(); }
     },
     window: {
       activeTextEditor: undefined,
@@ -156,6 +164,38 @@ test('format delegates unsaved and untitled documents to the editor LSP formatte
   h.vscode.window.activeTextEditor.document.languageId = 'cpp';
   await h.command('formatFile');
   assert.equal(h.state.executed.length, 1);
+});
+
+test('formats Dotori documents on save through the LSP by default', async t => {
+  const h = harness();
+  t.after(() => h.extension.deactivate());
+  await h.activate();
+  let formatting;
+  h.state.willSave({
+    document: { languageId: 'dotori', uri: { fsPath: '/project/.dotori' } },
+    waitUntil: promise => { formatting = promise; }
+  });
+  await formatting;
+  assert.deepEqual(h.state.executed, ['vscode.executeFormatDocumentProvider']);
+  h.state.willSave({
+    document: { languageId: 'cpp', uri: { fsPath: '/project/main.cpp' } },
+    waitUntil: () => assert.fail('non-Dotori documents are not formatted')
+  });
+});
+
+test('respects Dotori format-on-save opt-out and native VS Code formatting', async t => {
+  const h = harness();
+  t.after(() => h.extension.deactivate());
+  h.state.config['dotori.formatOnSave'] = false;
+  await h.activate();
+  const event = { document: { languageId: 'dotori', uri: { fsPath: '/project/.dotori' } }, waitUntil: () => assert.fail('disabled formatting must not run') };
+  h.state.willSave(event);
+  assert.deepEqual(h.state.executed, []);
+
+  h.state.config['dotori.formatOnSave'] = true;
+  h.state.config['editor.formatOnSave'] = true;
+  h.state.willSave(event);
+  assert.deepEqual(h.state.executed, []);
 });
 
 test('configuration changes replace the client with updated settings', async t => {

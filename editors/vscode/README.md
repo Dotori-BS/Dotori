@@ -18,6 +18,8 @@ Choose **Extensions: Install from VSIX...** in VS Code and select
 `dotori-0.1.0.vsix`. Open a project folder and a `.dotori` or `name.dotori`
 file. The extension provides syntax highlighting, completion, diagnostics,
 hover, definition/reference navigation and formatting through `dotori lsp`.
+`.dotori` files are formatted automatically on save by default. Set
+`dotori.formatOnSave` to `false` in VS Code settings to turn this off.
 
 ## Settings
 
