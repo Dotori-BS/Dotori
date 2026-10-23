@@ -1,4 +1,5 @@
 using Dotori.LanguageServer.Providers;
+using Dotori.LanguageServer.Protocol;
 
 namespace Dotori.Tests.LanguageServer;
 
@@ -248,5 +249,78 @@ public class CompletionProviderTests
 
         CollectionAssert.Contains(labels, "lto");
         CollectionAssert.DoesNotContain(labels, "executable");
+    }
+
+    [TestMethod]
+    public void GetCompletions_InPathString_SuggestsMatchingFilesAndDirectories()
+    {
+        var projectDirectory = Path.Combine(Path.GetTempPath(), $"dotori-completion-{Guid.NewGuid():N}");
+        var sourceDirectory = Path.Combine(projectDirectory, "src");
+        Directory.CreateDirectory(Path.Combine(sourceDirectory, "app"));
+        File.WriteAllText(Path.Combine(sourceDirectory, "main.cpp"), string.Empty);
+        File.WriteAllText(Path.Combine(sourceDirectory, "other.txt"), string.Empty);
+
+        try
+        {
+            var documentPath = Path.Combine(projectDirectory, "project.dotori");
+            const string text = "project Demo { sources { include \"src/";
+
+            var list = CompletionProvider.GetCompletions(text, 0, text.Length, documentPath);
+            var items = list.Items.ToDictionary(item => item.Label);
+
+            Assert.IsTrue(list.IsIncomplete);
+            Assert.IsTrue(items.ContainsKey("src/app/"));
+            Assert.AreEqual(19, items["src/app/"].Kind);
+            Assert.IsTrue(items.ContainsKey("src/main.cpp"));
+            Assert.AreEqual(17, items["src/main.cpp"].Kind);
+            Assert.IsTrue(items.ContainsKey("src/other.txt"));
+
+            var fileEdit = items["src/main.cpp"].TextEdit;
+            Assert.IsNotNull(fileEdit);
+            Assert.AreEqual(text.IndexOf('"') + 1, fileEdit.Range.Start.Character);
+            Assert.AreEqual(text.Length, fileEdit.Range.End.Character);
+            Assert.AreEqual("src/main.cpp", fileEdit.NewText);
+            var serialized = LspSerializer.Serialize(list);
+            StringAssert.Contains(serialized, "\"textEdit\"");
+            StringAssert.Contains(serialized, "\"newText\":\"src/main.cpp\"");
+
+            const string partialText = "project Demo { sources { include \"src/ma";
+            var filtered = CompletionProvider.GetCompletions(partialText, 0, partialText.Length, documentPath);
+            CollectionAssert.AreEqual(new[] { "src/main.cpp" }, filtered.Items.Select(item => item.Label).ToArray());
+
+            var pathContexts = new[]
+            {
+                "project Demo { manifest = \"src/ma",
+                "project Demo { pch { header = \"src/ma",
+                "project Demo { dependencies { lib = { path = \"src/ma",
+                "project Demo { copy { from \"src/ma",
+                "project Demo { resources { \"src/ma",
+                "project Demo { unity-build { exclude { \"src/ma",
+                "project Demo { output { binaries = \"src/ma",
+            };
+            foreach (var pathContext in pathContexts)
+            {
+                var contextItems = CompletionProvider.GetCompletions(
+                    pathContext, 0, pathContext.Length, documentPath).Items;
+                CollectionAssert.Contains(
+                    contextItems.Select(item => item.Label).ToArray(),
+                    "src/main.cpp",
+                    $"Expected path candidates for: {pathContext}");
+            }
+        }
+        finally
+        {
+            Directory.Delete(projectDirectory, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public void GetCompletions_InNonPathString_DoesNotSuggestFilesystemEntries()
+    {
+        const string text = "project Demo { description = \"src/";
+
+        var list = CompletionProvider.GetCompletions(text, 0, text.Length, Path.Combine(Path.GetTempPath(), "project.dotori"));
+
+        Assert.AreEqual(0, list.Items.Count);
     }
 }

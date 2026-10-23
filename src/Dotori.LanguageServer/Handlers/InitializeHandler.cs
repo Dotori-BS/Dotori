@@ -79,7 +79,7 @@ public static class InitializeHandler
                 DocumentFormattingProvider = true,
                 CompletionProvider = new CompletionOptions
                 {
-                    TriggerCharacters = ["=", "[", " "],
+                    TriggerCharacters = ["=", "[", " ", "\"", "/", "\\"],
                 },
             },
         };

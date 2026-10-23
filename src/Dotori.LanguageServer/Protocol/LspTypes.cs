@@ -176,6 +176,9 @@ public sealed class LspCompletionItem
 
     [JsonPropertyName("insertText")]
     public string? InsertText { get; set; }
+
+    [JsonPropertyName("textEdit")]
+    public LspTextEdit? TextEdit { get; set; }
 }
 
 public sealed class CompletionList

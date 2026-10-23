@@ -129,7 +129,7 @@ public static class DotoriLanguageServer
                             var doc = store.Get(p.TextDocument.Uri);
                             var text = doc?.Text ?? "";
                             var list = CompletionProvider.GetCompletions(
-                                text, p.Position.Line, p.Position.Character);
+                                text, p.Position.Line, p.Position.Character, doc?.LocalPath);
                             await SendResponseAsync(transport, request.Id, list, ct);
                         }
                         else

@@ -11,6 +11,8 @@ public static class CompletionProvider
 {
     private const int KindKeyword = 14;
     private const int KindValue = 12;
+    private const int KindFile = 17;
+    private const int KindFolder = 19;
 
     private static readonly string[] TopLevelKeywords = ["project", "package"];
 
@@ -38,6 +40,8 @@ public static class CompletionProvider
 
     private static readonly string[] BooleanValues = ["true", "false"];
     private static readonly string[] AssemblerTools = ["nasm", "yasm", "gas", "as", "masm", "auto"];
+    private const int MaximumPathCandidates = 100;
+    private const int MaximumScannedPathEntries = 1000;
 
     private static readonly Dictionary<string, string[]> ValueCompletions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -76,14 +80,26 @@ public static class CompletionProvider
         };
 
     /// <summary>Compute completion items at the given LSP position.</summary>
-    public static CompletionList GetCompletions(string text, int line, int character)
+    public static CompletionList GetCompletions(string text, int line, int character, string? documentPath = null)
     {
         var offset = GetOffset(text, line, character);
         var analysis = Analyze(text, offset);
 
+        if (analysis.IsInString)
+        {
+            var isPathContext = IsPathContext(text, offset, analysis);
+            return new CompletionList
+            {
+                IsIncomplete = isPathContext,
+                Items = isPathContext
+                    ? GetPathCompletions(text, offset, analysis, documentPath)
+                    : [],
+            };
+        }
+
         IReadOnlyList<string> labels;
         var kind = KindKeyword;
-        if (analysis.IsInString || analysis.IsInComment)
+        if (analysis.IsInComment)
         {
             labels = [];
         }
@@ -110,6 +126,127 @@ public static class CompletionProvider
             IsIncomplete = false,
             Items = MakeItems(labels, kind),
         };
+    }
+
+    private static bool IsPathContext(string text, int offset, Analysis analysis)
+    {
+        if (GetLine(text, analysis.StringStartOffset) != GetLine(text, offset))
+            return false;
+
+        var scope = analysis.Scopes.Count == 0 ? ScopeKind.TopLevel : analysis.Scopes.Peek();
+        if (scope is ScopeKind.Resources or ScopeKind.FrameworkPaths or ScopeKind.PathList)
+            return true;
+
+        var lineStart = text.LastIndexOf('\n', Math.Max(0, analysis.StringStartOffset - 1)) + 1;
+        var beforeString = text[lineStart..analysis.StringStartOffset].TrimEnd();
+        var match = Regex.Match(beforeString, @"(?<keyword>[A-Za-z_][A-Za-z0-9_-]*)\s*(?:=\s*)?$");
+        if (!match.Success)
+            return false;
+
+        var keyword = match.Groups["keyword"].Value.ToLowerInvariant();
+        var isPath = (scope, keyword) switch
+        {
+            (ScopeKind.Project or ScopeKind.Condition, "manifest") => true,
+            (ScopeKind.Sources or ScopeKind.Modules or ScopeKind.Assembler, "include" or "exclude") => true,
+            (ScopeKind.Headers, "public" or "private") => true,
+            (ScopeKind.Pch, "header" or "source") => true,
+            (ScopeKind.UnityBuild, "exclude") => true,
+            (ScopeKind.Output, "binaries" or "libraries" or "symbols") => true,
+            (ScopeKind.DependencyOptions, "path") => true,
+            (ScopeKind.Copy, "from" or "to") => true,
+            _ => false,
+        };
+
+        return isPath;
+    }
+
+    private static List<LspCompletionItem> GetPathCompletions(
+        string text,
+        int offset,
+        Analysis analysis,
+        string? documentPath)
+    {
+        if (string.IsNullOrWhiteSpace(documentPath) || analysis.StringStartOffset < 0)
+            return [];
+
+        var baseDirectory = Path.GetDirectoryName(documentPath);
+        if (string.IsNullOrEmpty(baseDirectory))
+            return [];
+
+        var partialPath = text[(analysis.StringStartOffset + 1)..offset].Replace('\\', '/');
+        var separatorIndex = partialPath.LastIndexOf('/');
+        var directoryPart = separatorIndex < 0 ? string.Empty : partialPath[..(separatorIndex + 1)];
+        var namePrefix = partialPath[(separatorIndex + 1)..];
+        var searchPath = directoryPart.Replace('/', Path.DirectorySeparatorChar);
+
+        try
+        {
+            var searchDirectory = Path.GetFullPath(Path.IsPathRooted(searchPath)
+                ? searchPath
+                : Path.Combine(baseDirectory, searchPath));
+            if (!Directory.Exists(searchDirectory))
+                return [];
+
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            var entries = new List<(string Name, bool IsDirectory)>();
+            foreach (var path in Directory.EnumerateFileSystemEntries(searchDirectory))
+            {
+                var name = Path.GetFileName(path);
+                if (!name.StartsWith(namePrefix, comparison))
+                    continue;
+
+                entries.Add((name, Directory.Exists(path)));
+                if (entries.Count == MaximumScannedPathEntries)
+                    break;
+            }
+
+            var start = new LspPosition { Line = GetLine(text, analysis.StringStartOffset), Character = GetCharacter(text, analysis.StringStartOffset) + 1 };
+            var end = GetPosition(text, offset);
+            var range = new LspRange { Start = start, End = end };
+
+            return entries
+                .OrderByDescending(entry => entry.IsDirectory)
+                .ThenBy(entry => entry.Name, OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+                .Take(MaximumPathCandidates)
+                .Select(entry =>
+                {
+                    var candidate = $"{directoryPart}{entry.Name}{(entry.IsDirectory ? "/" : string.Empty)}";
+                    return new LspCompletionItem
+                    {
+                        Label = candidate,
+                        Kind = entry.IsDirectory ? KindFolder : KindFile,
+                        Detail = entry.IsDirectory ? "Directory" : "File",
+                        InsertText = candidate,
+                        TextEdit = new LspTextEdit { Range = range, NewText = candidate },
+                    };
+                })
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or
+                                   NotSupportedException or System.Security.SecurityException)
+        {
+            return [];
+        }
+    }
+
+    private static LspPosition GetPosition(string text, int offset) =>
+        new() { Line = GetLine(text, offset), Character = GetCharacter(text, offset) };
+
+    private static int GetLine(string text, int offset)
+    {
+        var line = 0;
+        for (var i = 0; i < offset; i++)
+        {
+            if (text[i] == '\n')
+                line++;
+        }
+        return line;
+    }
+
+    private static int GetCharacter(string text, int offset)
+    {
+        var lineStart = offset == 0 ? 0 : text.LastIndexOf('\n', offset - 1) + 1;
+        return offset - lineStart;
     }
 
     private static bool TryGetValueCompletions(ScopeKind scope, string property, out string[] values)
@@ -181,6 +318,7 @@ public static class CompletionProvider
         var conditionDepth = 0;
         var blockCommentDepth = 0;
         var inString = false;
+        var stringStartOffset = -1;
         var escaped = false;
         var inLineComment = false;
         var lastEqualsOffset = -1;
@@ -220,7 +358,10 @@ public static class CompletionProvider
                 else if (current == '\\')
                     escaped = true;
                 else if (current == '"')
+                {
                     inString = false;
+                    stringStartOffset = -1;
+                }
                 continue;
             }
 
@@ -244,6 +385,7 @@ public static class CompletionProvider
             if (current == '"')
             {
                 inString = true;
+                stringStartOffset = i;
                 continue;
             }
 
@@ -275,7 +417,7 @@ public static class CompletionProvider
         }
 
         return new Analysis(scopes, conditionDepth, inString, inLineComment || blockCommentDepth > 0,
-            lastEqualsOffset, lastBraceOffset);
+            lastEqualsOffset, lastBraceOffset, stringStartOffset);
     }
 
     private static ScopeKind DetermineScope(
@@ -301,6 +443,8 @@ public static class CompletionProvider
             return ScopeKind.DependencyOptions;
         if (header.EndsWith('='))
             return ScopeKind.Freeform;
+        if (header.Equals("exclude", StringComparison.OrdinalIgnoreCase) && parent == ScopeKind.UnityBuild)
+            return ScopeKind.PathList;
 
         return header.ToLowerInvariant() switch
         {
@@ -314,8 +458,10 @@ public static class CompletionProvider
             "assembler" => ScopeKind.Assembler,
             "dependencies" => ScopeKind.Dependencies,
             "copy" => ScopeKind.Copy,
-            "defines" or "links" or "frameworks" or "framework-paths" or "compile-flags" or
-                "link-flags" or "resources" or "emscripten-flags" or "pre-build" or "post-build" or
+            "framework-paths" => ScopeKind.FrameworkPaths,
+            "resources" => ScopeKind.Resources,
+            "defines" or "links" or "frameworks" or "compile-flags" or
+                "link-flags" or "emscripten-flags" or "pre-build" or "post-build" or
                 "authors" or "exports" => ScopeKind.Freeform,
             _ => ScopeKind.Unknown,
         };
@@ -330,7 +476,8 @@ public static class CompletionProvider
         bool IsInString,
         bool IsInComment,
         int LastEqualsOffset,
-        int LastBraceOffset);
+        int LastBraceOffset,
+        int StringStartOffset);
 
     private enum ScopeKind
     {
@@ -350,6 +497,9 @@ public static class CompletionProvider
         Dependencies,
         DependencyOptions,
         Copy,
+        PathList,
+        Resources,
+        FrameworkPaths,
         Freeform,
         Unknown,
     }
