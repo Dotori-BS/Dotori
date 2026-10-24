@@ -43,6 +43,7 @@ jobs:
       - name: Fix protoc for Linux ARM64
         if: matrix.rid == 'linux-arm64'
         run: |
+          sudo apt-get update
           sudo apt-get install -y protobuf-compiler
           BUNDLED_PROTOC=$(find ~/.nuget/packages/grpc.tools -name "protoc" -path "*/linux_arm64/*" 2>/dev/null | head -1)
           if [ -n "$BUNDLED_PROTOC" ]; then
@@ -112,7 +113,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y clang gcc g++ lld ninja-build
 
       - name: Restore and build Dotori CLI
-        run: dotnet build src/Dotori.Cli/Dotori.Cli.csproj -c Release
+        run: dotnet build src/Dotori.Cli/Dotori.Cli.csproj -c Release -p:Platform=AnyCPU
 
       - name: Setup Python for CLI preparation smoke
         uses: actions/setup-python@v5
