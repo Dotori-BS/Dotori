@@ -2,9 +2,11 @@
 
 import argparse
 import json
+import os
 import subprocess
 import tempfile
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 
 def frame(message):
@@ -26,6 +28,15 @@ def read_messages(output):
         except (ValueError, UnicodeError) as error:
             raise AssertionError(f"Invalid JSON-RPC response: {body[:400]!r}") from error
     return messages
+
+
+def local_file_uri_path(uri):
+    parsed = urlsplit(uri)
+    assert parsed.scheme.lower() == "file" and not parsed.netloc, uri
+    path = unquote(parsed.path)
+    if os.name == "nt" and len(path) >= 3 and path[0] == "/" and path[2] == ":":
+        path = path[1:]
+    return os.path.normcase(os.path.normpath(path))
 
 
 def main():
@@ -123,7 +134,11 @@ def main():
         labels = {item["label"] for item in responses[2]["result"]["items"]}
         assert "executable" in labels and "static-library" in labels
         assert "type" in responses[escaped_id]["result"]["contents"]["value"]
-        assert responses[4]["result"]["uri"] == (dependency / ".dotori").as_uri()
+        actual_definition = responses[4]["result"]["uri"]
+        expected_definition = (dependency / ".dotori").as_uri()
+        assert local_file_uri_path(actual_definition) == local_file_uri_path(expected_definition), (
+            actual_definition, expected_definition
+        )
         assert len(responses[5]["result"]) == 2
         assert responses[6]["result"]["start"]["line"] == 2
         edits = responses[7]["result"]["changes"][uri]
