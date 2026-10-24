@@ -36,7 +36,7 @@ def local_file_uri_path(uri):
     path = unquote(parsed.path)
     if os.name == "nt" and len(path) >= 3 and path[0] == "/" and path[2] == ":":
         path = path[1:]
-    return os.path.normcase(os.path.normpath(path))
+    return Path(path)
 
 
 def main():
@@ -136,7 +136,8 @@ def main():
         assert "type" in responses[escaped_id]["result"]["contents"]["value"]
         actual_definition = responses[4]["result"]["uri"]
         expected_definition = (dependency / ".dotori").as_uri()
-        assert local_file_uri_path(actual_definition) == local_file_uri_path(expected_definition), (
+        assert os.path.samefile(local_file_uri_path(actual_definition),
+                                local_file_uri_path(expected_definition)), (
             actual_definition, expected_definition
         )
         assert len(responses[5]["result"]) == 2
